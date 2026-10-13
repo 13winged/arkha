@@ -1062,6 +1062,27 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 
 type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings";
 
+/**
+ * Цвет смысла раздела.
+ *
+ * Золото — действие, которое запускает работу: модель, загрузка,
+ * знакомство. Фиолетовый — сам секретарь, то, что думает и
+ * действует само. Синий — передача данных: чат и профиль.
+ *
+ * Цвет здесь код, а не украшение. Подпись читается медленно и
+ * требует фокуса внимания, а точка под вкладкой видна боковым
+ * зрением, и человек узнаёт раздел раньше, чем прочитает его.
+ */
+const ТОН: Record<Tab, "gold" | "purple" | "blue"> = {
+  model: "gold",
+  agent: "purple",
+  chat: "blue",
+  download: "gold",
+  capabilities: "blue",
+  welcome: "gold",
+  settings: "blue",
+};
+
 /** Состояние голоса, как его отдаёт `voice_status`. */
 interface VoiceState {
   on: boolean;
@@ -1215,10 +1236,15 @@ function App() {
     return (
       <main className="app">
         <header className="app-header">
-          <h1>Arsha</h1>
-          <span className="app-subtitle">локальный секретарь</span>
+          <div className="brand">
+            <span className="brand-mark">ARSHA</span>
+            <span className="app-subtitle">локальный секретарь</span>
+          </div>
         </header>
-        <section className="app-body"><p className="app-hint">Загружаемся…</p></section>
+        <div className="res-strip">
+          <span className="res"><span className="res-label">статус</span><span className="res-val">загрузка…</span></span>
+        </div>
+        <section className="app-body"><p className="app-hint">Поднимаем интерфейс…</p></section>
       </main>
     );
   }
@@ -1226,18 +1252,21 @@ function App() {
   return (
     <main className="app">
       <header className="app-header">
-        <h1>Arsha</h1>
-        <span className="app-subtitle">локальный секретарь</span>
+        <div className="brand">
+          <span className="brand-mark">ARSHA</span>
+          <span className="app-subtitle">локальный секретарь</span>
+        </div>
         <nav className="tabs">
           {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings"] as Tab[]).map((t) => (
             <button key={t} type="button"
+              data-tone={ТОН[t]}
               className={tab === t ? "tab active" : "tab"}
               onClick={() => setTab(t)}>
               {{
                 model: "модель",
                 agent: "секретарь",
                 chat: "чат",
-                download: "модель скачать",
+                download: "загрузка",
                 capabilities: "возможности",
                 welcome: "знакомство",
                 settings: "профиль",
@@ -1247,22 +1276,43 @@ function App() {
         </nav>
       </header>
 
+      <div className="res-strip">
+        <span className="res">
+          <span className="res-label">профиль</span>
+          <span className="res-val gold">{profile ? profile.effective : "…"}</span>
+        </span>
+        <span className="res">
+          <span className="res-label">модель</span>
+          <span className={`res-val ${model.running ? "ok" : "muted"}`}>
+            {model.running ? (model.recipe ?? "запущена") : "не запущена"}
+          </span>
+        </span>
+        {model.running && model.tok_s !== null && model.tok_s !== undefined && (
+          <span className="res">
+            <span className="res-label">скорость</span>
+            <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
+          </span>
+        )}
+        <MemoryBar />
+        <VoiceToggle />
+      </div>
+
       <section className="app-body">
         {error && <p className="error">Не удалось определить профиль: {error}</p>}
         {tab === "model" && <ModelBar model={model} onChange={setModel} />}
         {tab === "agent" && <Agent />}
-      {tab === "chat" && <Chat model={model} />}
+        {tab === "chat" && <Chat model={model} />}
         {tab === "download" && <Downloader model={model} />}
-      {tab === "capabilities" && <Capabilities />}
-      {tab === "welcome" && <Welcome />}
+        {tab === "capabilities" && <Capabilities />}
+        {tab === "welcome" && <Welcome />}
         {tab === "settings" && profile && <Settings profile={profile} onChange={setProfile} />}
       </section>
 
       <footer className="app-footer">
-        <span>профиль: {profile ? profile.effective : "…"}</span>
-        <span>{model.running ? (model.recipe ?? "модель") : "модель не запущена"}</span>
-        <MemoryBar />
-        <VoiceToggle />
+        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">7</kbd> вкладки</span>
+        <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
+        <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
+        <span className="hint dim">всё считается на этой машине, облако выключено</span>
       </footer>
     </main>
   );

@@ -1,16 +1,55 @@
+/* Arsha — интерфейс.
+ *
+ * Язык взят с игрового экрана инвентаря: тонкие волосяные рамки,
+ * срезанные углы, тёмная основа, золото как главный акцент и
+ * фиолетовый с синим как дополнительные.
+ *
+ * Три решения, из-за которых это не просто тёмная тема.
+ *
+ * **Срезанные углы через clip-path, а не скругления.** Скругление
+ * говорит «мягко и по-домашнему», срез говорит «прибор». Срез
+ * делается `--срез`, и всё, что хочет им быть рамкой, берёт его
+ * оттуда: разные числа выглядят одинаково хорошо.
+ *
+ * **Золото только для активного и только на рамках.** Золото —
+ * дорогой цвет, и если залить им фон, он перестаёт быть акцентом.
+ * Акцент, которого нет на экране, виден за секунду; акцент,
+ * которого везде, не виден вообще.
+ *
+ * **Цифры табличными.** В полосах памяти и скорости числа меняются
+ * раз в две секунды, и обычный шрифт заставляет всю строку
+ * подпрыгивать по ширине. Моноширинные цифры держат позицию.
+ */
+
 :root {
-  --bg: #0f1115;
-  --panel: #171a21;
-  --border: #262b35;
-  --text: #e6e9ef;
-  --muted: #9aa3b2;
-  --accent: #6ea8fe;
-  color-scheme: dark;
+  /* Основа. Не чёрная: чистый чёрный на OLED даёт banding, а на
+     обычном экране — грязь в градиентах. */
+  --bg: #08090c;
+  --bg-2: #0b0d12;
+
+  /* Рамки. Волосяные и полупрозрачные: панель должна читаться
+     как граница, а не как заливка. */
+  --line: rgba(190, 200, 215, 0.14);
+  --line-2: rgba(190, 200, 215, 0.28);
+  --panel: rgba(255, 255, 255, 0.026);
+  --panel-2: rgba(255, 255, 255, 0.045);
+
+  --text: #c9cfd8;
+  --muted: #838c99;
+
+  --gold: #c9a227;
+  --gold-lit: #e8c25c;
+  --purple: #8b5cf6;
+  --blue: #3b9eff;
+  --red: #c05a4a;
+
+  --срез: 10px;
+  --радиус: 2px;
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ---------------------------------------------------------------
+   Каркас
+   --------------------------------------------------------------- */
 
 html,
 body,
@@ -22,874 +61,850 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, "Segoe UI", sans-serif;
-  font-size: 15px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  /* Сетка фоном. Две тонкие линии под 45 градусов дают ощущение
+     прибора без картинки и без единого байта ассетов. */
+  background-image:
+    linear-gradient(rgba(140, 160, 190, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 160, 190, 0.022) 1px, transparent 1px);
+  background-size: 34px 34px, 34px 34px;
 }
 
 .app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
 }
+
+/* ---------------------------------------------------------------
+   Шапка и вкладки
+   --------------------------------------------------------------- */
 
 .app-header {
   display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+}
+
+.brand {
+  display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.app-header h1 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+/* Марка. Разрядка и золото — читается как имя прибора, а не как
+   заголовок страницы. */
+.brand-mark {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--gold-lit);
+  text-shadow: 0 0 18px rgba(201, 162, 39, 0.35);
 }
 
+/* Подпись убирается раньше, чем марка. На узком окне лучше
+   «ARSHA», чем «ARSHA локальный секретарь» двумя строками. */
 .app-subtitle {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
 }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  appearance: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  color: var(--muted);
+  padding: 9px 10px 8px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Верхние углы срезаны, нижние прямые: вкладка «входит» в строку
+     состояний, как на референсе. */
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% 100%, 0 100%, 0 var(--срез));
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.tab.active {
+  color: var(--gold-lit);
+  border-color: rgba(201, 162, 39, 0.5);
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.14), rgba(201, 162, 39, 0.02));
+}
+
+/* Угол-шеврон на активной вкладке. Единственная деталь, которую
+   стоит украсить: она показывает, где «ты сейчас», даже если
+   вкладки прокручены и глаз потерял строку. */
+.tab.active::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--gold);
+}
+
+/* Точка смысла под каждой вкладкой: чем занимается раздел.
+   Цвет здесь не украшение, а код — тот же, что и у заливок ниже.
+   Золото означает «действие», фиолетовый «секретарь», синий
+   «передача данных». Человек запоминает это один раз и дальше
+   узнаёт раздел по цвету, не читая подпись. */
+.tab::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.32;
+}
+
+.tab.active::after {
+  opacity: 1;
+}
+
+.tab[data-tone="gold"]::after {
+  color: var(--gold);
+}
+.tab[data-tone="purple"]::after {
+  color: var(--purple);
+}
+.tab[data-tone="blue"]::after {
+  color: var(--blue);
+}
+
+.tab.active[data-tone="purple"] {
+  color: #d7c4ff;
+  border-color: rgba(139, 92, 246, 0.55);
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.02));
+}
+
+.tab.active[data-tone="purple"]::before {
+  border-left-color: var(--purple);
+}
+
+.tab.active[data-tone="blue"] {
+  color: #9fd0ff;
+  border-color: rgba(59, 158, 255, 0.55);
+  background: linear-gradient(180deg, rgba(59, 158, 255, 0.16), rgba(59, 158, 255, 0.02));
+}
+
+.tab.active[data-tone="blue"]::before {
+  border-left-color: var(--blue);
+}
+
+/* ---------------------------------------------------------------
+   Полоса ресурсов
+   --------------------------------------------------------------- */
+
+.res-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 9px 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.016);
+}
+
+.res {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 16px;
+  border-left: 1px solid var(--line);
+}
+
+.res:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.res-label {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.res-val {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.res-val.gold {
+  color: var(--gold-lit);
+}
+
+.res-val.ok {
+  color: #79c98a;
+}
+
+.res-val.muted {
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   Полосы памяти
+   --------------------------------------------------------------- */
+
+.mem {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  align-items: center;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.mem-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mem-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Полоса без скруглений: тот же язык срезов по всей панели. */
+.bar {
+  display: inline-block;
+  width: 86px;
+  height: 6px;
+  border: 1px solid var(--line-2);
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-lit));
+}
+
+/* Видеопамять — синим. Это другой ресурс, и глаз должен отличать
+   их не только подписью: подписи читаются медленно, цвет — нет. */
+.mem-item:last-child .fill {
+  background: linear-gradient(90deg, #2a6fd0, var(--blue));
+}
+
+.mem-num {
+  min-width: 32px;
+  text-align: right;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------
+   Голос
+   --------------------------------------------------------------- */
+
+.voice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.voice-mb {
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-error {
+  font-size: 10px;
+  color: var(--red);
+  cursor: help;
+}
+
+/* ---------------------------------------------------------------
+   Тело
+   --------------------------------------------------------------- */
 
 .app-body {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
+  min-height: 0;
   overflow-y: auto;
+  padding: 18px;
 }
 
 .app-hint {
-  margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.app-input-row {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-}
-
-.app-input {
-  flex: 1;
-  padding: 10px 12px;
+.panel {
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
+  border: 1px solid var(--line);
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+  padding: 16px;
+  margin-bottom: 14px;
 }
 
-.app-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.app-send {
-  padding: 10px 16px;
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  color: #0f1115;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.app-send:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
+/* ---------------------------------------------------------------
+   Нижняя строка
+   --------------------------------------------------------------- */
 
 .app-footer {
   display: flex;
-  gap: 16px;
-  padding: 10px 18px;
-  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 8px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.hint.dim {
+  margin-left: auto;
+  opacity: 0.55;
+}
+
+/* Клавиша. Квадратная, с волосяной рамкой — читается как физическая
+   клавиша, а не как буква в рамке. */
+.cap {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 5px;
+  text-align: center;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+
+/* ---------------------------------------------------------------
+   Кнопки
+   --------------------------------------------------------------- */
+
+button {
+  font-family: inherit;
+}
+
+.app-send,
+.stop,
+.chip,
+button[type="button"]:not(.tab):not(.cap) {
+  appearance: none;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  color: var(--text);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(190, 200, 215, 0.42);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Главное действие на экране. Золото здесь уместно: оно ровно одно. */
+.app-send {
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.26), rgba(201, 162, 39, 0.06));
+  border-color: rgba(201, 162, 39, 0.6);
+  color: var(--gold-lit);
+}
+
+.app-send:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.38), rgba(201, 162, 39, 0.1));
+  border-color: var(--gold);
+}
+
+/* Включённый голос — фиолетовый. Фиолетовый здесь «включено», а
+   золотой «главное действие», и путать их нельзя. */
+.chip.on {
+  border-color: var(--purple);
+  color: #d7c4ff;
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.28), rgba(139, 92, 246, 0.06));
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.22) inset;
+}
+
+/* ---------------------------------------------------------------
+   Формы
+   --------------------------------------------------------------- */
+
+.app-input,
+.onb-input,
+input,
+textarea,
+select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--line-2);
+  color: var(--text);
+  padding: 9px 11px;
+  font: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-input:focus,
+.onb-input:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.28);
+}
+
+.composer {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+/* ---------------------------------------------------------------
+   Текст
+   --------------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+h1 {
+  font-size: 13px;
+}
+h2 {
   font-size: 12px;
 }
-
-/* --- S1: экран профиля --- */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+h3 {
+  font-size: 11px;
 }
 
-.panel h2 {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+.summary,
+.cap-what,
+.pick-what,
+.agent-basis {
+  font-size: 12px;
+  color: var(--text);
 }
 
-.panel h2:first-child {
-  margin-top: 0;
-}
-
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 6px 20px;
-  margin: 0;
-}
-
-.facts div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.facts dt {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.facts dd {
-  margin: 0;
-  font-size: 13px;
-  text-align: right;
-}
-
-.summary {
-  margin: 0;
-  font-size: 15px;
+.small {
+  font-size: 11px;
 }
 
 .muted {
   color: var(--muted);
 }
 
-.error {
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px solid #5a2b2b;
-  border-radius: 6px;
-  background: #2a1616;
-  color: #ffb4b4;
-  font-size: 13px;
+.how {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
-/* Реестр возможностей.
-   Доступная и недоступная отличаются не только цветом: у
-   недоступной видна причина, иначе список врёт. */
-.cap-row {
+.link {
+  color: var(--blue);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(59, 158, 255, 0.35);
+}
+
+.link:hover {
+  color: #7cc0ff;
+}
+
+.error,
+.cap-refusal {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.ok,
+.cap-ok {
+  color: #79c98a;
+  font-size: 12px;
+}
+
+.bad,
+.cap-blocked {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.notice {
+  color: var(--gold-lit);
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------
+   Панели возможностей
+   --------------------------------------------------------------- */
+
+.cap-block,
+.agent-log,
+.log,
+.pick-box {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  background: var(--panel);
   padding: 10px 12px;
   margin-bottom: 8px;
-}
-
-.cap-ok {
-  border-color: #2f4a35;
-  background: #16211a;
-}
-
-.cap-blocked {
-  background: #1a1a1c;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
 }
 
 .cap-head {
   display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.cap-row,
+.repo-row,
+.context-row {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.cap-tag {
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 10px;
-  white-space: nowrap;
-}
-
-.cap-tag-ok {
-  background: #2f4a35;
-  color: #a8d8b8;
-}
-
-.cap-tag-no {
-  background: #3a3328;
-  color: #d9c39a;
-}
-
-.cap-what {
-  font-size: 13px;
-  color: var(--text);
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
 }
 
 .cap-evidence,
-.cap-refusal {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.cap-evidence {
-  color: #8fb99c;
-}
-
-/* Отказ формулируется первым лицом агента: это то, что
-   пользователь услышит, а не служебная пометка. */
-.cap-refusal {
+.facts {
   color: var(--muted);
-  font-style: italic;
-}
-
-/* Знакомство. Лог разговора — обычный поток, без карточек:
-   это переписка, а не отчёт. */
-.onb-log {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
-  min-height: 120px;
-}
-
-.onb-bubble {
-  max-width: 80%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-
-.onb-agent {
-  align-self: flex-start;
-  background: #1e2226;
-  border: 1px solid var(--line);
-}
-
-.onb-user {
-  align-self: flex-end;
-  background: #22303a;
-  border: 1px solid #2f4453;
-}
-
-.onb-input {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.onb-input input {
-  flex: 1;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: #141618;
-  color: var(--text);
-  font-size: 13px;
-}
-
-.onb-preview {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-/* Выбор инструментов. Каждый пункт — кнопка целиком: галочка
-   справа мышью не попадёшь, а описание рядом с ней объясняет,
-   что именно разрешают. */
-.picker {
-  margin-top: 12px;
-}
-
-.pick {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 9px 12px;
-  margin-bottom: 6px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: #141618;
-  color: var(--text);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.pick:hover:not(:disabled) {
-  border-color: #3a4a55;
-}
-
-.pick:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.pick-on {
-  border-color: #2f4a35;
-  background: #16211a;
-}
-
-.pick-box {
-  flex: 0 0 16px;
-  height: 16px;
-  margin-top: 2px;
-  border-radius: 4px;
-  border: 1px solid #3c4750;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 11px;
-  color: #a8d8b8;
+  line-height: 1.6;
 }
 
-.pick-on .pick-box {
-  background: #2f4a35;
-  border-color: #3f6448;
+/* Теги: зелёный «можно», красный «нельзя», золотой «на заметку». */
+.cap-tag {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
 }
 
-.pick-body {
+.cap-tag-ok {
+  color: #79c98a;
+}
+
+.cap-tag-no {
+  color: var(--red);
+}
+
+/* ---------------------------------------------------------------
+   Агент
+   --------------------------------------------------------------- */
+
+.agent-modes,
+.agent-skills,
+.tiers,
+.hosts {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pick-name {
-  display: flex;
-  align-items: center;
   gap: 8px;
-}
-
-.pick-what {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.tiers {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .tier {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tier button {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex: 1;
-  padding: 8px 10px;
+  border: 1px solid var(--line-2);
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tier button:hover:not(:disabled) {
-  border-color: var(--accent);
-}
-
-.tier button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.tier button:disabled {
-  cursor: default;
-}
-
-.tier strong {
-  min-width: 22px;
   color: var(--muted);
-}
-
-.tier.active button {
-  border-color: var(--accent);
-  background: #16233a;
-}
-
-.tier.active strong {
-  color: var(--accent);
-}
-
-.tier em {
-  font-size: 12px;
-  font-style: normal;
-}
-
-.chosen {
-  color: var(--accent);
-}
-
-.link {
-  align-self: flex-start;
-  padding: 0;
-  background: none;
-  border: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 12px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.context-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  padding: 6px 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.chip.active {
-  border-color: var(--accent);
-  background: #16233a;
-  color: var(--accent);
-}
-
-/* --- S2: вкладки, модель, чат --- */
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.tab {
-  padding: 5px 12px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--text);
-}
-
-.tab.active {
-  border-color: var(--border);
-  background: var(--panel);
-  color: var(--text);
-}
-
-.ok {
-  color: #7ddc9a;
-}
-
-.bad {
-  color: #ffb4b4;
-}
-
-.log {
-  max-height: 220px;
-  margin: 0;
-  padding: 8px 10px;
-  overflow: auto;
-  background: #0b0d11;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  padding: 7px 12px;
   font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.chosen,
+.pick-on,
+.tier.chosen {
+  border-color: var(--gold);
+  color: var(--gold-lit);
+  background: rgba(201, 162, 39, 0.1);
+}
+
+.agent-line {
+  font-size: 12px;
+  padding: 4px 0;
+  border-left: 2px solid var(--line-2);
+  padding-left: 10px;
+  margin-bottom: 4px;
+}
+
+.agent-decide {
+  border-left-color: var(--gold);
+}
+.agent-deny {
+  border-left-color: var(--red);
+  color: var(--red);
+}
+.agent-broken {
+  border-left-color: var(--purple);
+  color: #c9b3ff;
+}
+.agent-compact {
+  border-left-color: var(--blue);
+  color: #9fd0ff;
+}
+.agent-wait {
+  color: var(--muted);
+}
+
+.agent-pending {
+  border: 1px solid rgba(201, 162, 39, 0.5);
+  background: rgba(201, 162, 39, 0.08);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+/* ---------------------------------------------------------------
+   Чат
+   --------------------------------------------------------------- */
+
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .chat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   height: 100%;
   min-height: 0;
 }
 
-.messages {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.msg {
+.onb-user,
+.onb-agent {
   max-width: 78%;
-  padding: 8px 11px;
-  border-radius: 10px;
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+  padding: 9px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  border: 1px solid var(--line);
 }
 
-.msg.user {
+.onb-user {
   align-self: flex-end;
-  background: #1d2b45;
-  border: 1px solid #2c3f63;
+  border-color: rgba(59, 158, 255, 0.45);
+  background: rgba(59, 158, 255, 0.09);
+  clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 9px);
 }
 
-.msg.assistant {
+.onb-agent {
   align-self: flex-start;
   background: var(--panel);
-  border: 1px solid var(--border);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
 }
 
-.stop {
-  align-self: center;
-  padding: 5px 14px;
-  background: #2a1616;
-  border: 1px solid #5a2b2b;
-  border-radius: 999px;
-  color: #ffb4b4;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.stop:hover {
-  background: #3a1c1c;
-}
-
-.notice {
-  margin: 0;
-  font-size: 12px;
-  text-align: center;
-}
-
-.composer {
+.onb-bubble {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* --- S2: загрузчик модели --- */
-
-.repo-row {
-  display: flex;
-  gap: 8px;
-}
+/* ---------------------------------------------------------------
+   Файлы, загрузка, прогресс
+   --------------------------------------------------------------- */
 
 .files {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  max-height: 260px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
+  gap: 6px;
 }
 
-.file {
+.file,
+.file-name {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: 100%;
-  padding: 6px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font: inherit;
   font-size: 12px;
-  text-align: left;
   cursor: pointer;
 }
 
-.file.active {
-  border-color: var(--accent);
-  background: #16233a;
+.file:hover {
+  border-color: var(--line-2);
 }
 
-.file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.picker {
+  border: 1px solid var(--line);
+  padding: 10px;
 }
 
-.progress {
+.pick {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin-bottom: 6px;
+  cursor: pointer;
 }
 
+.pick-on {
+  border-color: var(--gold);
+}
+
+.pick-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pick-name {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.progress,
 .progress-bar {
-  width: 100%;
-  height: 6px;
+  height: 8px;
+  border: 1px solid var(--line-2);
+  background: rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  background: #0b0d11;
-  border-radius: 3px;
+  margin: 10px 0;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--accent);
-  transition: width 0.25s linear;
-}
-
-.hosts {
-  font-size: 12px;
-}
-
-.hosts summary {
-  cursor: pointer;
-}
-
-.hosts ul {
-  max-height: 160px;
-  margin: 6px 0 0;
-  overflow-y: auto;
-  font-family: ui-monospace, "Cascadia Mono", monospace;
-  font-size: 11px;
+  background: linear-gradient(90deg, #2a6fd0, var(--blue));
+  transition: width 200ms;
 }
 
 .problems {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-  padding-left: 18px;
-}
-
-.problems li {
-  font-size: 13px;
-}
-
-.problems p {
-  margin: 3px 0 0;
+  color: var(--red);
   font-size: 12px;
 }
 
-.how {
-  color: var(--accent);
-}
+/* ---------------------------------------------------------------
+   Знакомство
+   --------------------------------------------------------------- */
 
-.small {
-  font-size: 11px;
-  word-break: break-all;
-}
-/* --- Вкладка секретаря ---
-   Вызовы инструментов и отказы показываются как строки разговора,
-   а не как технический лог. Пользователь должен понимать, что
-   секретарь делал с его диском, не читая названий инструментов. */
-.agent-log {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 46vh;
+.onb-log {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px;
+  max-height: 320px;
   overflow-y: auto;
-  padding: 10px;
-  border: 1px solid var(--line, #2a2f3a);
-  border-radius: 6px;
-  margin: 12px 0;
+  margin-bottom: 12px;
 }
 
-.agent-line {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 8px;
-  border-radius: 4px;
-  line-height: 1.45;
-}
-.agent-line b {
-  white-space: nowrap;
-  opacity: 0.75;
-}
-.agent-я { background: rgba(120, 150, 220, 0.10); }
-.agent-секретарь { background: rgba(120, 200, 150, 0.10); }
-.agent-инструмент {
-  background: rgba(150, 150, 160, 0.08);
-  font-size: 0.92em;
-}
-.agent-отказ {
-  background: rgba(210, 110, 110, 0.12);
-  color: #e5a3a3;
-}
-.agent-wait { opacity: 0.6; font-style: italic; }
-
-.agent-stop {
-  color: #d8b478;
-  font-size: 0.92em;
+.onb-preview {
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  background: rgba(201, 162, 39, 0.06);
+  padding: 12px;
+  margin-bottom: 12px;
 }
 
-.agent-pending {
-  border: 1px solid #d8b478;
-  border-radius: 6px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-}
-.agent-pending pre {
-  margin: 6px 0 0;
-  font-size: 0.85em;
-  overflow-x: auto;
-}
-/* Основание ответа. Показывается всегда, даже когда оно пустое и
-   ответ пришлось выдумать: «ничего не прочитано» — это факт, который
-   пользователь обязан увидеть рядом с правдоподобным текстом. */
-.agent-basis {
-  margin-left: auto;
-  padding-left: 12px;
-  font-size: 0.85em;
-  white-space: nowrap;
-  opacity: 0.7;
-}
-/* Кнопки подтверждения. Порядок слева направо — от узкого решения к
-   широкому и запрету: запрет последним, потому что он самый
-   необратимый из решений пользователя за одну операцию. */
-.agent-decide {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-.agent-decide button {
-  flex: 1;
-  padding: 7px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.agent-deny {
-  border-color: #a86060 !important;
-  color: #e0a0a0;
-}
-/* Навыки и сжатие. Обе вещи показываются текстом, а не иконкой:
-   человек должен прочитать, что именно секретарь собирается
-   сделать целиком или что часть разговора потеряна. */
-.agent-skills,
-.agent-broken {
-  border: 1px solid var(--line, #2a2f3a);
-  border-radius: 6px;
-  padding: 10px 12px;
-  margin: 10px 0;
-  font-size: 0.92em;
-}
-.agent-skills ul,
-.agent-broken ul {
-  margin: 6px 0;
-  padding-left: 20px;
-}
-.agent-broken {
-  border-color: #d8b478;
-}
-.agent-broken li {
-  color: #d8b478;
-}
-.agent-compact {
-  color: #d8b478;
-  font-size: 0.9em;
-  margin: 6px 0;
-}
-/* Переключатели режима вкладки секретаря.
+/* ---------------------------------------------------------------
+   Полосы прокрутки: под язык панели, а не под браузер
+   --------------------------------------------------------------- */
 
-   Стоят в один ряд и не выделяются: это не главное действие, а
-   способ снять вопрос «почему агент ничего не делает». Слишком
-   заметная кнопка «выполнять» приглашала бы нажимать её машинально.
-   */
-.agent-modes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 10px 0;
-  font-size: 0.9em;
-}
-.agent-modes button {
-  font-size: 0.95em;
-  padding: 3px 9px;
-}
-/* Полоса памяти в подвале. Полоска шириной задаётся inline из
-   снимка, поэтому здесь только каркас и цвет заливки. */
-.mem {
-  display: flex;
-  gap: 14px;
-  margin-left: auto;
-  align-items: center;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(190, 200, 215, 0.3) transparent;
 }
 
-.mem-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
 }
 
-.mem-label {
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
-.bar {
-  display: inline-block;
-  width: 72px;
-  height: 8px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  overflow: hidden;
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.fill {
-  display: block;
-  height: 100%;
-  background: var(--muted);
+::-webkit-scrollbar-thumb {
+  background: rgba(190, 200, 215, 0.25);
 }
 
-.mem-num {
-  min-width: 34px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-/* Переключатель голоса. В подвале рядом с полосой памяти: человек
-   должен видеть, что голос занимает место, до того как включил его,
-   и видеть, сколько освободил после выключения. */
-.voice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(190, 200, 215, 0.4);
 }
 
-.chip.on {
-  border-color: var(--accent, currentColor);
-}
+/* ---------------------------------------------------------------
+   Выделение
+   --------------------------------------------------------------- */
 
-.voice-mb {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.voice-error {
-  color: #b4553f;
-  cursor: help;
+::selection {
+  background: rgba(201, 162, 39, 0.28);
 }
