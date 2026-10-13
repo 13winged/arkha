@@ -1,0 +1,13 @@
+[workspace]
+members = ["src-tauri"]
+resolver = "2"
+
+# Профиль объявлен в корне воркспейса: cargo игнорирует profile
+# у не-root пакета.
+# Подробности: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

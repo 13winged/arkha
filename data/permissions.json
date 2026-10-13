@@ -1,0 +1,5 @@
+{
+  "executor": "dry-run",
+  "approval_mode": "actions",
+  "deny_apps": ["local.secretary.app"]
+}

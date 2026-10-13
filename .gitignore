@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archotic
+
+# Модели: тяжёлые, качаются загрузчиком на машину пользователя.
+data/models/*
+!data/models/.gitkeep
+
+# База секретаря: состояние конкретной установки, не исходник.
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/secretary.db
+
+# Артефакты сборки Rust. Восстанавливаются из исходников.
+target/
+
+# llama.cpp: 550 МБ, сторонние сборки под каждый чип. В репозитории
+# им не место, пользователь получает их при установке.
+data/bin/
+
+# Правки каталога рецептов под свою машину, чтобы не мешали
+# общим изменениям.
+data/recipes.local.json
+
+# Незаконченное скачивание. При обрыве остаётся на диске и
+# мешает, но в исходники попадать не должно.
+data/models/*.part

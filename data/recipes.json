@@ -1,0 +1,177 @@
+{
+    "_комментарий":  [
+                         "Каталог рецептов. Не хардкод: рецепт выбирается по профилю и по замеру.",
+                         "Правило из docs/02: не верифицированные рецепты не показываются как рекомендация.",
+                         "tok_s — медиана пяти прогонов на заполненном контексте, не лучший результат.",
+                         "measured_on — на какой машине снимали. Переносимость на другое железо не гарантируется."
+                     ],
+    "llama_cpp":  {
+                      "repo":  "ggml-org/llama.cpp",
+                      "release":  "b11557",
+                      "asset_windows":  "llama-b11557-bin-win-cuda-13.4-x64.zip",
+                      "asset_cudart":  "cudart-llama-bin-win-cuda-13.4-x64.zip",
+                      "license":  "MIT",
+                      "why_cuda_13_4":  "RTX 5060 это sm_120 (Blackwell), требует CUDA 12.8 или новее. Сборка 12.4 не знает sm_120."
+                  },
+    "profiles":  {
+                     "T1":  {
+                                "tier":  "T1",
+                                "llm":  "unsloth/Qwen3.5-4B-GGUF",
+                                "recipes":  [
+                                                {
+                                                    "name":  "4B Q4_K_M + q8_0",
+                                                    "file":  "Qwen3.5-4B-Q4_K_M.gguf",
+                                                    "kv_cache":  "q8_0",
+                                                    "context":  16384,
+                                                    "full_gpu":  true,
+                                                    "verified":  false,
+                                                    "tok_s":  null,
+                                                    "note":  "Функционально проверено 11 октября 2026 на dev-машине (RTX 5060 8 ГБ, Ryzen 7 8700F): 33/33 слоёв на GPU, модель 2603 МиБ, KV 272 МиБ при q8_0, русский ответ, tool calling работает, отказа на безобидной задаче не было. НО профиль T1 — это 8 ГБ RAM со встройкой или 3060 4 ГБ. Скорость на dev-машине (100.81 tok/s генерация, 3142.17 разбор промпта) к T1 отношения не имеет, поэтому tok_s пуст и verified остаётся false. Настоящий замер требует машины с 8 ГБ RAM.",
+                                                    "dev_machine_check":  "пройден на RTX 5060 8 ГБ: 33/33 слоёв, 2603 МиБ модель, 272 МиБ KV, tool calling работает",
+                                                    "pending_measurement":  "нужна машина с 8 ГБ RAM"
+                                                }
+                                            ]
+                            },
+                     "T2":  {
+                                "tier":  "T2",
+                                "llm":  "unsloth/Qwen3.5-9B-GGUF",
+                                "recipes":  [
+                                                {
+                                                    "name":  "9B Q4_K_M + q4_0",
+                                                    "file":  "Qwen3.5-9B-Q4_K_M.gguf",
+                                                    "kv_cache":  "q4_0",
+                                                    "context":  32768,
+                                                    "full_gpu":  true,
+                                                    "verified":  true,
+                                                    "tok_s":  65.85,
+                                                    "note":  "Замер 11 октября 2026 на RTX 5060 8 ГБ и Ryzen 7 8700F, 32 ГБ. Промпт 24000 токенов, 73 процента окна. Пять повторов, медиана по generation. Разбор в docs/10-замеры.md.",
+                                                    "measured_on":  "RTX 5060 8123 MiB, AMD Ryzen 7 8700F, 32376 MiB RAM, llama.cpp b11557, CUDA 13.4",
+                                                    "size_bytes":  5680522464,
+                                                    "sha256":  "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+                                                    "digest_verified":  true
+                                                },
+                                                {
+                                                    "name":  "9B Q4_K_M + q8_0",
+                                                    "file":  "Qwen3.5-9B-Q4_K_M.gguf",
+                                                    "kv_cache":  "q8_0",
+                                                    "context":  32768,
+                                                    "full_gpu":  true,
+                                                    "verified":  true,
+                                                    "tok_s":  65.35,
+                                                    "note":  "Замер того же прогона. Разница с q4_0 около 0.8 процента при разбросе 0.5, то есть на границе шума. Восемь бит против четырёх в K-кэше дают качество, которого здесь не измерено. Выбор по качеству, не по скорости.",
+                                                    "measured_on":  "RTX 5060 8123 MiB, AMD Ryzen 7 8700F, 32376 MiB RAM, llama.cpp b11557, CUDA 13.4"
+                                                }
+                                            ]
+                            },
+                     "T3":  {
+                                "tier":  "T3",
+                                "llm":  "unsloth/Qwen3.5-9B-GGUF",
+                                "recipes":  [
+                                                {
+                                                    "name":  "9B Q5_K_M + q4_0",
+                                                    "file":  "Qwen3.5-9B-Q5_K_M.gguf",
+                                                    "kv_cache":  "q4_0",
+                                                    "context":  65536,
+                                                    "full_gpu":  true,
+                                                    "verified":  true,
+                                                    "tok_s":  56.31,
+                                                    "note":  "Замер 11 октября 2026 на RTX 5060 8 ГБ и Ryzen 7 8700F, 32376 МиБ RAM. Контекст 65536, KV q4_0, промпт 24000 токенов. Пять повторов: 56.24, 56.27, 56.31, 56.37, 56.72, медиана 56.31. Разбор промпта медиана 1995.19 из 1936.90, 1991.71, 1995.19, 2042.90, 2044.22. Размещение 33/33 слоёв на GPU, модель 5595 МиБ, KV 576 МиБ, запас около 1.7 ГиБ. На 14 процентов медленнее Q4_K_M на T2 за счёт весов, но влезает с запасом.",
+                                                    "size_human":  "6.13 ГиБ",
+                                                    "measured_on":  "RTX 5060 8123 МиБ, AMD Ryzen 7 8700F, 32376 МиБ RAM, llama.cpp b11557, CUDA 13.4",
+                                                    "size_bytes":  6577841376,
+                                                    "sha256":  "проверено при скачивании"
+                                                },
+                                                {
+                                                    "name":  "27B UD-IQ2_XXS + q4_0 (экспериментальный)",
+                                                    "file":  "Qwen3.5-9B-UD-IQ2_XXS.gguf",
+                                                    "kv_cache":  "q4_0",
+                                                    "context":  32768,
+                                                    "full_gpu":  true,
+                                                    "verified":  false,
+                                                    "tok_s":  null,
+                                                    "note":  "Измерение из ExVRAM: 30.10 tok/s, 6521 МиБ буфера, пик 7767 из 8192. НО IQ2_XXS теряет около 14.5 процента качества, деградация на reasoning и agentic. Включать только если tool calling лучше, чем у 9B.",
+                                                    "size_human":  "2.97 ГиБ"
+                                                }
+                                            ]
+                            },
+                     "T4":  {
+                                "tier":  "T4",
+                                "llm":  "bartowski/Muse-Glimmer-30B-GGUF",
+                                "recipes":  [
+                                                {
+                                                    "name":  "Muse Glimmer 30B IQ2_M + q4_0",
+                                                    "file":  "Muse-Glimmer-30B-IQ2_M.gguf",
+                                                    "repo":  "bartowski/Muse-Glimmer-30B-GGUF",
+                                                    "quant":  "IQ2_M",
+                                                    "kv":  "q4_0",
+                                                    "context":  32768,
+                                                    "verified":  false,
+                                                    "tok_s":  null,
+                                                    "note":  "Muse Glimmer 30B от Meta, Apache-2.0, контекст 131072. Проверял не мы: для замера нужна машина с 12 ГБ VRAM, у нас 8 ГБ. Качество инструментов заявлено автором (MCP-Atlas, SWE-Bench), измерено только на Qwen3.5. Квант из сообщества, не валидирован Meta. Подробности в docs/15-muse-glimmer.md. Зрение требует mmproj, черновик dflash добавляет 1.4 ГБ."
+                                                }
+                                            ]
+                            },
+                     "T5":  {
+                                "tier":  "T5",
+                                "llm":  "bartowski/Muse-Glimmer-30B-GGUF",
+                                "recipes":  [
+                                                {
+                                                    "name":  "Muse Glimmer 30B Q4_K_M + q4_0",
+                                                    "file":  "Muse-Glimmer-30B-Q4_K_M.gguf",
+                                                    "repo":  "bartowski/Muse-Glimmer-30B-GGUF",
+                                                    "quant":  "Q4_K_M",
+                                                    "kv":  "q4_0",
+                                                    "context":  131072,
+                                                    "verified":  false,
+                                                    "tok_s":  null,
+                                                    "note":  "Muse Glimmer 30B от Meta, Apache-2.0, контекст 131072. Проверял не мы: для замера нужна машина с 12 ГБ VRAM, у нас 8 ГБ. Качество инструментов заявлено автором (MCP-Atlas, SWE-Bench), измерено только на Qwen3.5. Квант из сообщества, не валидирован Meta. Подробности в docs/15-muse-glimmer.md. Официальный KQuant-17GB — 16.76 ГБ, Meta валидировала его в конверте 24-32 ГБ вместе с KV, mmproj и черновиком."
+                                                }
+                                            ]
+                            }
+                 },
+    "common_args":  [
+                        "--jinja",
+                        "-ngl",
+                        "99",
+                        "--reasoning",
+                        "off",
+                        "--log-jsonl"
+                    ],
+    "_common_args_заметка":  [
+                                 "--tool-call-parser убран. В llama.cpp b11557 этого флага больше нет, он даёт ошибку запуска.",
+                                 "Шаблон Qwen3.5 разбирает вызовы инструментов сам при --jinja. Проверено запросом:",
+                                 "finish_reason tool_calls, функция find_files, аргументы на русском.",
+                                 "--log-jsonl даёт структурированные события, из них читается размещение и тайминги."
+                             ],
+    "chat_template_kwargs":  {
+                                 "enable_thinking":  false
+                             },
+    "hf":  {
+               "provider":  "huggingface",
+               "repo":  "unsloth/Qwen3.5-9B-GGUF",
+               "repo_t1":  "unsloth/Qwen3.5-4B-GGUF",
+               "license":  "apache-2.0",
+               "api_tree":  "https://huggingface.co/api/models/{repo}/tree/main?recursive=true",
+               "api_file":  "https://huggingface.co/{repo}/resolve/main/{file}",
+               "_заметка":  [
+                                "Дерево отдаёт lfs.oid это sha256 и lfs.size это точный размер.",
+                                "HEAD на api_file отдаёт 302 на CDN, Accept-Ranges: bytes,",
+                                "и X-Linked-ETag равный тому же sha256. Сверять с lfs.oid.",
+                                "Подписанный URL живёт ограниченное время, запрашивать заново."
+                            ]
+           },
+    "sampling":  {
+                     "temperature":  0.3,
+                     "top_p":  0.9,
+                     "top_k":  40,
+                     "repeat_penalty":  1.1,
+                     "_зачем":  [
+                                    "Секретарь выполняет поручение, а не фантазирует.",
+                                    "При температуре 0.8 и выше модель выдумывает: называет несуществующий",
+                                    "файл и объявляет задачу выполненной. Это худший отказ для нашего дела,",
+                                    "потому что пользователь поверит и пойдёт искать то, чего нет.",
+                                    "repeat_penalty 1.1 защита от зацикливания: да-да-да, вот пример, вот пример.",
+                                    "Значения из рекомендаций статьи на Habr, перенесены в наш случай."
+                                ]
+                 }
+}

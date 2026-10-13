@@ -1,0 +1,206 @@
+{
+  "_что_это": "Реестр возможностей агента. Агент получает этот список и обязан честно сказать «у меня этого нет», если возможности за пределами его профиля.",
+  "_правило": "verified: true означает «проверено гейтом на живом железе», а не «должно работать». Отсутствие поля verified означает «не проверено».",
+  "_обновлено": "2026-10-12, этап S3",
+
+  "capabilities": [
+    {
+      "id": "chat.local",
+      "name": "Разговор",
+      "what": "Отвечает на вопросы на русском и английском, помнит разговор в пределах контекста",
+      "min_tier": "T1",
+      "needs_tool_calling": false,
+      "permission": "",
+      "verified": true,
+      "evidence": "Гейт S2 на живом железе: T1, T2 и T3, русский ответ без ошибок, поток работает, отказа на безобидной задаче не было",
+      "refusal": ""
+    },
+    {
+      "id": "files.read",
+      "name": "Чтение файлов",
+      "what": "Читает текст и документы из папок, которые пользователь разрешил",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "files.read",
+      "verified": true,
+      "evidence": "Гейт S6, 12.10.2026, T3 RTX 5060: чтение по известному пути 5 из 5 прогонов, отказ доходит и не выдумывается",
+      "refusal": ""
+    },
+    {
+      "id": "skill.execute",
+      "name": "Навыки",
+      "what": "Выполняет заранее описанную процедуру, написанную человеком",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "skill.execute",
+      "verified": true,
+      "evidence": "Гейт S6, 12.10.2026, T3 RTX 5060: навык с диска вызван моделью, шаги пройдены",
+      "refusal": ""
+    },
+    {
+      "id": "files.write",
+      "name": "Запись файлов",
+      "what": "Создаёт и изменяет файлы в разрешённых папках, спрашивая подтверждение",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "files.write",
+      "verified": false,
+      "evidence": "",
+      "refusal": "запись файлов ещё не подключена, инструмент написан, но не работает"
+    },
+    {
+      "id": "windows.read",
+      "name": "Чтение окон",
+      "what": "Показывает открытые окна и находит нужное по названию. Ничего не меняет",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "windows.read",
+      "verified": true,
+      "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: список окон 9 из 9 сценариев, найденное окно названо в ответе",
+      "refusal": "Видит только заголовки окон, не содержимое"
+    },
+    {
+      "id": "apps.launch",
+      "name": "Запуск программ",
+      "what": "Открывает программы, которые пользователь разрешил",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "apps.launch",
+      "verified": true,
+      "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: запуск блокнота, окно появилось; запрещённая программа не запустилась",
+      "refusal": "Ищет только в папках установки программ. Если программа стоит в нестандартном месте, укажи полный путь к .exe"
+    },
+    {
+      "id": "windows.control",
+      "name": "Управление окнами",
+      "what": "Переключает окна, вводит текст, нажимает кнопки по их названию",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "windows.control",
+      "verified": true,
+      "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: фокус, русский ввод через юникод и клик по кнопке — 9 из 9; клик по несуществующей кнопке отказал",
+      "refusal": "Нажимает только на элементы с видимой подписью. В Chrome, Telegram и других программах, которые рисуют интерфейс сами, цель не находится"
+    },
+    {
+      "id": "web.fetch",
+      "name": "Чтение страницы",
+      "what": "Открывает страницу по адресу и возвращает её текст",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "web.fetch",
+      "verified": false,
+      "evidence": "",
+      "refusal": "чтение страниц ещё не подключено"
+    },
+    {
+      "id": "web.search",
+      "name": "Поиск в интернете",
+      "what": "Ищет в интернете через SearXNG-инстанс, адрес которого задаёт пользователь",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "web.search",
+      "verified": false,
+      "evidence": "",
+      "refusal": "поиск не настроен: не задан адрес SearXNG-инстанса. Чтение страницы по конкретному адресу работает и без него"
+    },
+    {
+      "id": "docs.office",
+      "name": "Документы Office",
+      "what": "Читает docx, xlsx, pptx и pdf",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "files.read",
+      "verified": false,
+      "evidence": "",
+      "refusal": "чтение документов Office ещё не подключено"
+    },
+    {
+      "id": "vision.read",
+      "name": "Чтение изображений",
+      "what": "Разбирает содержимое изображений и скриншотов",
+      "min_tier": "T4",
+      "needs_tool_calling": true,
+      "permission": "files.read",
+      "verified": false,
+      "evidence": "",
+      "refusal": "нужна мультимодальная модель: Qwen3.5 не умеет, у Muse Glimmer умеет, но она требует 12 ГБ видеопамяти и на этой машине не запускается"
+    },
+    {
+      "id": "voice.stt",
+      "name": "Распознавание речи",
+      "what": "Превращает сказанное в текст",
+      "min_tier": "T2",
+      "needs_tool_calling": false,
+      "permission": "voice.stt",
+      "verified": false,
+      "evidence": "",
+      "refusal": "распознавание речи ещё не подключено, на этапе S9"
+    },
+    {
+      "id": "voice.tts",
+      "name": "Озвучивание",
+      "what": "Читает ответы вслух",
+      "min_tier": "T1",
+      "needs_tool_calling": false,
+      "permission": "voice.tts",
+      "verified": false,
+      "evidence": "",
+      "refusal": "озвучивание ещё не подключено, на этапе S9"
+    },
+    {
+      "id": "voice.wake",
+      "name": "Пробуждение по слову",
+      "what": "Откликается на своё имя, не записывая всё подряд",
+      "min_tier": "T1",
+      "needs_tool_calling": false,
+      "permission": "voice.wake",
+      "verified": false,
+      "evidence": "",
+      "refusal": "пробуждение по слову ещё не подключено, на этапе S9"
+    },
+    {
+      "id": "memory.recall",
+      "name": "Память",
+      "what": "Помнит факты и решения между разговорами и находит их потом",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "memory.write",
+      "verified": false,
+      "evidence": "",
+      "refusal": "память ещё не подключена"
+    },
+    {
+      "id": "memory.search",
+      "name": "Поиск по корпусу",
+      "what": "Ищет по вашим документам и отвечает по найденному",
+      "min_tier": "T2",
+      "needs_tool_calling": true,
+      "permission": "files.read",
+      "verified": false,
+      "evidence": "",
+      "refusal": "поиск по корпусу ещё не подключён, нужны эмбеддинги"
+    },
+    {
+      "id": "browser.dom",
+      "name": "Управление браузером",
+      "what": "Читает страницу как дерево элементов, а не как картинка",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "web.fetch",
+      "verified": false,
+      "evidence": "",
+      "refusal": "управление браузером ещё не подключено"
+    },
+    {
+      "id": "workflow.run",
+      "name": "Сценарии",
+      "what": "Выполняет многошаговые записи: открыть, найти, заполнить, сохранить",
+      "min_tier": "T2",
+      "needs_tool_calling": true,
+      "permission": "apps.launch",
+      "verified": false,
+      "evidence": "",
+      "refusal": "сценарии ещё не подключены, они собираются из других инструментов"
+    }
+  ]
+}

@@ -1,0 +1,345 @@
+// Команды знакомства.
+//
+// Знакомство — единственный сценарий, который меняет систему, и
+// меняет не сразу. Порядок вызовов: `onboarding_step` → `onboarding_say`
+// → `onboarding_apply`. Третий вызов требует отдельного нажатия и
+// ничего не применяет сам.
+//
+// Почему не «собрал и сразу записал»: разрешения нельзя отменить
+// задним числом. Человек должен увидеть, что подтверждает.
+
+use serde::Serialize;
+use std::sync::Mutex;
+
+use crate::onboarding::{self, Step, State};
+use crate::permissions_commands::view;
+
+/// Знание о текущем шаге — для интерфейса и для промпта.
+#[derive(Debug, Clone, Serialize)]
+pub struct StepView {
+    pub step: String,
+    pub title: String,
+    pub index: usize,
+    pub total: usize,
+    /// Что агент соберёт на этом шаге.
+    pub what: &'static str,
+    /// Готовый текст для модели. Отдаётся из Rust, чтобы промпт
+    /// жил рядом с данными возможностей, а не в разметке.
+    pub prompt: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Progress {
+    pub step: String,
+    pub title: String,
+    pub index: usize,
+    pub total: usize,
+    pub finished: bool,
+    /// Что агент понял, словами. Показывается пользователю.
+    pub summary: String,
+    /// Настройки, которые получатся, если применить.
+    pub preview: crate::permissions_commands::SettingsView,
+}
+
+fn describe(step: Step) -> &'static str {
+    match step {
+        Step::Introduction => "имя, которым тебя зовут",
+        Step::Tools => "какие инструменты включать",
+        Step::Folders => "в каких папках искать документы",
+        Step::Levels => "что можно без подтверждения",
+        Step::Summary => "проверить и закончить",
+    }
+}
+
+/// Состояние живёт в приложении, а не в файле: незаконченное
+/// знакомство не должно переживать перезапуск. Пользователь, который
+/// закрыл окно на середине, начнёт заново — это меньше, чем
+/// разбираться, что он успел разрешить.
+fn state() -> &'static Mutex<Option<State>> {
+    static STATE: std::sync::OnceLock<Mutex<Option<State>>> = std::sync::OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(None))
+}
+
+// --- чистое ядро ---------------------------------------------------------
+// Логика отделена от глобального состояния, иначе тесты делят одно
+// на всех и падают в зависимости от порядка. Команды ниже — тонкая
+// обёртка над этими функциями.
+
+pub fn view_of(s: &State, tier: crate::profile::Tier) -> StepView {
+    let index = Step::ALL.iter().position(|x| *x == s.step).unwrap_or(0);
+    StepView {
+        step: s.step.as_str().to_string(),
+        // Название берётся из самого шага: копия в интерфейсе
+        // рано или поздно разъехалась бы с логикой.
+        title: s.step.title().to_string(),
+        index: index + 1,
+        total: Step::ALL.len(),
+        what: describe(s.step),
+        prompt: s.step.prompt(tier),
+    }
+}
+
+pub fn preview_of(s: &State) -> Preview {
+    Preview { summary: s.summary(), settings: view(&s.to_settings()) }
+}
+
+pub fn say_to(s: &mut State, tier: crate::profile::Tier, text: &str) -> SayResult {
+    let understood = s.apply(text);
+    SayResult {
+        understood,
+        // При неудаче шаг не сдвинулся, поэтому повторяется тот же
+        // вопрос, а не следующий.
+        next: view_of(s, tier),
+        summary: s.summary(),
+        finished: s.finished,
+    }
+}
+
+/// Можно ли применять. Отдельно от `apply`, потому что проверка
+/// безопасна, а применение пишет в файл, и проверять её на живом
+/// гейте нельзя.
+pub fn check_applicable(s: &State) -> Result<(), String> {
+    if !s.finished {
+        return Err("знакомство не закончено: сначала дойди до итога".into());
+    }
+    Ok(())
+}
+
+/// Применение разрешений. Отказ, пока знакомство не закончено.
+pub fn apply(s: &State) -> Result<Preview, String> {
+    check_applicable(s)?;
+    let settings = s.to_settings();
+    onboarding::save(&settings)?;
+    Ok(Preview { summary: s.summary(), settings: view(&settings) })
+}
+
+// --- команды -------------------------------------------------------------
+
+/// Начать знакомство с нуля.
+#[tauri::command]
+pub fn onboarding_start() -> Result<StepView, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let s = State::start();
+    let v = view_of(&s, tier);
+    *state().lock().map_err(|e| format!("состояние занято: {e}"))? = Some(s);
+    Ok(v)
+}
+
+/// Текущий шаг, без сброса. Нужен при перерисовке окна.
+#[tauri::command]
+pub fn onboarding_current() -> Result<StepView, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    Ok(view_of(s, tier))
+}
+
+/// Ответ агента на текущем шаге.
+///
+/// `understood: false` означает, что разобрать ответ не удалось и
+/// вопрос надо повторить. Это не ошибка: модель ответила словами, и
+/// угадывать разрешения опаснее, чем спросить ещё раз.
+#[derive(Debug, Clone, Serialize)]
+pub struct SayResult {
+    pub understood: bool,
+    /// Что агент говорит дальше: следующий вопрос или итог.
+    pub next: StepView,
+    pub summary: String,
+    pub finished: bool,
+}
+
+/// Выбор инструментов кнопками.
+///
+/// Отдельная команда, а не разбор текста: человек не должен писать
+/// JSON, чтобы отметить галочки. Текстовый путь остаётся для тех,
+/// кто сформулирует ответ словами, но кнопки — основной способ.
+#[tauri::command]
+pub fn onboarding_set_tools(
+    enable: Vec<String>,
+    disable: Vec<String>,
+) -> Result<SayResult, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    s.set_tools(enable, disable);
+    Ok(SayResult {
+        understood: true,
+        next: view_of(s, tier),
+        summary: s.summary(),
+        finished: s.finished,
+    })
+}
+
+/// Папки, которые имеет смысл предложить.
+///
+/// Только имена и пути. Содержимое не читается и не показывается:
+/// на шаге разрешения список файлов выглядел бы как уже полученный
+/// доступ.
+#[derive(Debug, Clone, Serialize)]
+pub struct FolderView {
+    pub label: String,
+    pub path: String,
+}
+
+#[tauri::command]
+pub fn onboarding_folders() -> Vec<FolderView> {
+    onboarding::folder_suggestions()
+        .into_iter()
+        .map(|(label, path)| FolderView {
+            label,
+            path: path.display().to_string(),
+        })
+        .collect()
+}
+
+/// Выбор папок кнопками. Названия, а не пути: именно названия видит
+/// человек, а пути он мог и не знать.
+#[tauri::command]
+pub fn onboarding_set_paths(paths: Vec<String>) -> Result<SayResult, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    s.set_paths(paths);
+    Ok(SayResult {
+        understood: true,
+        next: view_of(s, tier),
+        summary: s.summary(),
+        finished: s.finished,
+    })
+}
+
+/// Что получится, если применить. Ничего не применяет.
+#[derive(Debug, Clone, Serialize)]
+pub struct Preview {
+    pub summary: String,
+    pub settings: crate::permissions_commands::SettingsView,
+}
+
+#[tauri::command]
+pub fn onboarding_say(text: String) -> Result<SayResult, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    Ok(say_to(s, tier, &text))
+}
+
+#[tauri::command]
+pub fn onboarding_preview() -> Result<Preview, String> {
+    let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.as_ref().ok_or("знакомство не начато")?;
+    Ok(preview_of(s))
+}
+
+/// Применить. Единственный вызов, меняющий систему, и он требует
+/// отдельного нажатия после того, как пользователь увидел итог.
+#[tauri::command]
+pub fn onboarding_apply() -> Result<Preview, String> {
+    let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.as_ref().ok_or("знакомство не начато")?;
+    apply(s)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn у_каждого_шага_есть_название_и_смысл() {
+        for s in Step::ALL {
+            assert!(!s.title().is_empty());
+            assert!(!describe(s).is_empty(), "{} без описания", s.as_str());
+        }
+    }
+
+    #[test]
+    fn знакомство_начинается_с_знакомства() {
+        let v = view_of(&State::start(), crate::profile::Tier::T3);
+        assert_eq!(v.step, "introduction");
+        assert_eq!(v.index, 1);
+        assert_eq!(v.total, 5);
+        assert!(v.prompt.contains("локальный"), "в промпте должно быть про локальность");
+    }
+
+    /// Промпт обязан содержать границы возможностей из реестра.
+    /// Иначе модель будет обещать то, чего нет.
+    #[test]
+    fn промпт_содержит_реальные_границы() {
+        let s = State::start();
+        let v = view_of(&s, crate::profile::Tier::T3);
+        assert!(v.prompt.contains("chat.local"), "{}", v.prompt);
+        assert!(
+            v.prompt.contains("Не обещай"),
+            "в промпте должно быть запрет обещать лишнего"
+        );
+    }
+
+    /// Шаг «папки» не должен предлагать содержимое.
+    #[test]
+    fn шаг_папок_предлагает_только_папки() {
+        let mut s = State::start();
+        s.step = Step::Folders;
+        let prompt = s.step.prompt(crate::profile::Tier::T3);
+        assert!(prompt.contains("Загрузки") || prompt.contains("папок по умолчанию"));
+        assert!(!prompt.contains(".txt"), "в промпте не должно быть имён файлов");
+    }
+
+    /// На представлении ничего не применяется, поэтому любой ответ
+    /// считается принятым: неразборчивым может оказаться только шаг,
+    /// который меняет настройки.
+    #[test]
+    fn неразобранный_ответ_повторяет_вопрос() {
+        let mut s = State::start();
+        s.step = Step::Tools;
+        let r = say_to(&mut s, crate::profile::Tier::T3, "Ну давай что-нибудь включим");
+        assert!(!r.understood);
+        assert_eq!(r.next.step, "tools", "шаг не должен сдвинуться");
+    }
+
+    #[test]
+    fn полное_знакомство_доходит_до_итога() {
+        let mut s = State::start();
+        let tier = crate::profile::Tier::T3;
+
+        assert!(say_to(&mut s, tier, "Зовут Артём").understood);
+        assert_eq!(s.step, Step::Tools);
+
+        assert!(say_to(&mut s, tier, r#"{"enable":["chat.local"]}"#).understood);
+        assert_eq!(s.step, Step::Folders);
+
+        assert!(say_to(&mut s, tier, r#"{"paths":["Загрузки"]}"#).understood);
+        assert_eq!(s.step, Step::Levels);
+
+        // После уровней наступает итог, но знакомство ещё не закончено:
+        // пользователь должен увидеть собранное и подтвердить.
+        let r = say_to(
+            &mut s,
+            tier,
+            r#"{"executor":"dry-run","approval_mode":"actions"}"#,
+        );
+        assert!(r.understood);
+        assert_eq!(s.step, Step::Summary);
+        assert!(!r.finished, "итог ещё предстоит подтвердить");
+
+        let done = say_to(&mut s, tier, "всё верно, закончить");
+        assert!(done.finished, "после подтверждения итога знакомство закончено");
+        assert!(done.summary.contains("Понял"), "{}", done.summary);
+    }
+
+    /// Применить раньше времени нельзя: конфигурацию разрешений
+    /// невозможно откатить задним числом.
+    #[test]
+    fn применить_до_конца_нельзя() {
+        let s = State::start();
+        let err = apply(&s).expect_err("должно быть отказано");
+        assert!(err.contains("не закончено"), "{err}");
+    }
+
+    /// Предпросмотр не должен пугать пользователя, пока он в dry-run.
+    #[test]
+    fn предпросмотр_ничего_не_меняет() {
+        let s = State::start();
+        let p = preview_of(&s);
+        assert_eq!(p.settings.executor.value, "dry-run");
+        assert!(p.settings.warning.is_none());
+    }
+}

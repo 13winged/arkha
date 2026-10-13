@@ -1,0 +1,1131 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import Agent from "./Agent";
+import "./App.css";
+
+// Реестр возможностей. Причина недоступности приходит готовой с
+// Rust: если позволить интерфейсу решать, он рано или поздно
+// покажет «недоступно» без причины, и это будет наша ложь.
+export interface CapabilityRow {
+  id: string;
+  name: string;
+  what: string;
+  available: boolean;
+  blocked_by: string | null;
+  refusal: string | null;
+  evidence: string | null;
+  min_tier: string;
+}
+
+export interface CapabilitiesReport {
+  tier: string;
+  total: number;
+  available: number;
+  blocked: number;
+  verified: number;
+  rows: CapabilityRow[];
+}
+
+export interface OnboardingStep {
+  step: string;
+  title: string;
+  index: number;
+  total: number;
+  what: string;
+  prompt: string;
+}
+
+export interface OnboardingSay {
+  understood: boolean;
+  next: OnboardingStep;
+  summary: string;
+  finished: boolean;
+}
+
+export interface SettingsView {
+  executor: { value: string; title: string; explain: string };
+  approval_mode: { value: string; title: string; explain: string };
+  cloud: boolean;
+  deny_apps: string[];
+  paths: string[];
+  disabled: string[];
+  warning: string | null;
+}
+
+export interface OnboardingPreview {
+  summary: string;
+  settings: SettingsView;
+}
+
+export interface FolderView {
+  label: string;
+  path: string;
+}
+
+/// Выбор из списка. Один компонент на инструменты и папки: логика
+/// «отметил, подтвердил» одинакова, различаются только подписи.
+function Picker({
+  items,
+  chosen,
+  onToggle,
+  onDone,
+  busy,
+  empty,
+}: {
+  items: { id: string; title: string; note: string; tag?: string | null }[];
+  chosen: Set<string>;
+  onToggle: (id: string, want: boolean) => void;
+  onDone: () => void;
+  busy: boolean;
+  empty: string;
+}) {
+  return (
+    <div className="picker">
+      {items.length === 0 ? (
+        <p className="muted">{empty}</p>
+      ) : (
+        items.map((r) => {
+          const on = chosen.has(r.id);
+          return (
+            <button
+              key={r.id}
+              type="button"
+              className={on ? "pick pick-on" : "pick"}
+              onClick={() => onToggle(r.id, !on)}
+              disabled={busy}
+            >
+              <span className="pick-box">{on ? "✓" : ""}</span>
+              <span className="pick-body">
+                <span className="pick-name">
+                  {r.title}
+                  {r.tag && <span className="cap-tag cap-tag-no">{r.tag}</span>}
+                </span>
+                <span className="pick-what">{r.note}</span>
+              </span>
+            </button>
+          );
+        })
+      )}
+      {items.length > 0 && (
+        <div className="onb-input">
+          <button type="button" onClick={onDone} disabled={busy}>
+            дальше
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Выбор инструментов кнопками. Человек не должен писать JSON, чтобы
+// отметить галочку, поэтому выбор приходит списком, а не фразой.
+function ToolPicker({
+  rows,
+  chosen,
+  onToggle,
+  onDone,
+  busy,
+}: {
+  rows: CapabilityRow[];
+  chosen: Set<string>;
+  onToggle: (id: string, want: boolean) => void;
+  onDone: () => void;
+  busy: boolean;
+}) {
+  return (
+    <>
+      <p className="muted">
+        Отметь, что секретарю можно делать. Недоступное сейчас всё равно
+        отметить можно — включишь, когда появится.
+      </p>
+      <Picker
+        items={rows.map((r) => ({
+          id: r.id,
+          title: r.name,
+          note: r.what,
+          tag: r.available ? null : r.blocked_by,
+        }))}
+        chosen={chosen}
+        onToggle={onToggle}
+        onDone={onDone}
+        busy={busy}
+        empty="Возможностей в реестре нет."
+      />
+    </>
+  );
+}
+
+// Профиль приходит с Rust. Пока его нет — пустой экран, без «догадок».
+export interface TierNote {
+  tier: string;
+  describe: string;
+  blocked_because: string | null;
+}
+
+export interface ProfileView {
+  summary: string;
+  detected: string;
+  effective: string;
+  forced: string | null;
+  model_name: string;
+  model_quant: string;
+  context: number;
+  kv_cache_type: string;
+  gpu_name: string;
+  vram_mb: number;
+  vram_usable_mb: number;
+  is_discrete: boolean;
+  hybrid: boolean;
+  ram_mb: number;
+  logical_cores: number;
+  cpu_brand: string;
+  detection_source: string;
+  unsupported_reason: string | null;
+  available_tiers: TierNote[];
+}
+
+export interface ModelStatus {
+  running: boolean;
+  recipe: string | null;
+  kv_cache: string | null;
+  context: number | null;
+  tok_s: number | null;
+  verified: boolean;
+  full_gpu: boolean;
+  gpu_layers: number | null;
+  total_layers: number | null;
+  device: string | null;
+  flash_attn: boolean;
+  error: string | null;
+}
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  toolCalls?: unknown;
+}
+
+function gb(mb: number): string {
+  return `${(mb / 1024).toFixed(1)} ГБ`;
+}
+
+// ---------------------------------------------------------------------------
+// Экран профиля (S1)
+// ---------------------------------------------------------------------------
+
+/// Что секретарь умеет и чего не умеет, с причинами.
+///
+/// Экран существует не для красоты. Пока возможностей мало, список
+/// читается как отчёт о недоделке — и это честнее, чем интерфейс,
+/// где всё выглядит работающим, а на деле доступен разговор.
+function Capabilities() {
+  const [report, setReport] = useState<CapabilitiesReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<CapabilitiesReport>("capabilities_report")
+      .then(setReport)
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  if (error) {
+    return (
+      <div className="panel">
+        <h2>Возможности</h2>
+        <p className="error">{error}</p>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="panel">
+        <h2>Возможности</h2>
+        <p className="muted">Читаем реестр…</p>
+      </div>
+    );
+  }
+
+  const ready = report.rows.filter((r) => r.available);
+  const blocked = report.rows.filter((r) => !r.available);
+
+  return (
+    <div className="panel">
+      <h2>Возможности</h2>
+      <p className="muted">
+        Профиль <b>{report.tier}</b> — работает {report.available} из{" "}
+        {report.total}. Проверено на живом железе: {report.verified}.
+      </p>
+
+      <h3>Работает</h3>
+      {ready.length === 0 ? (
+        <p className="muted">Ничего не проверено. Это значит «ещё не сделано», а не «сломалось».</p>
+      ) : (
+        ready.map((r) => (
+          <div key={r.id} className="cap-row cap-ok">
+            <div className="cap-head">
+              <b>{r.name}</b>
+              <span className="cap-tag cap-tag-ok">работает</span>
+            </div>
+            <div className="cap-what">{r.what}</div>
+            {r.evidence && <div className="cap-evidence">Проверено: {r.evidence}</div>}
+          </div>
+        ))
+      )}
+
+      <h3>Пока недоступно</h3>
+      <p className="muted">
+        Секретарь знает про эти возможности и честно скажет, что не может.
+        Не молчит и не обещает.
+      </p>
+      {blocked.map((r) => (
+        <div key={r.id} className="cap-row cap-blocked">
+          <div className="cap-head">
+            <b>{r.name}</b>
+            <span className="cap-tag cap-tag-no">{r.blocked_by}</span>
+          </div>
+          <div className="cap-what">{r.what}</div>
+          {r.refusal && <div className="cap-refusal">{r.refusal}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Знакомство: пользователь собирает секретаря в разговоре.
+///
+/// Экран намеренно показывает, что будет применено, до того как
+/// применяет. Разрешения нельзя отменить задним числом, и человек
+/// должен видеть, что подтверждает.
+function Welcome() {
+  const [step, setStep] = useState<OnboardingStep | null>(null);
+  const [lines, setLines] = useState<{ who: string; text: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [preview, setPreview] = useState<OnboardingPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [report, setReport] = useState<CapabilitiesReport | null>(null);
+  const [folders, setFolders] = useState<FolderView[]>([]);
+  // Выбранные по умолчанию: то, что уже работает. Пользователь снимает
+  // галочки, а не ищет, где их поставить.
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    invoke<OnboardingStep>("onboarding_start")
+      .then(setStep)
+      .catch((e) => setError(String(e)));
+    invoke<CapabilitiesReport>("capabilities_report")
+      .then((r) => {
+        setReport(r);
+        setChosen(new Set(r.rows.filter((x) => x.available).map((x) => x.id)));
+      })
+      .catch(() => undefined);
+    invoke<FolderView[]>("onboarding_folders")
+      .then(setFolders)
+      .catch(() => undefined);
+  }, []);
+
+  const pickPaths = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await invoke<OnboardingSay>("onboarding_set_paths", {
+        paths: Array.from(picked),
+      });
+      setStep(r.next);
+      setLines((prev) => [...prev, { who: "вы", text: `папок выбрано: ${picked.size}` }]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickTools = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const enable: string[] = [];
+      const disable: string[] = [];
+      report?.rows.forEach((r) => {
+        if (chosen.has(r.id)) enable.push(r.id);
+        else disable.push(r.id);
+      });
+      const r = await invoke<OnboardingSay>("onboarding_set_tools", { enable, disable });
+      setStep(r.next);
+      setLines((prev) => [
+        ...prev,
+        {
+          who: "вы",
+          text: `отмечено инструментов: ${enable.length}, снято: ${disable.length}`,
+        },
+      ]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const say = async () => {
+    const text = input.trim();
+    if (!text || !step) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await invoke<OnboardingSay>("onboarding_say", { text });
+      setLines((prev) => [...prev, { who: "вы", text }]);
+      setInput("");
+      if (!r.understood) {
+        // Модель ответила не тем и не разобралось. Не злимся и не
+        // угадываем: тот же вопрос ещё раз.
+        setError("Не понял ответ. Попробуем тот же вопрос ещё раз.");
+      }
+      setStep(r.next);
+      if (r.finished) {
+        const p = await invoke<OnboardingPreview>("onboarding_preview");
+        setPreview(p);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const apply = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const p = await invoke<OnboardingPreview>("onboarding_apply");
+      setPreview(p);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restart = async () => {
+    setLines([]);
+    setPreview(null);
+    setError(null);
+    setStep(await invoke<OnboardingStep>("onboarding_start"));
+  };
+
+  if (error && !step) {
+    return (
+      <div className="panel">
+        <h2>Знакомство</h2>
+        <p className="error">{error}</p>
+      </div>
+    );
+  }
+
+  if (!step) {
+    return (
+      <div className="panel">
+        <h2>Знакомство</h2>
+        <p className="muted">Готовлюсь…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel">
+      <h2>Знакомство</h2>
+      <p className="muted">
+        Шаг {step.index} из {step.total}: {step.title}. Собираем {step.what}.
+      </p>
+
+      <div className="onb-log">
+        {lines.length === 0 ? (
+          <div className="onb-bubble onb-agent">
+            Сейчас {step.what}. Напиши ответ обычной фразой — я сам пойму.
+          </div>
+        ) : (
+          lines.map((l, i) => (
+            <div key={i} className={`onb-bubble ${l.who === "вы" ? "onb-user" : "onb-agent"}`}>
+              {l.text}
+            </div>
+          ))
+        )}
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      {step.step === "tools" && report ? (
+        <ToolPicker
+          rows={report.rows}
+          chosen={chosen}
+          busy={busy}
+          onToggle={(id, want) => {
+            setChosen((prev) => {
+              const next = new Set(prev);
+              if (want) next.add(id);
+              else next.delete(id);
+              return next;
+            });
+          }}
+          onDone={pickTools}
+        />
+      ) : step.step === "folders" ? (
+        <>
+          <p className="muted">
+            Отметь папки, в которых секретарь сможет искать. Содержимое
+            не читается на этом шаге — только сами папки.
+          </p>
+          <Picker
+            items={folders.map((f) => ({ id: f.label, title: f.label, note: f.path }))}
+            chosen={picked}
+            onToggle={(id, want) => {
+              setPicked((prev) => {
+                const next = new Set(prev);
+                if (want) next.add(id);
+                else next.delete(id);
+                return next;
+              });
+            }}
+            onDone={pickPaths}
+            busy={busy}
+            empty="Папок по умолчанию не нашлось. Можно назвать свою в поле ниже."
+          />
+          {folders.length === 0 && (
+            <div className="onb-input">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") say(); }}
+                placeholder="путь к папке"
+                disabled={busy}
+              />
+              <button type="button" onClick={say} disabled={busy || !input.trim()}>
+                сказать
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {!preview && (
+            <div className="onb-input">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") say(); }}
+                placeholder="твой ответ"
+                disabled={busy}
+              />
+              <button type="button" onClick={say} disabled={busy || !input.trim()}>
+                сказать
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {preview && (
+        <div className="onb-preview">
+          <h3>Итог</h3>
+          <p>{preview.summary}</p>
+
+          <div className="cap-row cap-ok">
+            <div className="cap-head"><b>Как буду работать</b></div>
+            <div className="cap-what">{preview.settings.executor.title}</div>
+            <div className="cap-evidence">{preview.settings.executor.explain}</div>
+            <div className="cap-what" style={{ marginTop: 6 }}>
+              {preview.settings.approval_mode.title}
+            </div>
+            <div className="cap-evidence">{preview.settings.approval_mode.explain}</div>
+          </div>
+
+          {preview.settings.paths.length > 0 && (
+            <div className="cap-row cap-ok">
+              <div className="cap-head"><b>Папки</b></div>
+              <div className="cap-what">{preview.settings.paths.join(", ")}</div>
+            </div>
+          )}
+
+          <p className="muted">
+            Ничего ещё не применено. Проверь и нажми «сохранить», если всё верно.
+          </p>
+          <div className="onb-input">
+            <button type="button" onClick={apply} disabled={busy}>сохранить</button>
+            <button type="button" onClick={restart} disabled={busy}>начать заново</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function Settings({ profile, onChange }: {
+  profile: ProfileView;
+  onChange: (p: ProfileView) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function call<T>(fn: () => Promise<T>) {
+    setBusy(true);
+    setError(null);
+    try {
+      return await fn();
+    } catch (e) {
+      setError(String(e));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Ваш компьютер</h2>
+      <dl className="facts">
+        <div><dt>Видеокарта</dt><dd>{profile.gpu_name}</dd></div>
+        <div>
+          <dt>Видеопамять</dt>
+          <dd>
+            {gb(profile.vram_mb)}
+            <span className="muted"> доступно {gb(profile.vram_usable_mb)}</span>
+          </dd>
+        </div>
+        <div><dt>Процессор</dt><dd>{profile.cpu_brand}</dd></div>
+        <div><dt>Оперативная память</dt><dd>{gb(profile.ram_mb)}</dd></div>
+      </dl>
+
+      <h2>Профиль</h2>
+      <p className="summary">{profile.summary}</p>
+      {profile.unsupported_reason && (
+        <p className="error">Не поддерживается: {profile.unsupported_reason}</p>
+      )}
+
+      <ul className="tiers">
+        {profile.available_tiers.map((t) => {
+          const active = t.tier === profile.effective;
+          const blocked = t.blocked_because !== null;
+          return (
+            <li key={t.tier} className={active ? "tier active" : "tier"}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  call(() =>
+                    invoke<ProfileView>("set_profile_tier", {
+                      tier: active && profile.forced ? null : t.tier,
+                    })
+                  ).then((p) => p && onChange(p))
+                }
+                title={t.blocked_because ?? "Выбрать этот профиль"}
+              >
+                <strong>{t.tier}</strong>
+                <span>{t.describe.replace(`${t.tier} — `, "")}</span>
+              </button>
+              {blocked && <em className="muted">{t.blocked_because}</em>}
+              {active && !blocked && <em className="chosen">выбран</em>}
+            </li>
+          );
+        })}
+      </ul>
+
+      {profile.forced && (
+        <button type="button" className="link" disabled={busy}
+          onClick={() => call(() => invoke<ProfileView>("set_profile_tier", { tier: null }))
+            .then((p) => p && onChange(p))}>
+          вернуть автоматическое определение
+        </button>
+      )}
+
+      <h2>Контекст</h2>
+      <p className="muted">
+        Сколько токенов модель держит в голове за раз. Больше — больше
+        помнит, но дольше думает: на 24 000 токенах первый ответ приходит
+        через 11 секунд.
+      </p>
+      <div className="context-row">
+        {[16384, 32768, 65536, 131072, 262144].map((c) => (
+          <button key={c} type="button" disabled={busy}
+            className={c === profile.context ? "chip active" : "chip"}
+            onClick={() => call(() => invoke<ProfileView>("set_context", { context: c }))
+              .then((p) => p && onChange(p))}>
+            {c / 1024}K
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Чат (S2)
+// ---------------------------------------------------------------------------
+
+function Chat({ model }: { model: ModelStatus }) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const bottom = useRef<HTMLDivElement>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    const unlisteners: Promise<() => void>[] = [
+      listen<{ request_id: number; delta: string }>("chat:chunk", (e) => {
+        if (e.payload.request_id !== requestId.current) return;
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant") {
+            next[next.length - 1] = { ...last, content: last.content + e.payload.delta };
+          }
+          return next;
+        });
+      }),
+      listen<{
+        request_id: number; outcome: string; prompt_tokens: number | null;
+        completion_tokens: number | null; tok_s: number | null;
+        error: string | null; tool_calls: unknown;
+      }>("chat:done", (e) => {
+        if (e.payload.request_id !== requestId.current) return;
+        setBusy(false);
+        const p = e.payload;
+        if (p.error) {
+          setNotice(p.error);
+        } else {
+          const bits: string[] = [];
+          if (p.prompt_tokens) bits.push(`${p.prompt_tokens} в промпте`);
+          if (p.tok_s) bits.push(`${p.tok_s.toFixed(1)} tok/s`);
+          if (p.outcome === "stop") bits.push("остановлено");
+          setNotice(bits.join(" · ") || null);
+        }
+      }),
+    ];
+    return () => { unlisteners.forEach((p) => p.then((f) => f())); };
+  }, []);
+
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = useCallback(async () => {
+    const text = input.trim();
+    if (!text || busy || !model.running) return;
+
+    const next: Message[] = [...messages, { role: "user", content: text }];
+    setMessages([...next, { role: "assistant", content: "" }]);
+    setInput("");
+    setBusy(true);
+    setNotice(null);
+
+    try {
+      requestId.current = await invoke<number>("chat", {
+        messages: next.map(({ role, content }) => ({ role, content })),
+        maxTokens: 1024,
+      });
+    } catch (e) {
+      setBusy(false);
+      setNotice(String(e));
+      setMessages(next);
+    }
+  }, [busy, input, messages, model.running]);
+
+  return (
+    <section className="chat">
+      <div className="messages">
+        {messages.length === 0 && (
+          <p className="muted">
+            Модель {model.recipe ?? "не выбрана"} готова. Напишите что-нибудь.
+          </p>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>{m.content || "…"}</div>
+        ))}
+        <div ref={bottom} />
+      </div>
+
+      {busy && (
+        <button type="button" className="stop" onClick={() => invoke("stop_generation")}>
+            остановить ответ
+        </button>
+      )}
+      {notice && <p className="muted notice">{notice}</p>}
+
+      <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        <input
+          className="app-input"
+          value={input}
+          onChange={(e) => setInput(e.currentTarget.value)}
+          placeholder={model.running ? "Напишите сообщение" : "Сначала запустите модель"}
+          disabled={!model.running || busy}
+          aria-label="Сообщение"
+        />
+        <button className="app-send" type="submit" disabled={!input.trim() || busy || !model.running}>
+          Отправить
+        </button>
+      </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Модель
+// ---------------------------------------------------------------------------
+
+interface Problem {
+  what: string;
+  why: string;
+  how: string;
+}
+
+interface Preflight {
+  problems: Problem[];
+  usable_recipe: string | null;
+  models_dir: string;
+}
+
+interface RemoteFile {
+  path: string;
+  size: number;
+  sha256: string;
+}
+
+type DownloadState =
+  | { kind: "idle" }
+  | { kind: "meta" }
+  | { kind: "busy"; downloaded: number; total: number; mib: number }
+  | { kind: "verifying"; size: number }
+  | { kind: "done"; path: string }
+  | { kind: "error"; message: string };
+
+function gib(bytes: number): string {
+  return `${(bytes / 1024 ** 3).toFixed(2)} ГиБ`;
+}
+
+function Downloader({ model }: { model: ModelStatus }) {
+  const [repo, setRepo] = useState("unsloth/Qwen3.5-9B-GGUF");
+  const [files, setFiles] = useState<RemoteFile[] | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [state, setState] = useState<DownloadState>({ kind: "idle" });
+  const [hosts, setHosts] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    invoke<string[]>("download_hosts")
+      .then(setHosts)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const un = listen<DownloadState>("download:progress", (e) => {
+      setState(e.payload as DownloadState);
+    });
+    return () => { un.then((f) => f()); };
+  }, []);
+
+  async function loadFiles() {
+    setState({ kind: "meta" });
+    try {
+      const list = await invoke<RemoteFile[]>("repo_files", { repo });
+      setFiles(list.filter((f) => f.path.endsWith(".gguf")));
+      setState({ kind: "idle" });
+    } catch (e) {
+      setFiles(null);
+      setState({ kind: "error", message: String(e) });
+    }
+  }
+
+  async function start() {
+    if (!picked) return;
+    setState({ kind: "meta" });
+    try {
+      await invoke<string>("download_model", { repo, file: picked });
+    } catch (e) {
+      setState({ kind: "error", message: String(e) });
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Скачать модель</h2>
+
+      {model.running ? (
+        <p className="muted">
+          Сейчас работает «{model.recipe}». Скачивание новой модели
+          ничего не сломает, но запускать её придётся заново.
+        </p>
+      ) : (
+        <p className="muted">
+          Под текущий профиль нужен квант из списка. Показан размер
+          файла, а не скорость: она станет известна после сверки сводки.
+        </p>
+      )}
+
+      <div className="repo-row">
+        <input
+          className="app-input"
+          value={repo}
+          onChange={(e) => setRepo(e.currentTarget.value)}
+          placeholder="владелец/репозиторий"
+          aria-label="Репозиторий"
+        />
+        <button className="chip" onClick={loadFiles}
+          disabled={state.kind === "meta"}>
+          показать файлы
+        </button>
+      </div>
+
+      {files && files.length > 0 && (
+        <ul className="files">
+          {files.map((f) => (
+            <li key={f.path}>
+              <button
+                type="button"
+                className={picked === f.path ? "file active" : "file"}
+                onClick={() => setPicked(f.path)}
+              >
+                <span className="file-name">
+                  {f.path.split("/").pop()}
+                </span>
+                <span className="muted">{gib(f.size)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {state.kind === "busy" && (
+        <div className="progress">
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${(state.downloaded / state.total) * 100}%` }}
+            />
+          </div>
+          <p className="muted">
+            {gib(state.downloaded)} из {gib(state.total)}, {state.mib.toFixed(1)} МБ/с
+          </p>
+          <button className="stop" onClick={() => invoke("cancel_download")}>
+            отменить
+          </button>
+        </div>
+      )}
+
+      {state.kind === "verifying" && (
+        <p className="muted">Проверяем сводку файла, {gib(state.size)}…</p>
+      )}
+
+      {state.kind === "done" && (
+        <p className="ok">Готово: {state.path}</p>
+      )}
+
+      {state.kind === "error" && (
+        <p className="error">{state.message}</p>
+      )}
+
+      {picked && (
+        <button className="app-send" onClick={start}
+          disabled={state.kind === "busy" || state.kind === "meta"}>
+          Скачать
+        </button>
+      )}
+
+      {hosts && (
+        <details className="hosts">
+          <summary className="muted">
+            если не скачивается: нужны разрешённые домены
+          </summary>
+          <ul>
+            {hosts.map((h) => <li key={h}>{h}</li>)}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function Problems({ pre }: { pre: Preflight }) {
+  return (
+    <section className="panel">
+      <h2>Что мешает запуску</h2>
+      <ol className="problems">
+        {pre.problems.map((p, i) => (
+          <li key={i}>
+            <strong>{p.what}</strong>
+            <p className="muted">{p.why}</p>
+            <p className="how">{p.how}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="muted small">папка моделей: {pre.models_dir}</p>
+    </section>
+  );
+}
+
+function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: ModelStatus) => void }) {
+  const [starting, setStarting] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const [showLog, setShowLog] = useState(false);
+  const [pre, setPre] = useState<Preflight | null>(null);
+
+  async function start() {
+    setStarting(true);
+    try {
+      onChange(await invoke<ModelStatus>("start_model"));
+    } catch (e) {
+      onChange({ ...model, running: false, error: String(e) });
+      setPre(await invoke<Preflight>("preflight_model").catch(() => null));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function check() {
+    setPre(await invoke<Preflight>("preflight_model").catch(() => null));
+  }
+
+  useEffect(() => {
+    if (model.error) check();
+  }, [model.error]);
+
+  async function toggleLog() {
+    const next = !showLog;
+    setShowLog(next);
+    if (next) {
+      setLog(await invoke<string[]>("model_log", { lines: 60 }));
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Модель</h2>
+
+      {!model.running ? (
+        <button type="button" className="app-send" disabled={starting} onClick={start}>
+          {starting ? "Проверяем и запускаем…" : "Запустить модель"}
+        </button>
+      ) : (
+        <>
+          <dl className="facts">
+            <div><dt>Рецепт</dt><dd>{model.recipe}</dd></div>
+            <div><dt>KV-кэш</dt><dd>{model.kv_cache}</dd></div>
+            <div><dt>Контекст</dt><dd>{model.context ? `${model.context / 1024}K` : "—"}</dd></div>
+            <div>
+              <dt>Размещение</dt>
+              <dd className={model.full_gpu ? "ok" : "bad"}>
+                {model.full_gpu
+                  ? `все слои на GPU (${model.gpu_layers}/${model.total_layers})`
+                  : `частично: ${model.gpu_layers}/${model.total_layers}`}
+              </dd>
+            </div>
+            <div><dt>Устройство</dt><dd>{model.device ?? "—"}</dd></div>
+            <div>
+              <dt>Скорость</dt>
+              <dd>
+                {model.tok_s ? `${model.tok_s} tok/s` : "не измерена"}
+                {!model.verified && <span className="muted"> · рецепт не замерян</span>}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="context-row">
+            <button type="button" className="chip" onClick={() => invoke("stop_model")}>
+              остановить модель
+            </button>
+            <button type="button" className="chip" onClick={toggleLog}>
+              {showLog ? "скрыть журнал" : "журнал запуска"}
+            </button>
+          </div>
+        </>
+      )}
+
+      {model.error && <p className="error">{model.error}</p>}
+      {pre && <Problems pre={pre} />}
+
+      {showLog && (
+        <pre className="log">{log.join("\n") || "журнал пуст"}</pre>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Приложение
+// ---------------------------------------------------------------------------
+
+type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings";
+
+function App() {
+  const [profile, setProfile] = useState<ProfileView | null>(null);
+  const [model, setModel] = useState<ModelStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("model");
+
+  useEffect(() => {
+    invoke<ProfileView>("get_profile").then(setProfile).catch((e) => setError(String(e)));
+    invoke<ModelStatus>("model_status").then(setModel).catch(() => undefined);
+  }, []);
+
+  if (!model) {
+    return (
+      <main className="app">
+        <header className="app-header">
+          <h1>Archotic</h1>
+          <span className="app-subtitle">локальный секретарь</span>
+        </header>
+        <section className="app-body"><p className="app-hint">Загружаемся…</p></section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="app">
+      <header className="app-header">
+        <h1>Archotic</h1>
+        <span className="app-subtitle">локальный секретарь</span>
+        <nav className="tabs">
+          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings"] as Tab[]).map((t) => (
+            <button key={t} type="button"
+              className={tab === t ? "tab active" : "tab"}
+              onClick={() => setTab(t)}>
+              {{
+                model: "модель",
+                agent: "секретарь",
+                chat: "чат",
+                download: "модель скачать",
+                capabilities: "возможности",
+                welcome: "знакомство",
+                settings: "профиль",
+              }[t]}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      <section className="app-body">
+        {error && <p className="error">Не удалось определить профиль: {error}</p>}
+        {tab === "model" && <ModelBar model={model} onChange={setModel} />}
+        {tab === "agent" && <Agent />}
+      {tab === "chat" && <Chat model={model} />}
+        {tab === "download" && <Downloader model={model} />}
+      {tab === "capabilities" && <Capabilities />}
+      {tab === "welcome" && <Welcome />}
+        {tab === "settings" && profile && <Settings profile={profile} onChange={setProfile} />}
+      </section>
+
+      <footer className="app-footer">
+        <span>профиль: {profile ? profile.effective : "…"}</span>
+        <span>{model.running ? (model.recipe ?? "модель") : "модель не запущена"}</span>
+      </footer>
+    </main>
+  );
+}
+
+export default App;
