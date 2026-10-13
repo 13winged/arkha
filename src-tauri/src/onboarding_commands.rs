@@ -208,6 +208,25 @@ pub fn onboarding_set_paths(paths: Vec<String>) -> Result<SayResult, String> {
     })
 }
 
+/// Выбор: весь диск или отдельные папки.
+///
+/// Отдельная команда, а не значение в списке папок. Разрешение на
+/// весь диск — широкое, и человек должен видеть его как отдельное
+/// решение, а не как «выбрана папка C:\».
+#[tauri::command]
+pub fn onboarding_set_whole_disk(enabled: bool) -> Result<SayResult, String> {
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    s.set_whole_disk(enabled);
+    Ok(SayResult {
+        understood: true,
+        next: view_of(s, tier),
+        summary: s.summary(),
+        finished: s.finished,
+    })
+}
+
 /// Что получится, если применить. Ничего не применяет.
 #[derive(Debug, Clone, Serialize)]
 pub struct Preview {

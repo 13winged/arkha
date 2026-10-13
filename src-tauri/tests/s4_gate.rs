@@ -154,6 +154,37 @@ fn гейт_s4_выбор_папок_доходит_до_разрешений() 
     eprintln!("выбрано папок: {}", settings.paths.len());
 }
 
+/// Весь диск — решение человека, и оно доходит до разрешений
+/// отдельным флагом, а не подменой корня диска в списке папок.
+#[test]
+fn гейт_s4_весь_диск_доходит_до_разрешений_отдельным_флагом() {
+    let mut s = State::start();
+    s.step = Step::Folders;
+
+    s.set_whole_disk(true);
+    assert_eq!(s.step, Step::Levels, "включение должно закончить шаг");
+
+    let settings = s.to_settings();
+    assert!(settings.читать_весь_диск, "флаг не дошёл до разрешений");
+    assert!(
+        settings.paths.is_empty(),
+        "папки не должны подменяться корнем диска: {:?}",
+        settings.paths
+    );
+}
+
+/// Выключение — отказ от варианта, а не ответ. Шаг после него не
+/// двигается: человек снял галочку, чтобы поставить другую.
+#[test]
+fn гейт_s4_снятие_всего_диска_не_двигает_шаг() {
+    let mut s = State::start();
+    s.step = Step::Folders;
+
+    s.set_whole_disk(false);
+    assert_eq!(s.step, Step::Folders, "снятие галочки не должно двигать шаг");
+    assert!(!s.to_settings().читать_весь_диск);
+}
+
 /// Папок на диске может не оказаться. Тогда выбор пустой и шаг всё
 /// равно должен доехать до конца, а не зависнуть.
 #[test]
@@ -229,7 +260,7 @@ fn гейт_s4_выбор_кнопками_доходит_до_настроек(
     s.step = Step::Tools;
 
     s.set_tools(vec!["chat.local".into()], vec!["files.write".into()]);
-    assert_eq!(s.step, Step::Folders, "шаг должен сдвинуться");
+    assert_eq!(s.step, Step::Folders,  "шаг должен сдвинуться");
 
     let settings = s.to_settings();
     assert_eq!(

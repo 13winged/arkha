@@ -5,7 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use tauri::{AppHandle, Emitter, State};
+// `Manager` нужен ради `AppHandle::state`: работа запуска ушла в
+// отдельный поток и достаёт состояние уже оттуда, а не из параметров
+// команды. Без него состояние не достать вовсе.
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use std::sync::Arc;
 
@@ -101,12 +104,34 @@ impl ModelState {
 /// Запускает модель по профилю. Транзакционно: если рецепт не
 /// подошёл, пробуется следующий, и пользователю показывается что
 /// именно произошло.
+/// Запустить модель.
+///
+/// Вся работа уходит в отдельный блокирующий поток, и это не
+/// оптимизация, а требование. Внутри используется
+/// `reqwest::blocking`, а он создаёт собственное окружение tokio
+/// ради каждого запроса. Ронять такое окружение в асинхронном
+/// контексте запрещено, и процесс падал с
+/// «Cannot drop a runtime in a context where blocking is not
+/// allowed» — то есть модель не запускалась вовсе, а человек видел
+/// только панику в консоли.
+///
+/// Второй довод: модель грузится десятки секунд. Если команда
+/// выполнялась бы прямо в асинхронном потоке, окно замёрзло бы на
+/// всё это время.
 #[tauri::command]
-pub async fn start_model(
-    app: AppHandle,
-    sidecar: State<'_, SidecarState>,
-    status: State<'_, ModelState>,
-) -> Result<ModelStatus, String> {
+pub async fn start_model(app: AppHandle) -> Result<ModelStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || старт_на_потоке(&app))
+        .await
+        .map_err(|e| format!("поток запуска модели оборвался: {e}"))?
+}
+
+/// Сама работа запуска. Вынесена отдельно, чтобы и её сигнатура не
+/// совпадала с командой: иначе легко снова вызвать блокирующее из
+/// асинхронного, не заметив.
+fn старт_на_потоке(app: &AppHandle) -> Result<ModelStatus, String> {
+    let sidecar = app.state::<SidecarState>();
+    let status = app.state::<ModelState>();
+
     let tier = crate::profile::detect_and_persist().effective();
     let catalog = model_manager::Catalog::load()?;
 
@@ -156,7 +181,6 @@ pub async fn start_model(
         );
     }
     let _ = outcome;
-    let _ = app;
 
     *status.0.lock().expect("model lock poisoned") = Some(s.clone());
     Ok(s)
@@ -195,6 +219,13 @@ pub fn preflight_model() -> Result<model_manager::Preflight, String> {
 }
 
 /// Список файлов в репозитории с размерами и сводками.
+/// Подсказки по названию модели. Пустой запрос даёт пустой список,
+/// а не ошибку: человек ещё не начал печатать.
+#[tauri::command]
+pub async fn search_models(query: String) -> Result<Vec<downloader::ModelHit>, String> {
+    downloader::search_models(&query).await
+}
+
 #[tauri::command]
 pub async fn repo_files(repo: String) -> Result<Vec<downloader::RemoteFile>, String> {
     Ok(downloader::fetch_repo(&repo).await?.files)

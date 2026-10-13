@@ -191,6 +191,9 @@ pub struct Collected {
     pub disable: Vec<String>,
     /// Папки, разрешённые пользователем. Настоящие пути, не названия.
     pub paths: Vec<PathBuf>,
+    /// Читать весь диск вместо списка папок.
+    #[serde(default)]
+    pub whole_disk: bool,
     /// Режим выполнения.
     pub executor: Option<Executor>,
     /// Когда спрашивать.
@@ -358,6 +361,23 @@ impl State {
         }
     }
 
+    /// Принимает решение «читать весь диск».
+    ///
+    /// Шаг сдвигается только при включении. Выключение — это отказ от
+    /// варианта, а не ответ на вопрос, и двигать шаг после него
+    /// нельзя: человек снял галочку, чтобы поставить другую, и
+    /// оказался бы дальше, чем собирался.
+    ///
+    /// Включение сдвигает шаг, потому что это и есть ответ на
+    /// вопрос шага: «что секретарю разрешено читать». Выбрать можно
+    /// что-то одно — иначе человек не понимает, что именно он дал.
+    pub fn set_whole_disk(&mut self, enabled: bool) {
+        self.collected.whole_disk = enabled;
+        if enabled && self.step == Step::Folders {
+            self.advance();
+        }
+    }
+
     /// Принимает выбор инструментов кнопками.
     ///
     /// Идентификаторы проверяются по реестру. Кнопки в интерфейсе
@@ -399,6 +419,7 @@ impl State {
         let mut s = Settings::load().unwrap_or_default();
 
         s.paths = self.collected.paths.clone();
+        s.читать_весь_диск = self.collected.whole_disk;
 
         if let Some(e) = self.collected.executor {
             s.executor = e;

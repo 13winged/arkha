@@ -58,6 +58,7 @@ pub fn run() {
             chat::stop_generation,
             chat::preflight_model,
             chat::repo_files,
+            chat::search_models,
             chat::download_hosts,
             chat::download_model,
             chat::cancel_download,
@@ -70,6 +71,7 @@ pub fn run() {
             onboarding_commands::onboarding_set_tools,
             onboarding_commands::onboarding_folders,
             onboarding_commands::onboarding_set_paths,
+            onboarding_commands::onboarding_set_whole_disk,
             onboarding_commands::onboarding_preview,
             onboarding_commands::onboarding_apply,
         ]);

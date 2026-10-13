@@ -80,6 +80,102 @@ fn client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("не удалось создать HTTP-клиент: {e}"))
 }
 
+/// Одна найденная модель для подсказки.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelHit {
+    /// Имя репозитория в виде `автор/модель`.
+    pub repo: String,
+    /// Что это за семейство, если разобрать имя.
+    pub family: String,
+    /// Сколько скачиваний. Для выбора между похожими моделями это
+    /// главный признак: у семейства обычно есть десяток вариантов,
+    /// и разбираться в них по названию бессмысленно.
+    pub downloads: u64,
+}
+
+/// Один элемент ответа поиска Hugging Face.
+#[derive(Debug, Deserialize)]
+struct SearchItem {
+    id: String,
+    downloads: Option<u64>,
+}
+
+/// Найти модели по слову.
+///
+/// Ищет на Hugging Face с фильтром `gguf`, чтобы выпадали только
+/// те, что можно скачать и запустить: без фильтра в выдаче будут
+/// иFine-tune в safetensors, и датасеты, и модели без весов.
+///
+/// Запрос уходит на каждый введённый символ, поэтому слова короче
+/// двух букв не ищутся, а результаты обязаны быть короче списка —
+/// иначе человек получит простыню вместо подсказки.
+pub async fn search_models(query: &str) -> Result<Vec<ModelHit>, String> {
+    let q = query.trim();
+    if q.len() < 2 {
+        return Ok(Vec::new());
+    }
+    // Пробелы в адресе означают «параметр запроса», поэтому они
+    // кодируются, а не вставляются как есть.
+    let encoded: String = q
+        .chars()
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' => c.to_string(),
+            ' ' => "%20".to_string(),
+            other => {
+                format!("%{:02X}", other as u32)
+            }
+        })
+        .collect();
+    let url = format!(
+        "https://huggingface.co/api/models?search={encoded}&filter=gguf&sort=downloads&direction=-1&limit=12"
+    );
+    let resp = client()?
+        .get(&url)
+        .timeout(META_TIMEOUT)
+        .send()
+        .await
+        .map_err(|e| friendly(&url, &e))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("поиск не удался: {status}: {}", truncate(&body, 160)));
+    }
+    let список: Vec<SearchItem> = resp
+        .json()
+        .await
+        .map_err(|e| format!("ответ поиска не разобран: {e}"))?;
+
+    Ok(список
+        .into_iter()
+        .map(|м| ModelHit {
+            family: семейство(&м.id),
+            repo: м.id,
+            downloads: м.downloads.unwrap_or(0),
+        })
+        .collect())
+}
+
+/// Имя семейства из названия репозитория.
+///
+/// У репозиториев GGUF точек в имени обычно нет — там точки в самом
+/// файле, — так что разделение по точке давало бы полное имя модели
+/// целиком, и подсказка ничем не отличалась бы от названия. Берутся
+/// первые два куска после «имени автора»: `Gemma-4-12B-IT-GGUF`
+/// даёт `Gemma-4`, и видно, что человек набирал семейство.
+///
+/// Хвост `-GGUF` отбрасывается: он есть у всех и различает их не
+/// может.
+fn семейство(repo: &str) -> String {
+    let имя = repo.rsplit('/').next().unwrap_or(repo);
+    let без_формата = имя.strip_suffix("-GGUF").unwrap_or(имя);
+    let части: Vec<&str> = без_формата.split('-').take(2).collect();
+    if части.is_empty() {
+        return имя.to_string();
+    }
+    части.join("-")
+}
+
 /// Метаданные репозитория: список файлов, размеры и сводки.
 pub async fn fetch_repo(repo: &str) -> Result<RemoteRepo, String> {
     let url = TREE_URL.replace("{repo}", repo);

@@ -24,6 +24,9 @@ pub struct SettingsView {
     pub cloud: bool,
     pub deny_apps: Vec<String>,
     pub paths: Vec<String>,
+    /// Читать весь диск. Видно отдельно от списка папок, чтобы
+    /// широкое разрешение не выглядело как «выбрана папка C:\».
+    pub читать_весь_диск: bool,
     /// Какие возможности выключены вручную.
     pub disabled: Vec<String>,
     /// Предупреждение, если режим не тот, что безопаснее всего.
@@ -92,6 +95,7 @@ pub fn view(s: &Settings) -> SettingsView {
         cloud: s.cloud,
         deny_apps: s.deny_apps.clone(),
         paths: s.paths.iter().map(|p| p.display().to_string()).collect(),
+        читать_весь_диск: s.читать_весь_диск,
         disabled,
         warning,
     }

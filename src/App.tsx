@@ -63,6 +63,13 @@ export interface FolderView {
   path: string;
 }
 
+/** Одна подсказка из поиска моделей. */
+export interface ModelHit {
+  repo: string;
+  family: string;
+  downloads: number;
+}
+
 /// Выбор из списка. Один компонент на инструменты и папки: логика
 /// «отметил, подтвердил» одинакова, различаются только подписи.
 function Picker({
@@ -253,42 +260,59 @@ function Capabilities() {
   return (
     <div className="panel">
       <h2>Возможности</h2>
-      <p className="muted">
-        Профиль <b>{report.tier}</b> — работает {report.available} из{" "}
-        {report.total}. Проверено на живом железе: {report.verified}.
-      </p>
 
-      <h3>Работает</h3>
-      {ready.length === 0 ? (
-        <p className="muted">Ничего не проверено. Это значит «ещё не сделано», а не «сломалось».</p>
-      ) : (
-        ready.map((r) => (
-          <div key={r.id} className="cap-row cap-ok">
-            <div className="cap-head">
-              <b>{r.name}</b>
-              <span className="cap-tag cap-tag-ok">работает</span>
-            </div>
-            <div className="cap-what">{r.what}</div>
-            {r.evidence && <div className="cap-evidence">Проверено: {r.evidence}</div>}
-          </div>
-        ))
-      )}
+      <div className="stat-row">
+        <span className="stat"><b>{report.available}</b> работает</span>
+        <span className="stat"><b>{report.total - report.available}</b> закрыто</span>
+        <span className="stat"><b>{report.verified}</b> проверено на железе</span>
+        <span className="stat gold"><b>{report.tier}</b> профиль</span>
+      </div>
 
-      <h3>Пока недоступно</h3>
-      <p className="muted">
-        Секретарь знает про эти возможности и честно скажет, что не может.
-        Не молчит и не обещает.
-      </p>
-      {blocked.map((r) => (
-        <div key={r.id} className="cap-row cap-blocked">
-          <div className="cap-head">
-            <b>{r.name}</b>
-            <span className="cap-tag cap-tag-no">{r.blocked_by}</span>
+      <section className="sector">
+        <h3 className="sector-head">
+          работает
+          <span className="sector-count">{ready.length}</span>
+        </h3>
+        {ready.length === 0 ? (
+          <p className="muted">Ничего не проверено. Это значит «ещё не сделано», а не «сломалось».</p>
+        ) : (
+          <div className="cards">
+            {ready.map((r) => (
+              <article key={r.id} className="card ok">
+                <header className="card-head">
+                  <span className="card-name">{r.name}</span>
+                  <span className="cap-tag cap-tag-ok">работает</span>
+                </header>
+                <p className="card-what">{r.what}</p>
+                {r.evidence && <p className="card-note">Проверено: {r.evidence}</p>}
+              </article>
+            ))}
           </div>
-          <div className="cap-what">{r.what}</div>
-          {r.refusal && <div className="cap-refusal">{r.refusal}</div>}
+        )}
+      </section>
+
+      <section className="sector">
+        <h3 className="sector-head">
+          пока недоступно
+          <span className="sector-count dim">{blocked.length}</span>
+        </h3>
+        <p className="muted sector-lead">
+          Секретарь знает про эти возможности и честно скажет, что не может.
+          Не молчит и не обещает.
+        </p>
+        <div className="cards">
+          {blocked.map((r) => (
+            <article key={r.id} className="card no">
+              <header className="card-head">
+                <span className="card-name">{r.name}</span>
+                <span className="cap-tag cap-tag-no">{r.blocked_by}</span>
+              </header>
+              <p className="card-what">{r.what}</p>
+              {r.refusal && <p className="card-refusal">{r.refusal}</p>}
+            </article>
+          ))}
         </div>
-      ))}
+      </section>
     </div>
   );
 }
@@ -313,6 +337,9 @@ function Welcome() {
   // галочки, а не ищет, где их поставить.
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  // Весь диск или отдельные папки. Второе — узкий вариант, и он
+  // стоит по умолчанию: широкий доступ человек выдаёт сам и осознанно.
+  const [wholeDisk, setWholeDisk] = useState(false);
 
   useEffect(() => {
     invoke<OnboardingStep>("onboarding_start")
@@ -339,6 +366,26 @@ function Welcome() {
       setStep(r.next);
       setLines((prev) => [...prev, { who: "вы", text: `папок выбрано: ${picked.size}` }]);
     } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Переключатель «весь диск». Отправляется сразу: на шаге папок
+  // это единственный доступный выбор, и ждать отдельной кнопки
+  // «дальше» было бы лишним шагом без смысла.
+  const toggleWholeDisk = async (want: boolean) => {
+    setBusy(true);
+    setError(null);
+    setWholeDisk(want);
+    try {
+      const r = await invoke<OnboardingSay>("onboarding_set_whole_disk", {
+        enabled: want,
+      });
+      if (want) setStep(r.next);
+    } catch (e) {
+      setWholeDisk(!want);
       setError(String(e));
     } finally {
       setBusy(false);
@@ -476,37 +523,63 @@ function Welcome() {
       ) : step.step === "folders" ? (
         <>
           <p className="muted">
-            Отметь папки, в которых секретарь сможет искать. Содержимое
-            не читается на этом шаге — только сами папки.
+            Реши, насколько широко секретарь сможет читать. На этом шаге
+            содержимое не читается — только названия папок.
           </p>
-          <Picker
-            items={folders.map((f) => ({ id: f.label, title: f.label, note: f.path }))}
-            chosen={picked}
-            onToggle={(id, want) => {
-              setPicked((prev) => {
-                const next = new Set(prev);
-                if (want) next.add(id);
-                else next.delete(id);
-                return next;
-              });
-            }}
-            onDone={pickPaths}
-            busy={busy}
-            empty="Папок по умолчанию не нашлось. Можно назвать свою в поле ниже."
-          />
-          {folders.length === 0 && (
-            <div className="onb-input">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") say(); }}
-                placeholder="путь к папке"
-                disabled={busy}
+
+          {/* Сначала широкий вариант, потом узкий. Порядок не
+              случайный: человек сначала решает «насколько широко»,
+              и лишь потом выбирает, где именно. Обратный порядок
+              заставил бы его отмечать папки, чтобы потом узнать,
+              что можно было просто включить один переключатель. */}
+          <button
+            type="button"
+            className={wholeDisk ? "wide-opt on" : "wide-opt"}
+            disabled={busy}
+            aria-pressed={wholeDisk}
+            onClick={() => toggleWholeDisk(!wholeDisk)}
+          >
+            <span className="wide-title">читать весь диск</span>
+            <span className="wide-note">
+              Секретарь сможет читать что угодно в любой папке. Удобно,
+              если документы разбросаны. Он всё равно не напишет и не
+              удалит ничего без твоего вопроса.
+            </span>
+          </button>
+
+          {!wholeDisk && (
+            <>
+              <p className="muted alt-lead">или отметь отдельные папки</p>
+              <Picker
+                items={folders.map((f) => ({ id: f.label, title: f.label, note: f.path }))}
+                chosen={picked}
+                onToggle={(id, want) => {
+                  setPicked((prev) => {
+                    const next = new Set(prev);
+                    if (want) next.add(id);
+                    else next.delete(id);
+                    return next;
+                  });
+                }}
+                onDone={pickPaths}
+                busy={busy}
+                empty="Папок по умолчанию не нашлось. Можно назвать свою в поле ниже."
               />
-              <button type="button" onClick={say} disabled={busy || !input.trim()}>
-                сказать
-              </button>
-            </div>
+              {folders.length === 0 && (
+                <div className="onb-input">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") say(); }}
+                    placeholder="путь к папке"
+                    disabled={busy}
+                  />
+                  <button type="button" onClick={say} disabled={busy || !input.trim()}>
+                    сказать
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : (
@@ -612,6 +685,10 @@ function Settings({ profile, onChange }: {
           const active = t.tier === profile.effective;
           const blocked = t.blocked_because !== null;
           return (
+            // Причина и пометка лежат внутри карточки, а не рядом с
+            // ней. Раньше `<em>` был соседом пункта списка и вылезал
+            // за его границы — на скриншоте это и читалось как наезд
+            // текста на подпись кнопки.
             <li key={t.tier} className={active ? "tier active" : "tier"}>
               <button
                 type="button"
@@ -628,8 +705,8 @@ function Settings({ profile, onChange }: {
                 <strong>{t.tier}</strong>
                 <span>{t.describe.replace(`${t.tier} — `, "")}</span>
               </button>
-              {blocked && <em className="muted">{t.blocked_because}</em>}
-              {active && !blocked && <em className="chosen">выбран</em>}
+              {blocked && <p className="tier-note muted">{t.blocked_because}</p>}
+              {active && !blocked && <p className="tier-note chosen">выбран</p>}
             </li>
           );
         })}
@@ -816,6 +893,11 @@ function Downloader({ model }: { model: ModelStatus }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [state, setState] = useState<DownloadState>({ kind: "idle" });
   const [hosts, setHosts] = useState<string[] | null>(null);
+  // Подсказки по семейству. null означает «ещё не искали», пустой
+  // массив — «искали, ничего не нашлось». Различать надо: при null
+  // список скрывается, при пустом показывается подпись.
+  const [hits, setHits] = useState<ModelHit[] | null>(null);
+  const [ищет, setИщет] = useState(false);
 
   useEffect(() => {
     invoke<string[]>("download_hosts")
@@ -829,6 +911,27 @@ function Downloader({ model }: { model: ModelStatus }) {
     });
     return () => { un.then((f) => f()); };
   }, []);
+
+  // Поиск с паузой. Без паузы запрос уходит на каждый символ:
+  // это заметно и по сети, и по тому, что список дёргается.
+  useEffect(() => {
+    const запрос = repo.trim();
+    if (запрос.length < 2) {
+      setHits(null);
+      return;
+    }
+    setИщет(true);
+    const таймер = setTimeout(() => {
+      invoke<ModelHit[]>("search_models", { query: запрос })
+        .then(setHits)
+        .catch(() => setHits([]))
+        .finally(() => setИщет(false));
+    }, 350);
+    // Гонка: человек печатает быстро, и ответ на «gem» может
+    // прийти после ответа на «gemma». Ответ на устаревший запрос
+    // отбрасывается, иначе список дёргался бы назад.
+    return () => clearTimeout(таймер);
+  }, [repo]);
 
   async function loadFiles() {
     setState({ kind: "meta" });
@@ -873,14 +976,43 @@ function Downloader({ model }: { model: ModelStatus }) {
           className="app-input"
           value={repo}
           onChange={(e) => setRepo(e.currentTarget.value)}
-          placeholder="владелец/репозиторий"
+          placeholder="начни набирать: gemma, qwen, llama…"
           aria-label="Репозиторий"
         />
         <button className="chip" onClick={loadFiles}
-          disabled={state.kind === "meta"}>
+          disabled={state.kind === "meta" || !repo.trim()}>
           показать файлы
         </button>
       </div>
+
+      {/* Подсказки по семейству. Список живёт под полем и исчезает
+          сразу после выбора: оставшаяся строка подсказки закрывала бы
+          то, ради чего человек в неё ткнул. */}
+      {hits && hits.length > 0 && (
+        <ul className="hints">
+          {hits.map((h) => (
+            <li key={h.repo}>
+              <button
+                type="button"
+                onClick={() => { setRepo(h.repo); setHits(null); }}
+              >
+                <span className="hint-family">{h.family}</span>
+                <span className="hint-repo">{h.repo}</span>
+                <span className="hint-dl">
+                  {h.downloads > 999 ? `${(h.downloads / 1000).toFixed(0)}k` : h.downloads}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ищет && <p className="muted hint-status">ищем…</p>}
+      {hits && hits.length === 0 && !ищет && (
+        <p className="muted hint-status">
+          по этому слову моделей не нашлось. Проверь написание или укажи
+          репозиторий целиком.
+        </p>
+      )}
 
       {files && files.length > 0 && (
         <ul className="files">
@@ -1060,7 +1192,73 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings";
+type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings" | "prefs";
+
+/**
+ * Кегль интерфейса.
+ *
+ * Размер шрифта хранится в самом интерфейсе, а не в настройках
+ * секретаря: это свойство окна, а не программы, и человек меняет
+ * его, когда глаза устали, а не когда перенастраивает доступ.
+ * Значение кладётся в CSS-переменную на корне, поэтому меняется
+ * ровно то, что нарисовано, без перезагрузки и без перезапуска.
+ */
+const РАЗМЕРЫ_ШРИФТА = [13, 14, 15, 16, 18] as const;
+
+function РазмерШрифта() {
+  const [кегль, setКегль] = useState<number>(() => {
+    const сохранён = Number(localStorage.getItem("arsha-font-size"));
+    return РАЗМЕРЫ_ШРИФТА.includes(сохранён as (typeof РАЗМЕРЫ_ШРИФТА)[number])
+      ? сохранён
+      : 14;
+  });
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--кегль", `${кегль}px`);
+    localStorage.setItem("arsha-font-size", String(кегль));
+  }, [кегль]);
+
+  const шаг = РАЗМЕРЫ_ШРИФТА.indexOf(кегль as (typeof РАЗМЕРЫ_ШРИФТА)[number]);
+
+  return (
+    <section className="panel">
+      <h2>настройки</h2>
+
+      <div className="pref-row">
+        <div className="pref-text">
+          <b>Размер шрифта</b>
+          <span className="muted">
+            Меняет весь интерфейс сразу. Если текст мелкий — поставь
+            побольше, секретарь от этого не тупеет.
+          </span>
+        </div>
+        <div className="stepper">
+          <button
+            type="button"
+            aria-label="мельче"
+            disabled={шаг <= 0}
+            onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг - 1] ?? кегль)}
+          >
+            A−
+          </button>
+          <span className="stepper-val">{кегль}</span>
+          <button
+            type="button"
+            aria-label="крупнее"
+            disabled={шаг >= РАЗМЕРЫ_ШРИФТА.length - 1}
+            onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг + 1] ?? кегль)}
+          >
+            A+
+          </button>
+        </div>
+      </div>
+
+      <p className="muted pref-sample" style={{ fontSize: `${кегль}px` }}>
+        Образец: Проверка распознавания речи. Сегодня вторник.
+      </p>
+    </section>
+  );
+}
 
 /**
  * Цвет смысла раздела.
@@ -1081,6 +1279,7 @@ const ТОН: Record<Tab, "gold" | "purple" | "blue"> = {
   capabilities: "blue",
   welcome: "gold",
   settings: "blue",
+  prefs: "blue",
 };
 
 /** Состояние голоса, как его отдаёт `voice_status`. */
@@ -1257,7 +1456,7 @@ function App() {
           <span className="app-subtitle">локальный секретарь</span>
         </div>
         <nav className="tabs">
-          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings"] as Tab[]).map((t) => (
+          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs"] as Tab[]).map((t) => (
             <button key={t} type="button"
               data-tone={ТОН[t]}
               className={tab === t ? "tab active" : "tab"}
@@ -1270,6 +1469,7 @@ function App() {
                 capabilities: "возможности",
                 welcome: "знакомство",
                 settings: "профиль",
+                prefs: "настройки",
               }[t]}
             </button>
           ))}
@@ -1306,10 +1506,11 @@ function App() {
         {tab === "capabilities" && <Capabilities />}
         {tab === "welcome" && <Welcome />}
         {tab === "settings" && profile && <Settings profile={profile} onChange={setProfile} />}
+        {tab === "prefs" && <РазмерШрифта />}
       </section>
 
       <footer className="app-footer">
-        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">7</kbd> вкладки</span>
+        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">8</kbd> вкладки</span>
         <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
         <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
         <span className="hint dim">всё считается на этой машине, облако выключено</span>
