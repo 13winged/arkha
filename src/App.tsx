@@ -1429,6 +1429,19 @@ function App() {
   useEffect(() => {
     invoke<ProfileView>("get_profile").then(setProfile).catch((e) => setError(String(e)));
     invoke<ModelStatus>("model_status").then(setModel).catch(() => undefined);
+
+    // Модель может упасть сама: не хватило видеопамяти, сбойнул
+    // драйвер. Без опроса интерфейс вечно показывал бы «запущена» и
+    // кнопку «остановить», которая не останавливает ничего, потому
+    // что останавливать уже нечего. Пять секунд — достаточно часто,
+    // чтобы падение заметил человек, и достаточно редко, чтобы не
+    // дёргать окно.
+    const опрос = setInterval(() => {
+      invoke<ModelStatus>("model_status")
+        .then(setModel)
+        .catch(() => undefined);
+    }, 5000);
+    return () => clearInterval(опрос);
   }, []);
 
   if (!model) {
