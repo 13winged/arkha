@@ -1,4 +1,4 @@
-﻿# Испытательное окно для гейта S8.
+# Испытательное окно для гейта S8.
 #
 # Настоящее окно Win32 с настоящими кнопками. Нужно для проверки
 # клика: элемент ищется по своему тексту через EnumChildWindows, и
@@ -18,7 +18,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Проверка Archotic"
+$form.Text = "Проверка Arsha"
 $form.Width = 560
 $form.Height = 360
 

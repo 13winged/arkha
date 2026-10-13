@@ -74,7 +74,7 @@ pub struct RemoteRepo {
 
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent(concat!("archotic/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("arsha/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(META_TIMEOUT)
         .build()
         .map_err(|e| format!("не удалось создать HTTP-клиент: {e}"))
@@ -577,8 +577,8 @@ mod tests {
     #[test]
     fn сводка_реального_файла_совпадает_с_эталоном() {
         // sha256 пустой строки, проверяем сам счётчик на известном значении.
-        let f = std::env::temp_dir().join("archotic-sha-test.bin");
-        std::fs::write(&f, b"archotic").unwrap();
+        let f = std::env::temp_dir().join("arsha-sha-test.bin");
+        std::fs::write(&f, b"arsha").unwrap();
         let got = sha256_file(&f).unwrap();
         let _ = std::fs::remove_file(&f);
         assert_eq!(got.len(), 64);

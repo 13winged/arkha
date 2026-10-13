@@ -459,7 +459,7 @@ arguments: папка, шаблон
     /// модель, и кэш префиксов тоже.
     #[test]
     fn набор_читается_в_стабильном_порядке() {
-        let dir = std::env::temp_dir().join(format!("archotic-skills-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("arsha-skills-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("папка");
         for n in ["b.md", "a.md", "c.md"] {

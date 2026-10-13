@@ -1215,7 +1215,7 @@ function App() {
     return (
       <main className="app">
         <header className="app-header">
-          <h1>Archotic</h1>
+          <h1>Arsha</h1>
           <span className="app-subtitle">локальный секретарь</span>
         </header>
         <section className="app-body"><p className="app-hint">Загружаемся…</p></section>
@@ -1226,7 +1226,7 @@ function App() {
   return (
     <main className="app">
       <header className="app-header">
-        <h1>Archotic</h1>
+        <h1>Arsha</h1>
         <span className="app-subtitle">локальный секретарь</span>
         <nav className="tabs">
           {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings"] as Tab[]).map((t) => (

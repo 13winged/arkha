@@ -1,8 +1,8 @@
-﻿$ErrorActionPreference = "Stop"
-$root = "C:\Users\winged\src\archotic"
+$ErrorActionPreference = "Stop"
+$root = "C:\Users\winged\src\arsha"
 $bin = "$root\data\bin"
 $env:PATH = "$bin\cudart;$env:PATH"
-$model = "$env:APPDATA\Archotic\models\Qwen3.5-9B-Q5_K_M.gguf"
+$model = "$env:APPDATA\Arsha\models\Qwen3.5-9B-Q5_K_M.gguf"
 $port = 18111
 
 Get-Process llama-server -ErrorAction SilentlyContinue | Stop-Process -Force

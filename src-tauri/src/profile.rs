@@ -523,7 +523,7 @@ pub fn config_dir() -> PathBuf {
     let base = std::env::var("APPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("."));
-    base.join("Archotic")
+    base.join("Arsha")
 }
 
 pub fn profile_path() -> PathBuf {

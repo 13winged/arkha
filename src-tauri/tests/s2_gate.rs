@@ -5,11 +5,11 @@
 //! пропускает, а не падает: на машине без модели это нормально.
 //!
 //! Запуск:
-//!   ARCHOTIC_BIN_DIR=data/bin ARCHOTIC_MODELS_DIR=<папка с gguf> \
+//!   ARSHA_BIN_DIR=data/bin ARSHA_MODELS_DIR=<папка с gguf> \
 //!     cargo test --test s2_gate -- --nocapture
 
-use archotic_lib::model_manager::{self, Catalog};
-use archotic_lib::profile::Tier;
+use arsha_lib::model_manager::{self, Catalog};
+use arsha_lib::profile::Tier;
 use std::path::PathBuf;
 
 fn env_dir(var: &str, fallback: &str) -> PathBuf {
@@ -22,7 +22,7 @@ fn env_dir(var: &str, fallback: &str) -> PathBuf {
 /// Профиль, на котором идёт замер. Задаётся переменной окружения,
 /// иначе один и тот же код проверял бы только T2.
 fn tier() -> Tier {
-    match std::env::var("ARCHOTIC_TEST_TIER").ok().as_deref() {
+    match std::env::var("ARSHA_TEST_TIER").ok().as_deref() {
         Some("T1") => Tier::T1,
         Some("T3") => Tier::T3,
         Some("T4") => Tier::T4,
@@ -34,7 +34,7 @@ fn tier() -> Tier {
 /// Файл модели берётся из рецепта выбранного профиля, а не по имени.
 /// Имя зашито было бы второй копией каталога, и она бы разъехалась.
 fn model_file() -> Option<PathBuf> {
-    let dir = env_dir("ARCHOTIC_MODELS_DIR", "data/models");
+    let dir = env_dir("ARSHA_MODELS_DIR", "data/models");
     let catalog = Catalog::load().ok()?;
     let recipe = catalog.recommended(tier()).or_else(|| catalog.fallback(tier()))?;
     let candidate = dir.join(&recipe.file);
@@ -48,7 +48,7 @@ fn model_file() -> Option<PathBuf> {
 /// Так выглядит картина, в которой проверка потеряла значение.
 ///
 /// Теперь отсутствие модели проваливает тест. Кто сознательно гоняет
-/// гейты на машине без нужной модели, ставит ARCHOTIC_ALLOW_SKIP=1,
+/// гейты на машине без нужной модели, ставит ARSHA_ALLOW_SKIP=1,
 /// и тогда возвращается `None` — тест выходит, но в выводе это видно.
 fn require_model() -> Option<PathBuf> {
     if let Some(path) = model_file() {
@@ -56,11 +56,11 @@ fn require_model() -> Option<PathBuf> {
     }
     let msg = format!(
         "для профиля {} нет файла модели в {}. Скачайте его загрузчиком \
-         или поставьте ARCHOTIC_ALLOW_SKIP=1, чтобы сознательно пропустить",
+         или поставьте ARSHA_ALLOW_SKIP=1, чтобы сознательно пропустить",
         tier().as_str(),
-        env_dir("ARCHOTIC_MODELS_DIR", "data/models").display(),
+        env_dir("ARSHA_MODELS_DIR", "data/models").display(),
     );
-    if std::env::var("ARCHOTIC_ALLOW_SKIP").is_ok() {
+    if std::env::var("ARSHA_ALLOW_SKIP").is_ok() {
         eprintln!("ПРОПУЩЕНО по требованию: {msg}");
         return None;
     }

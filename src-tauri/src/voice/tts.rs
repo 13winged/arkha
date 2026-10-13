@@ -27,7 +27,7 @@ pub fn синтез(г: &Голос, текст: &str) -> Result<(PathBuf, u64),
     let модель = г.модель("Qwen3-TTS-1.7B-Q4_K_M.gguf")?;
     let проектор = г.модель("Qwen3-TTS-mmproj-Q8_0.gguf")?;
     let куда = std::env::temp_dir().join(format!(
-        "archotic-голос-{}-{}.wav",
+        "arsha-голос-{}-{}.wav",
         std::process::id(),
         г.счётчик_следующий()
     ));

@@ -165,7 +165,7 @@ impl Settings {
                 paths.push(dir.join("permissions.json"));
             }
         }
-        if let Ok(dir) = std::env::var("ARCHOTIC_DATA_DIR") {
+        if let Ok(dir) = std::env::var("ARSHA_DATA_DIR") {
             paths.push(Path::new(&dir).join("permissions.json"));
         }
         paths.push(PathBuf::from("data").join("permissions.json"));
@@ -263,7 +263,7 @@ impl Settings {
     }
 
     /// Запрет нечувствителен к регистру и пути: агент может получить
-    /// `C:\...\archotic.exe`, а список хранит `archotic`. Сравнение
+    /// `C:\...\arsha.exe`, а список хранит `arsha`. Сравнение
     /// «как есть» дало бы обход в одну строку.
     pub fn is_denied_app(&self, app: &str) -> bool {
         let needle = app.trim().to_lowercase();
@@ -310,7 +310,7 @@ mod tests {
     fn запрет_не_обходится_регистром_и_путём() {
         let s = Settings::default();
         assert!(s.is_denied_app("Local.Secretary.App"));
-        assert!(s.is_denied_app(r"C:\Program Files\Archotic\local.secretary.app"));
+        assert!(s.is_denied_app(r"C:\Program Files\Arsha\local.secretary.app"));
         assert!(!s.is_denied_app("notepad"));
     }
 

@@ -18,13 +18,13 @@
 //!
 //! Запуск:
 //! ```text
-//! ARCHOTIC_BIN_DIR=data/bin ARCHOTIC_MODELS_DIR=<папка с gguf> \
-//! ARCHOTIC_VISION_MODEL=<GLM>.gguf ARCHOTIC_VISION_MMPROJ=<mmproj>.gguf \
-//!   ARCHOTIC_TEST_TIER=T3 \
+//! ARSHA_BIN_DIR=data/bin ARSHA_MODELS_DIR=<папка с gguf> \
+//! ARSHA_VISION_MODEL=<GLM>.gguf ARSHA_VISION_MMPROJ=<mmproj>.gguf \
+//!   ARSHA_TEST_TIER=T3 \
 //!   cargo test --test vision_gate -- --nocapture --test-threads=1
 //! ```
 //!
-//! Без `ARCHOTIC_VISION_MODEL` гейт пропускается, а не падает: зрение
+//! Без `ARSHA_VISION_MODEL` гейт пропускается, а не падает: зрение
 //! на профиле без нужной видеопамяти невозможно, и отсутствие модели
 //! не поломка проекта.
 
@@ -46,7 +46,7 @@ const НАДПИСИ: &[&str] = &["КОТ", "7 3 9", "ПРИВЕТ"];
 
 /// Папка с испытательной картинкой.
 fn папка() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("archotic-vision-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("arsha-vision-{}", std::process::id()));
     std::fs::create_dir_all(&d).expect("папка для картинки");
     d
 }
@@ -99,8 +99,8 @@ $b.Dispose()
 
 /// Модель зрения. `None` — гейт пропускается.
 fn зрящая() -> Option<(PathBuf, PathBuf)> {
-    let модель = std::env::var_os("ARCHOTIC_VISION_MODEL").map(PathBuf::from)?;
-    let mmproj = std::env::var_os("ARCHOTIC_VISION_MMPROJ").map(PathBuf::from)?;
+    let модель = std::env::var_os("ARSHA_VISION_MODEL").map(PathBuf::from)?;
+    let mmproj = std::env::var_os("ARSHA_VISION_MMPROJ").map(PathBuf::from)?;
     if !модель.exists() {
         eprintln!("ПРОПУЩЕНО: нет модели зрения {}", модель.display());
         return None;
@@ -146,10 +146,10 @@ impl Drop for Сервер {
 /// стоило получаса: 1229 МиБ видеопамяти при модели на 3.3 ГиБ — число
 /// выглядит возможным, но им быть не может.
 fn поднять(модель: &Path, порт: u16, флаги: &[String]) -> Сервер {
-    let exe = archotic_lib::model_manager::llama_server_exe();
-    let cudart = archotic_lib::model_manager::bin_dir().join("cudart");
+    let exe = arsha_lib::model_manager::llama_server_exe();
+    let cudart = arsha_lib::model_manager::bin_dir().join("cudart");
     let mut cmd = std::process::Command::new(&exe);
-    cmd.current_dir(archotic_lib::model_manager::bin_dir())
+    cmd.current_dir(arsha_lib::model_manager::bin_dir())
         .env(
             "PATH",
             match std::env::var("PATH") {
@@ -219,11 +219,11 @@ fn готов(порт: u16) -> bool {
 /// обе модели гарантированно помещаются рядом, и гейт проверяет
 /// совместную работу, а не одиночную скорость.
 ///
-/// `ARCHOTIC_VISION_NGL` задаёт другое. Нужен, чтобы померить, сколько
+/// `ARSHA_VISION_NGL` задаёт другое. Нужен, чтобы померить, сколько
 /// стоит перенос части весов на карту: у крупного кванта слой дороже,
 /// и лимит считается от размера файла, а не от числа слоёв.
 fn слои_зрения() -> String {
-    std::env::var("ARCHOTIC_VISION_NGL").unwrap_or_else(|_| "0".to_string())
+    std::env::var("ARSHA_VISION_NGL").unwrap_or_else(|_| "0".to_string())
 }
 
 /// Флаги зрящей модели.

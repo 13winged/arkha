@@ -175,7 +175,7 @@ impl Catalog {
     }
 
     /// Каталог лежит рядом с приложением в `data/recipes.json`, а в
-    /// установленной сборке — в `%APPDATA%\Archotic\recipes.json`.
+    /// установленной сборке — в `%APPDATA%\Arsha\recipes.json`.
     pub fn load() -> Result<Self, String> {
         for path in Self::candidate_paths() {
             if path.exists() {
@@ -255,7 +255,7 @@ impl Catalog {
 /// «не найден llama-server.exe» вводило в заблуждение: он был
 /// установлен, просто искали не там.
 pub fn bin_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("ARCHOTIC_BIN_DIR") {
+    if let Ok(dir) = std::env::var("ARSHA_BIN_DIR") {
         return PathBuf::from(dir);
     }
 
@@ -267,7 +267,7 @@ pub fn bin_dir() -> PathBuf {
             searched.push(dir.join("llama"));
             searched.push(dir.join("bin"));
 
-            // Сборка из проекта: target/release/archotic.exe,
+            // Сборка из проекта: target/release/arsha.exe,
             // бинарники в data/bin от корня репозитория.
             for up in dir.ancestors().skip(1).take(5) {
                 searched.push(up.join("data").join("bin"));
@@ -295,7 +295,7 @@ pub fn bin_dir() -> PathBuf {
 /// Все места, где искали бинарник. Показываются в ошибке, чтобы
 /// пользователь не гадал.
 pub fn bin_search_paths() -> Vec<PathBuf> {
-    if let Ok(dir) = std::env::var("ARCHOTIC_BIN_DIR") {
+    if let Ok(dir) = std::env::var("ARSHA_BIN_DIR") {
         return vec![PathBuf::from(dir)];
     }
     let mut out = Vec::new();
@@ -318,7 +318,7 @@ pub fn llama_server_exe() -> PathBuf {
 }
 
 pub fn models_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("ARCHOTIC_MODELS_DIR") {
+    if let Ok(dir) = std::env::var("ARSHA_MODELS_DIR") {
         return PathBuf::from(dir);
     }
     config_dir().join("models")
@@ -1128,14 +1128,14 @@ mod tests {
     fn показываются_все_проблемы_а_не_первая() {
         // Движок уводим в несуществующую папку, иначе на dev-машине
         // он есть и тест ничего не проверяет.
-        unsafe { std::env::set_var("ARCHOTIC_BIN_DIR", "Z:\\нет\\такого\\bin") };
+        unsafe { std::env::set_var("ARSHA_BIN_DIR", "Z:\\нет\\такого\\bin") };
 
         let cat = catalog(vec![recipe_named("9B Q5_K_M + q4_0", "missing.gguf")]);
         // Профиль T2, под который есть рецепт: иначе список проблем
         // был бы пустым по другой причине, и тест ничего не проверял бы.
         let pre = preflight(Tier::T2, &cat, Path::new("/нет/такой/папки"));
 
-        unsafe { std::env::remove_var("ARCHOTIC_BIN_DIR") };
+        unsafe { std::env::remove_var("ARSHA_BIN_DIR") };
 
         assert!(pre.blocked());
         let text = format_problems(&pre);
@@ -1204,9 +1204,9 @@ mod tests {
     fn собственный_путь_имеет_приоритет() {
         // Переменная окружения перекрывает всё, это нужно для тестов
         // и для нестандартной установки.
-        unsafe { std::env::set_var("ARCHOTIC_BIN_DIR", "D:\\test\\bin") };
+        unsafe { std::env::set_var("ARSHA_BIN_DIR", "D:\\test\\bin") };
         assert_eq!(bin_dir(), PathBuf::from("D:\\test\\bin"));
-        unsafe { std::env::remove_var("ARCHOTIC_BIN_DIR") };
+        unsafe { std::env::remove_var("ARSHA_BIN_DIR") };
     }
 
     #[test]

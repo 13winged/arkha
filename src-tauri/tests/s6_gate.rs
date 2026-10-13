@@ -16,15 +16,15 @@
 //!
 //! Запуск:
 //! ```text
-//! ARCHOTIC_BIN_DIR=data/bin ARCHOTIC_MODELS_DIR=<папка с gguf> \
+//! ARSHA_BIN_DIR=data/bin ARSHA_MODELS_DIR=<папка с gguf> \
 //!   cargo test --test s6_gate -- --nocapture --test-threads=1
 //! ```
 
-use archotic_lib::agent::executor::{Agent, Message, Model, Outcome, PendingApproval, Turn};
+use arsha_lib::agent::executor::{Agent, Message, Model, Outcome, PendingApproval, Turn};
 use std::sync::atomic::AtomicBool;
-use archotic_lib::model_manager::{self, Catalog};
-use archotic_lib::profile::Tier;
-use archotic_lib::tools::Registry;
+use arsha_lib::model_manager::{self, Catalog};
+use arsha_lib::profile::Tier;
+use arsha_lib::tools::Registry;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
@@ -39,7 +39,7 @@ impl Папка {
         // длинного. Так его и создаёт Windows.
         let база = if путь_длинный() {
             std::env::temp_dir().join(format!(
-                "archotic-s6-{}-{имя}",
+                "arsha-s6-{}-{имя}",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_nanos())
@@ -228,7 +228,7 @@ impl Живая {
 
 impl Model for Живая {
     fn turn(&mut self, messages: &[Message], tools: &[Value], _id: u64) -> Result<Turn, String> {
-        let system = archotic_lib::agent::live::системная_строка(archotic_lib::agent::live::профиль_для_тестов());
+        let system = arsha_lib::agent::live::системная_строка(arsha_lib::agent::live::профиль_для_тестов());
         // ВАЖНО: сюда идут ВСЕ роли, включая `tool`.
         //
         // Первая версия гейта отбрасывала результаты инструментов,
@@ -270,7 +270,7 @@ fn env_dir(var: &str, fallback: &str) -> PathBuf {
 }
 
 fn tier() -> Tier {
-    match std::env::var("ARCHOTIC_TEST_TIER").ok().as_deref() {
+    match std::env::var("ARSHA_TEST_TIER").ok().as_deref() {
         Some("T1") => Tier::T1,
         Some("T3") => Tier::T3,
         Some("T4") => Tier::T4,
@@ -303,7 +303,7 @@ fn поднять() -> Option<(model_manager::Sidecar, PathBuf)> {
 }
 
 fn model_файл() -> Option<PathBuf> {
-    let dir = env_dir("ARCHOTIC_MODELS_DIR", "data/models");
+    let dir = env_dir("ARSHA_MODELS_DIR", "data/models");
     let catalog = Catalog::load().ok()?;
     let recipe = catalog.recommended(tier()).or_else(|| catalog.fallback(tier()))?;
     let candidate = dir.join(&recipe.file);
@@ -311,11 +311,11 @@ fn model_файл() -> Option<PathBuf> {
         return Some(candidate);
     }
     let msg = format!(
-        "для профиля {} нет модели в {}. Скачайте загрузчиком или ARCHOTIC_ALLOW_SKIP=1",
+        "для профиля {} нет модели в {}. Скачайте загрузчиком или ARSHA_ALLOW_SKIP=1",
         tier().as_str(),
         dir.display()
     );
-    if std::env::var("ARCHOTIC_ALLOW_SKIP").is_ok() {
+    if std::env::var("ARSHA_ALLOW_SKIP").is_ok() {
         eprintln!("ПРОПУЩЕНО: {msg}");
         return None;
     }
@@ -328,7 +328,7 @@ fn цикл(
     корень: &Path,
     задача: &str,
 ) -> Outcome {
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(корень.to_path_buf());
 
     let mut модель = Живая::новый(sidecar.base_url());
@@ -478,12 +478,12 @@ fn гейт_s6_подтверждение_проходит_до_выполнен
     let папка = Папка::новая("подтверждение");
     let файл = папка.записать("секрет.txt", "код 7749");
 
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(папка.путь.clone());
-    s.executor = archotic_lib::permissions::Executor::Live;
+    s.executor = arsha_lib::permissions::Executor::Live;
     // Режим «всегда спрашивать»: единственный, при котором вопрос
     // задаётся наверняка.
-    s.approval_mode = archotic_lib::permissions::ApprovalMode::Confirm;
+    s.approval_mode = arsha_lib::permissions::ApprovalMode::Confirm;
 
     let mut модель = Живая::новый(sidecar.base_url());
     let mut отвечает = Разрешающий::на_задачу();
@@ -525,10 +525,10 @@ fn гейт_s6_отказ_пользователя_останавливает_ч
     let папка = Папка::новая("отказ-пользователя");
     let файл = папка.записать("секрет.txt", "код 7749");
 
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(папка.путь.clone());
-    s.executor = archotic_lib::permissions::Executor::Live;
-    s.approval_mode = archotic_lib::permissions::ApprovalMode::Confirm;
+    s.executor = arsha_lib::permissions::Executor::Live;
+    s.approval_mode = arsha_lib::permissions::ApprovalMode::Confirm;
 
     let mut модель = Живая::новый(sidecar.base_url());
     let mut отвечает = Разрешающий::отказ();
@@ -564,7 +564,7 @@ fn гейт_s6_навык_с_диска_выполняется() {
         return;
     };
 
-    let набор = archotic_lib::skills::Набор::из_папки(&archotic_lib::skills::папка_данных());
+    let набор = arsha_lib::skills::Набор::из_папки(&arsha_lib::skills::папка_данных());
     assert!(
         !набор.навыки.is_empty(),
         "в data/skills нет ни одного навыка. Гейту нечего проверять"
@@ -583,7 +583,7 @@ fn гейт_s6_навык_с_диска_выполняется() {
     папка.записать("два.txt", "здесь написано про собаку");
 
     // Навык объявлен на файлы.read, а разрешение есть по умолчанию.
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(папка.путь.clone());
 
     let mut модель = Живая::новый(sidecar.base_url());
@@ -626,30 +626,30 @@ fn гейт_s6_навык_с_диска_выполняется() {
 
 /// Подставной пользователь для гейта.
 struct Разрешающий {
-    решение: archotic_lib::agent::approvals::Решение,
+    решение: arsha_lib::agent::approvals::Решение,
     вопросы: Vec<PendingApproval>,
 }
 
 impl Разрешающий {
     fn на_задачу() -> Self {
         Self {
-            решение: archotic_lib::agent::approvals::Решение::ВсюЗадачу,
+            решение: arsha_lib::agent::approvals::Решение::ВсюЗадачу,
             вопросы: Vec::new(),
         }
     }
     fn отказ() -> Self {
         Self {
-            решение: archotic_lib::agent::approvals::Решение::Отказ,
+            решение: arsha_lib::agent::approvals::Решение::Отказ,
             вопросы: Vec::new(),
         }
     }
 }
 
-impl archotic_lib::agent::executor::Спрашивающий for Разрешающий {
+impl arsha_lib::agent::executor::Спрашивающий for Разрешающий {
     fn спросить(
         &mut self,
         вопрос: &PendingApproval,
-    ) -> archotic_lib::agent::approvals::Решение {
+    ) -> arsha_lib::agent::approvals::Решение {
         self.вопросы.push(вопрос.clone());
         self.решение
     }
@@ -736,7 +736,7 @@ fn гейт_s6_отказ_доходит_и_модель_не_врёт() {
 
     // Читаем файл, который лежит ВНЕ разрешённой папки: разрешена
     // другая.
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     let пусто = папка.путь.join("разрешено");
     std::fs::create_dir_all(&пусто).expect("папка");
     s.paths.push(пусто);
@@ -774,7 +774,7 @@ fn гейт_s6_в_схеме_только_разрешённое() {
     let папка = Папка::новая("схема");
 
     // Разрешена пустая папка, чтение разрешено: инструменты должны быть.
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(папка.путь.clone());
     let разрешённые = Registry::allowed(&s);
     assert!(
@@ -786,7 +786,7 @@ fn гейт_s6_в_схеме_только_разрешённое() {
     // А выключенная возможность убирает инструмент из схемы целиком.
     s.capabilities.insert(
         "files.read".into(),
-        archotic_lib::permissions::CapabilityRule { enabled: false, mode: None },
+        arsha_lib::permissions::CapabilityRule { enabled: false, mode: None },
     );
     let схема = Registry::allowed(&s).as_request_json(&s);
     // Проверяются файловые: навык живёт своей возможностью и не
@@ -816,7 +816,7 @@ fn гейт_s6_отмена_до_старта_останавливает_цик�
     папка.записать("файл.txt", "данные");
 
     let флаг = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let mut s = archotic_lib::permissions::Settings::default();
+    let mut s = arsha_lib::permissions::Settings::default();
     s.paths.push(папка.путь.clone());
 
     let mut модель = Живая::новый(sidecar.base_url());

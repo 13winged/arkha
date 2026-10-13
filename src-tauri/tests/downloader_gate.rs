@@ -7,7 +7,7 @@
 //! Запуск:
 //!   cargo test --test downloader_gate -- --nocapture --ignored
 
-use archotic_lib::downloader::{self, RemoteFile, RemoteRepo};
+use arsha_lib::downloader::{self, RemoteFile, RemoteRepo};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -90,7 +90,7 @@ async fn полный_part_идёт_на_сверку_а_не_в_сеть() {
         sha256: "0".repeat(64),
     };
 
-    let dest = std::env::temp_dir().join("archotic-test-complete");
+    let dest = std::env::temp_dir().join("arsha-test-complete");
     let _ = std::fs::remove_dir_all(&dest);
     std::fs::create_dir_all(&dest).unwrap();
 
@@ -103,7 +103,7 @@ async fn полный_part_идёт_на_сверку_а_не_в_сеть() {
     let err = downloader::download(
         // Репозиторий заведомо не существует: если загрузчик дойдёт
         // до сети, тест упадёт с сетевой ошибкой, а не пройдёт.
-        "archotic-нет-такого/репозитория",
+        "arsha-нет-такого/репозитория",
         &fake,
         &dest,
         Arc::new(AtomicBool::new(false)),
@@ -135,7 +135,7 @@ async fn файла_без_сводки_качать_нельзя() {
         size: 1234,
         sha256: String::new(),
     };
-    let dest = std::env::temp_dir().join("archotic-test-nosha");
+    let dest = std::env::temp_dir().join("arsha-test-nosha");
     let cancel = Arc::new(AtomicBool::new(false));
 
     let err = downloader::download(
@@ -161,7 +161,7 @@ async fn докачка_идёт_с_места_остановки() {
     let repo = downloader::fetch_repo(REPO).await.expect("репозиторий");
     let file = downloader::find_file(&repo, FILE).expect("файл");
 
-    let dest = std::env::temp_dir().join("archotic-test-resume");
+    let dest = std::env::temp_dir().join("arsha-test-resume");
     let _ = std::fs::remove_dir_all(&dest);
     std::fs::create_dir_all(&dest).unwrap();
 
@@ -234,24 +234,24 @@ async fn докачка_идёт_с_места_остановки() {
 /// получить то, что ему нужно. Доказан только тем, что файл реально
 /// скачан и сверен.
 ///
-/// Путь к папке задаётся переменной ARCHOTIC_MODELS_DIR.
+/// Путь к папке задаётся переменной ARSHA_MODELS_DIR.
 /// Запуск:
-///   ARCHOTIC_MODELS_DIR=%APPDATA%\Archotic\models \
+///   ARSHA_MODELS_DIR=%APPDATA%\Arsha\models \
 ///     cargo test --test downloader_gate скачать_модель_целиком -- --ignored
 #[tokio::test]
 #[ignore = "качает гигабайты, запускается вручную"]
 async fn скачать_модель_целиком() {
     // Модель выбирается переменными окружения, иначе каждый замер
     // требовал бы правки кода.
-    let repo_id = std::env::var("ARCHOTIC_TEST_REPO").unwrap_or_else(|_| REPO.to_string());
-    let file_id = std::env::var("ARCHOTIC_TEST_FILE").unwrap_or_else(|_| FILE.to_string());
+    let repo_id = std::env::var("ARSHA_TEST_REPO").unwrap_or_else(|_| REPO.to_string());
+    let file_id = std::env::var("ARSHA_TEST_FILE").unwrap_or_else(|_| FILE.to_string());
 
     let repo = downloader::fetch_repo(&repo_id).await.expect("репозиторий");
     let file = downloader::find_file(&repo, &file_id).expect("файл");
 
-    let dest = std::env::var("ARCHOTIC_MODELS_DIR")
+    let dest = std::env::var("ARSHA_MODELS_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::env::temp_dir().join("archotic-models"));
+        .unwrap_or_else(|_| std::env::temp_dir().join("arsha-models"));
 
     eprintln!("качаем {file_id} из {repo_id}");
     eprintln!("  {} байт в {}", file.size, dest.display());
@@ -301,13 +301,13 @@ async fn скачать_модель_целиком() {
 /// Без сети и без файлов: проверяем решения, которые не требуют сети.
 #[test]
 fn сводка_считается_по_файлу() {
-    let dir = std::env::temp_dir().join("archotic-test-sha");
+    let dir = std::env::temp_dir().join("arsha-test-sha");
     std::fs::create_dir_all(&dir).unwrap();
     let p = dir.join("f.bin");
-    std::fs::write(&p, b"archotic").unwrap();
+    std::fs::write(&p, b"arsha").unwrap();
 
     let got = downloader::sha256_file(&p).unwrap();
-    eprintln!("sha256(archotic) = {got}");
+    eprintln!("sha256(arsha) = {got}");
 
     // Эталон посчитан независимо, средствами Windows, не нашим кодом:
     // certutil и Get-FileHash дали одно и то же значение.
@@ -336,7 +336,7 @@ fn файл_без_сводки_определяется_по_размеру() {
 
 #[tokio::test]
 async fn отказ_до_создания_папок() {
-    let base = std::env::temp_dir().join("archotic-test-mkdir");
+    let base = std::env::temp_dir().join("arsha-test-mkdir");
     let _ = std::fs::remove_dir_all(&base);
     let nested = base.join("a").join("b");
 

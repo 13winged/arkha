@@ -1,8 +1,8 @@
 [package]
-name = "archotic"
+name = "arsha"
 version = "0.1.0"
 description = "Локальный ИИ-секретарь для Windows"
-authors = ["Archotic"]
+authors = ["Arsha"]
 edition = "2024"
 # Все зависимости проверяются по лицензии до добавления.
 # Список и результаты проверки: docs/09-лицензии.md
@@ -14,7 +14,7 @@ license = "Apache-2.0"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "archotic_lib"
+name = "arsha_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

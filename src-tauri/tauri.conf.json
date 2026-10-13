@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Archotic",
+  "productName": "Arsha",
   "version": "0.1.0",
   "identifier": "local.secretary.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Archotic",
+        "title": "Arsha",
         "width": 960,
         "height": 680,
         "minWidth": 720,

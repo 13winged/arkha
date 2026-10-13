@@ -127,7 +127,7 @@ pub struct Registry {
 
 impl Registry {
     /// Каталог лежит рядом с приложением, в установленной сборке — в
-    /// `%APPDATA%\Archotic\capabilities.json`. Порядок тот же, что у
+    /// `%APPDATA%\Arsha\capabilities.json`. Порядок тот же, что у
     /// каталога рецептов: иначе один файл находился бы, а второй нет.
     pub fn candidate_paths() -> Vec<PathBuf> {
         let mut paths = vec![crate::profile::config_dir().join("capabilities.json")];
@@ -137,7 +137,7 @@ impl Registry {
                 paths.push(dir.join("capabilities.json"));
             }
         }
-        if let Ok(dir) = std::env::var("ARCHOTIC_DATA_DIR") {
+        if let Ok(dir) = std::env::var("ARSHA_DATA_DIR") {
             paths.push(Path::new(&dir).join("capabilities.json"));
         }
         paths.push(PathBuf::from("data").join("capabilities.json"));
