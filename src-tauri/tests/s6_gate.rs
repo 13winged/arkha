@@ -256,7 +256,7 @@ impl Model for Живая {
             .cloned()
             .collect();
 
-        let t = self.один_ход(system, &простые, tools)?;
+        let t = self.один_ход(&system, &простые, tools)?;
         self.сырой = Some(t.text.clone());
         Ok(t)
     }

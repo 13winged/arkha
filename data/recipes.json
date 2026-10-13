@@ -7,8 +7,8 @@
                      ],
     "llama_cpp":  {
                       "repo":  "ggml-org/llama.cpp",
-                      "release":  "b11557",
-                      "asset_windows":  "llama-b11557-bin-win-cuda-13.4-x64.zip",
+                      "release":  "b11583",
+                      "asset_windows":  "llama-b11583-bin-win-cuda-13.4-x64.zip",
                       "asset_cudart":  "cudart-llama-bin-win-cuda-13.4-x64.zip",
                       "license":  "MIT",
                       "why_cuda_13_4":  "RTX 5060 это sm_120 (Blackwell), требует CUDA 12.8 или новее. Сборка 12.4 не знает sm_120."

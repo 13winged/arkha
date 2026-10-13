@@ -39,6 +39,12 @@ windows = { version = "0.62", features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_Com",
     "Win32_System_LibraryLoader",
+    # S8: дерево доступности. Нужно для приложений, которые рисуют
+    # интерфейс сами: Chrome, Telegram, VS Code. У них нет дочерних
+    # окон Win32, поэтому поиск по EnumChildWindows их не находит, а
+    # UI Automation отдаёт их элементы. Нажатие идёт через
+    # InvokePattern, то есть без перехвата фокуса и без координат.
+    "Win32_UI_Accessibility",
 ] }
 
 # Лицензии проверены в S2, см. docs/09-лицензии.md.
@@ -55,3 +61,10 @@ reqwest = { version = "0.13", default-features = false, features = [
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "sync", "net"] }
 futures-util = "0.3"
 sha2 = "0.11"
+
+# Гейту нужен `HWND`, а его тип определён в крейте `windows`.
+# Дублировать его ради теста нельзя: два разных определения одного
+# дескриптора не совпадут, и компилятор об этом не предупредит.
+# Тот же крейт, те же лицензии — см. docs/09-лицензии.md.
+[dev-dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation"] }

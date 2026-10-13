@@ -35,6 +35,7 @@ pub mod apps;
 pub mod control;
 pub mod fs;
 pub mod skill;
+pub mod uia;
 pub mod windows;
 #[cfg(test)]
 pub mod tempdir;

@@ -49,8 +49,22 @@ pub fn env_dir(имя: &str, по_умолчанию: &str) -> PathBuf {
 }
 
 /// Model file for the profile. `None` means the gate is skipped.
+///
+/// `ARCHOTIC_GATE_MODEL` переопределяет файл. Нужно для проверки
+/// кандидата на замену: пока гейты не пройдены, ставить `verified:
+/// true` в каталоге рано — это заявление, а не измерение, и
+/// `recommended()` начал бы выбирать непроверенное как лучшее.
 pub fn model_файл() -> Option<PathBuf> {
     let dir = env_dir("ARCHOTIC_MODELS_DIR", "data/models");
+    if let Some(путь) = std::env::var_os("ARCHOTIC_GATE_MODEL") {
+        let кандидат = PathBuf::from(путь);
+        if кандидат.exists() {
+            eprintln!("гейт на модели {}", кандидат.display());
+            return Some(кандидат);
+        }
+        eprintln!("ПРОПУЩЕНО: ARCHOTIC_GATE_MODEL={} не найден", кандидат.display());
+        return None;
+    }
     let catalog = Catalog::load().ok()?;
     let recipe = catalog.recommended(tier()).or_else(|| catalog.fallback(tier()))?;
     let candidate = dir.join(&recipe.file);
@@ -74,12 +88,7 @@ pub fn поднять(порт: u16, метка: &str) -> Option<(model_manager:
     let Some(model) = model_файл() else {
         return None;
     };
-    let catalog = Catalog::load().expect("каталог рецептов");
-    let recipe = catalog
-        .recommended(tier())
-        .or_else(|| catalog.fallback(tier()))
-        .expect("нужен рецепт")
-        .clone();
+    let recipe = рецепт();
     eprintln!(
         "{метка}: рецепт {} (verified={})",
         recipe.name, recipe.verified
@@ -91,6 +100,15 @@ pub fn поднять(порт: u16, метка: &str) -> Option<(model_manager:
         started.placement.gpu_layers, started.placement.total_layers
     );
     Some((started, model))
+}
+
+fn рецепт() -> model_manager::Recipe {
+    let catalog = Catalog::load().expect("каталог рецептов");
+    catalog
+        .recommended(tier())
+        .or_else(|| catalog.fallback(tier()))
+        .expect("нужен рецепт")
+        .clone()
 }
 
 /// Настоящая модель через OpenAI-совместимый API сайдкара.
@@ -118,7 +136,7 @@ impl Model for Живая {
         // результатов инструментов делает модель слепой к тому, что
         // уже сделано, и она начинает повторять вызовы.
         let system = archotic_lib::agent::live::системная_строка(archotic_lib::agent::live::профиль_для_тестов());
-        self.один_ход(system, messages, tools)
+        self.один_ход(&system, messages, tools)
     }
 }
 
@@ -197,4 +215,51 @@ impl Живая {
             .cloned();
         Ok(Turn { text, tool_calls: calls })
     }
+}
+
+/// Порт агента для гейта зрения.
+///
+/// Отдельный от портов S2/S6/S8: гейт зрения держит **две** модели
+/// одновременно, и его нельзя запускать, пока другие гейты заняты
+/// своими серверами. Отдельный порт ничего не решает сам по себе —
+/// решает требование одного потока.
+pub const ПОРТ_АГЕНТА_ДЛЯ_ЗРЕНИЯ: u16 = 18113;
+
+/// Спросить модель текстом и вернуть ответ.
+///
+/// Без инструментов: гейт зрения проверяет, что агент **не зовёт**
+/// инструменты там, где их нет, и отвечает по-русски. С инструментами
+/// ответ был бы о том, откажет ли он, а это другой вопрос.
+///
+/// Системная строка — та же, что у живого агента, вместе с блоком
+/// слепых зон. Проверяется ровно то, что увидит человек: если блока
+/// нет в этой строке, его нет и в приложении.
+pub fn спросить_текстом(base_url: &str, вопрос: &str) -> String {
+    let system = archotic_lib::agent::live::системная_строка(
+        archotic_lib::agent::live::профиль_для_тестов(),
+    );
+    let payload = json!({
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": вопрос}
+        ],
+        "max_tokens": 512,
+        "stream": false,
+        "temperature": 0.3,
+    });
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .expect("клиент");
+    let resp = client
+        .post(format!("{base_url}/v1/chat/completions"))
+        .json(&payload)
+        .send()
+        .expect("запрос не ушёл");
+    assert!(resp.status().is_success(), "сайдкар ответил {}", resp.status());
+    let body: Value = resp.json().expect("ответ не разобран");
+    body["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string()
 }
