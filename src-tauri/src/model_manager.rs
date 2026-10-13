@@ -892,7 +892,11 @@ fn wait_for_line(
     ))
 }
 
-fn prepend_path(dir: &Path) -> String {
+/// Дописать папку в начало `PATH`.
+///
+/// `pub`, а не `pub(crate)`: тем же приёмом пользуется `voice`, и
+/// дублировать его там означало бы две реализации одного правила.
+pub fn prepend_path(dir: &Path) -> String {
     match std::env::var("PATH") {
         Ok(p) => format!("{};{p}", dir.display()),
         Err(_) => dir.display().to_string(),

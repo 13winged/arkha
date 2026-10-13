@@ -177,7 +177,7 @@ mod tests {
         let т = инструмент(vec![навык("a", "Делает дело", &["files.read"])]);
         let s = Settings::default();
         let out = т.call(&json!({"name": "a"}), &s).expect("навык должен запуститься");
-        assert!(out.text.contains("Выполняй его шаги"), "{}", out.text);
+        assert!(out.text.contains("Теперь выполняй"), "{}", out.text);
         assert!(out.text.contains("Сделай то-то"), "{}", out.text);
         assert!(!out.changed, "сам запуск навыка ничего не меняет");
     }

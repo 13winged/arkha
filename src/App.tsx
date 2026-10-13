@@ -1062,6 +1062,144 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 
 type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings";
 
+/** Состояние голоса, как его отдаёт `voice_status`. */
+interface VoiceState {
+  on: boolean;
+  listening: boolean;
+  weightMb: number | null;
+}
+
+/**
+ * Переключатель голоса.
+ *
+ * Голос включается только по нажатию человека, и это не удобство, а
+ * необходимость: поднятое распознавание занимает место, которое на
+ * 8 ГиБ нужно агенту. Выключенный голос не занимает ничего — поэтому
+ * он и выключен по умолчанию, а человек включает его на время разговора.
+ */
+function VoiceToggle() {
+  const [state, setState] = useState<VoiceState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<VoiceState>("voice_status").then(setState).catch(() => undefined);
+  }, []);
+
+  const переключить = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const следующее = state?.on
+        ? await invoke<VoiceState>("voice_disable")
+        : await invoke<VoiceState>("voice_enable");
+      setState(следующее);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!state) return <span className="voice">голос: …</span>;
+
+  return (
+    <span className="voice">
+      <button
+        type="button"
+        className={state.on ? "chip on" : "chip"}
+        disabled={busy}
+        onClick={переключить}
+        title={state.on
+          ? "выключить голос и освободить место"
+          : "включить голос: поднимется распознавание"}
+      >
+        {busy ? "…" : state.on ? "голос включён" : "включить голос"}
+      </button>
+      {state.on && state.weightMb !== null && (
+        <span className="voice-mb">{state.weightMb} МБ</span>
+      )}
+      {error && <span className="voice-error" title={error}>не вышло</span>}
+    </span>
+  );
+}
+
+/** Снимок памяти, как его отдаёт команда `память_сейчас`. */
+interface MemoryView {
+  ramUsedMb: number;
+  ramTotalMb: number;
+  vramUsedMb: number | null;
+  vramTotalMb: number | null;
+  vramНеизвестна: boolean;
+}
+
+/** Гигабайты для подписи, одна значащая цифра после запятой. */
+function гиг(миб: number): string {
+  return (миб / 1024).toFixed(1);
+}
+
+/**
+ * Полоса памяти в подвале.
+ *
+ * Показывает оперативную всегда, видеопамять — только если счётчик
+ * ответил. На машине без NVIDIA видеопамяти в этом смысле нет, и
+ * пустая полоса вводила бы в заблуждение: выглядело бы как «занято
+ * 0 из 0», то есть как поломка.
+ *
+ * Опрос раз в две секунды. Чаще — заметно на глаз, когда полоса
+ * дёргается; реже — человек не видит, что место кончилось, вплоть до
+ * отказа модели.
+ */
+function MemoryBar() {
+  const [mem, setMem] = useState<MemoryView | null>(null);
+
+  useEffect(() => {
+    let жив = true;
+    const опрос = async () => {
+      try {
+        const снимок = await invoke<MemoryView>("память_сейчас");
+        if (жив) setMem(снимок);
+      } catch {
+        // Снимок не пришёл: полоса просто остаётся как была.
+        // Ошибку здесь не показываем — она повторилась бы каждые
+        // две секунды и забила собой подвал.
+      }
+    };
+    опрос();
+    const таймер = setInterval(опрос, 2000);
+    return () => {
+      жив = false;
+      clearInterval(таймер);
+    };
+  }, []);
+
+  if (!mem || mem.ramTotalMb === 0) {
+    return <span className="mem">память: …</span>;
+  }
+
+  const ram = Math.min(100, Math.round((mem.ramUsedMb * 100) / mem.ramTotalMb));
+  const vram = mem.vramНеизвестна || !mem.vramTotalMb
+    ? null
+    : Math.min(100, Math.round(((mem.vramUsedMb ?? 0) * 100) / mem.vramTotalMb));
+
+  return (
+    <span className="mem">
+      <span className="mem-item" title={`оперативная память: ${гиг(mem.ramUsedMb)} из ${гиг(mem.ramTotalMb)} ГиБ`}>
+        <span className="mem-label">ОЗУ</span>
+        <span className="bar"><span className="fill" style={{ width: `${ram}%` }} /></span>
+        <span className="mem-num">{ram}%</span>
+      </span>
+      {vram !== null && (
+        <span className="mem-item" title={`видеопамять: ${гиг(mem.vramUsedMb ?? 0)} из ${гиг(mem.vramTotalMb ?? 0)} ГиБ`}>
+          <span className="mem-label">VRAM</span>
+          <span className="bar"><span className="fill" style={{ width: `${vram}%` }} /></span>
+          <span className="mem-num">{vram}%</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function App() {
   const [profile, setProfile] = useState<ProfileView | null>(null);
   const [model, setModel] = useState<ModelStatus | null>(null);
@@ -1123,6 +1261,8 @@ function App() {
       <footer className="app-footer">
         <span>профиль: {profile ? profile.effective : "…"}</span>
         <span>{model.running ? (model.recipe ?? "модель") : "модель не запущена"}</span>
+        <MemoryBar />
+        <VoiceToggle />
       </footer>
     </main>
   );

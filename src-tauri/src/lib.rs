@@ -18,6 +18,7 @@ pub mod permissions;
 pub mod permissions_commands;
 pub mod profile;
 pub mod profile_commands;
+pub mod resources;
 pub mod skills;
 pub mod state;
 pub mod tools;
@@ -31,10 +32,17 @@ pub fn run() {
         .manage(model_manager::SidecarState::new())
         .manage(chat::ModelState::new())
         .manage(agent_commands::SettingsState::new())
+        .manage(voice::Голос::новый())
         .invoke_handler(tauri::generate_handler![
             profile_commands::get_profile,
             profile_commands::set_profile_tier,
             profile_commands::set_context,
+            resources::память_сейчас,
+            voice::voice_status,
+            voice::voice_enable,
+            voice::voice_disable,
+            voice::voice_say,
+            voice::voice_hear,
             chat::start_model,
             chat::stop_model,
             chat::model_status,

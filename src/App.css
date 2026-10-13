@@ -830,3 +830,66 @@ body {
   font-size: 0.95em;
   padding: 3px 9px;
 }
+/* Полоса памяти в подвале. Полоска шириной задаётся inline из
+   снимка, поэтому здесь только каркас и цвет заливки. */
+.mem {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.mem-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mem-label {
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.bar {
+  display: inline-block;
+  width: 72px;
+  height: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.mem-num {
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Переключатель голоса. В подвале рядом с полосой памяти: человек
+   должен видеть, что голос занимает место, до того как включил его,
+   и видеть, сколько освободил после выключения. */
+.voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip.on {
+  border-color: var(--accent, currentColor);
+}
+
+.voice-mb {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-error {
+  color: #b4553f;
+  cursor: help;
+}
