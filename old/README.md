@@ -5,15 +5,15 @@
 
 | Файл | Что было | Куда ушло |
 |---|---|---|
-| Stack.md | стек, профили, компоненты | `docs/01`, `docs/02` |
-| Stages.md | этапы S0–S13 | `docs/03` |
-| Onboarding.md | сценарий знакомства | `docs/04` |
-| Brainstorm.md | 12 решений из 4 статей | `docs/05`, `docs/06` |
-| Brainstorm2.md | повторная проверка, 6 находок | `docs/04`, `docs/05` |
-| Hermes.md | разбор Hermes Agent | `docs/06` |
-| Airi.md | разбор AIRI | `docs/06` |
-| Skills.md | навыки | `docs/07` |
-| Roadmap.md | устарел ещё на старте | никуда |
+| AI Secretary Stack.md | стек, профили, компоненты | `docs/01`, `docs/02` |
+| AI Secretary Stages.md | этапы S0–S13 | `docs/03` |
+| AI Secretary Onboarding.md | сценарий знакомства | `docs/04` |
+| AI Secretary Brainstorm.md | 12 решений из 4 статей | `docs/05`, `docs/06` |
+| AI Secretary Brainstorm2.md | повторная проверка, 6 находок | `docs/04`, `docs/05` |
+| AI Secretary Hermes.md | разбор Hermes Agent | `docs/06` |
+| AI Secretary Airi.md | разбор AIRI | `docs/06` |
+| AI Secretary Skills.md | навыки | `docs/07` |
+| AI Secretary Roadmap.md | устарел ещё на старте | никуда |
 
 ## Что изменилось при сборке
 
