@@ -2,7 +2,6 @@
   "_что_это": "Реестр возможностей агента. Агент получает этот список и обязан честно сказать «у меня этого нет», если возможности за пределами его профиля.",
   "_правило": "verified: true означает «проверено гейтом на живом железе», а не «должно работать». Отсутствие поля verified означает «не проверено».",
   "_обновлено": "2026-10-12, этап S3",
-
   "capabilities": [
     {
       "id": "chat.local",
@@ -13,7 +12,11 @@
       "permission": "",
       "verified": true,
       "evidence": "Гейт S2 на живом железе: T1, T2 и T3, русский ответ без ошибок, поток работает, отказа на безобидной задаче не было",
-      "refusal": ""
+      "refusal": "",
+      "name_en": "Conversation",
+      "what_en": "Answers questions in Russian and English, keeps the conversation within the context window",
+      "evidence_en": "Gate S2 on live hardware: T1, T2 and T3, Russian answer without errors, streaming works, no refusal on a harmless task",
+      "refusal_en": ""
     },
     {
       "id": "files.read",
@@ -24,7 +27,11 @@
       "permission": "files.read",
       "verified": true,
       "evidence": "Гейт S6, 12.10.2026, T3 RTX 5060: чтение по известному пути 5 из 5 прогонов, отказ доходит и не выдумывается",
-      "refusal": ""
+      "refusal": "",
+      "name_en": "Reading files",
+      "what_en": "Reads text and documents from folders the user has allowed",
+      "evidence_en": "Gate S6, 12.10.2026, T3 RTX 5060: reading by a known path 5 out of 5, refusal reaches the surface and is not invented",
+      "refusal_en": ""
     },
     {
       "id": "skill.execute",
@@ -35,7 +42,11 @@
       "permission": "skill.execute",
       "verified": true,
       "evidence": "Гейт S6, 12.10.2026, T3 RTX 5060: навык с диска вызван моделью, шаги пройдены",
-      "refusal": ""
+      "refusal": "",
+      "name_en": "Skills",
+      "what_en": "Runs a procedure described in advance by a human",
+      "evidence_en": "Gate S6, 12.10.2026, T3 RTX 5060: a skill on disk was called by the model, its steps were completed",
+      "refusal_en": ""
     },
     {
       "id": "files.write",
@@ -46,7 +57,11 @@
       "permission": "files.write",
       "verified": false,
       "evidence": "",
-      "refusal": "запись файлов ещё не подключена, инструмент написан, но не работает"
+      "refusal": "запись файлов ещё не подключена, инструмент написан, но не работает",
+      "name_en": "Writing files",
+      "what_en": "Creates and modifies files in allowed folders, asking for confirmation",
+      "evidence_en": "",
+      "refusal_en": "writing files is not wired up yet — the tool exists but does not work"
     },
     {
       "id": "windows.read",
@@ -57,7 +72,11 @@
       "permission": "windows.read",
       "verified": true,
       "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: список окон 9 из 9 сценариев, найденное окно названо в ответе",
-      "refusal": "Видит только заголовки окон, не содержимое"
+      "refusal": "Видит только заголовки окон, не содержимое",
+      "name_en": "Reading windows",
+      "what_en": "Shows open windows and finds the one by its title. Changes nothing",
+      "evidence_en": "Gate S8, 13.10.2026, T3 RTX 5060: window list 9 out of 9 scenarios, the found window is named in the answer",
+      "refusal_en": "Sees window titles only, not their contents"
     },
     {
       "id": "apps.launch",
@@ -68,7 +87,11 @@
       "permission": "apps.launch",
       "verified": true,
       "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: запуск блокнота, окно появилось; запрещённая программа не запустилась",
-      "refusal": "Ищет только в папках установки программ. Если программа стоит в нестандартном месте, укажи полный путь к .exe"
+      "refusal": "Ищет только в папках установки программ. Если программа стоит в нестандартном месте, укажи полный путь к .exe",
+      "name_en": "Launching programs",
+      "what_en": "Opens programs the user has allowed",
+      "evidence_en": "Gate S8, 13.10.2026, T3 RTX 5060: notepad launched and its window appeared; a forbidden program did not launch",
+      "refusal_en": "Looks only in program install folders. If a program lives somewhere unusual, give the full path to the .exe"
     },
     {
       "id": "windows.control",
@@ -79,7 +102,11 @@
       "permission": "windows.control",
       "verified": true,
       "evidence": "Гейт S8, 13.10.2026, T3 RTX 5060: фокус, русский ввод через юникод и клик по кнопке — 9 из 9; клик по несуществующей кнопке отказал",
-      "refusal": "Нажимает только на элементы с видимой подписью. В Chrome, Telegram и других программах, которые рисуют интерфейс сами, цель не находится"
+      "refusal": "Нажимает только на элементы с видимой подписью. В Chrome, Telegram и других программах, которые рисуют интерфейс сами, цель не находится",
+      "name_en": "Controlling windows",
+      "what_en": "Switches windows, types text, presses buttons by their label",
+      "evidence_en": "Gate S8, 13.10.2026, T3 RTX 5060: focus, Russian input via unicode and pressing a button — 9 out of 9; pressing a non-existent button was refused",
+      "refusal_en": "Presses only elements with a visible label. In Chrome, Telegram and other programs that draw their own interface the target is not found"
     },
     {
       "id": "web.fetch",
@@ -90,7 +117,11 @@
       "permission": "web.fetch",
       "verified": false,
       "evidence": "",
-      "refusal": "чтение страниц ещё не подключено"
+      "refusal": "чтение страниц ещё не подключено",
+      "name_en": "Reading a page",
+      "what_en": "Opens a page by address and returns its text",
+      "evidence_en": "",
+      "refusal_en": "page reading is not wired up yet"
     },
     {
       "id": "web.search",
@@ -101,7 +132,11 @@
       "permission": "web.search",
       "verified": false,
       "evidence": "",
-      "refusal": "поиск не настроен: не задан адрес SearXNG-инстанса. Чтение страницы по конкретному адресу работает и без него"
+      "refusal": "поиск не настроен: не задан адрес SearXNG-инстанса. Чтение страницы по конкретному адресу работает и без него",
+      "name_en": "Searching the web",
+      "what_en": "Searches the web through a SearXNG instance whose address the user sets",
+      "evidence_en": "",
+      "refusal_en": "search is not configured: no SearXNG address is set. Reading a page by its address works without it"
     },
     {
       "id": "docs.office",
@@ -112,7 +147,11 @@
       "permission": "files.read",
       "verified": false,
       "evidence": "",
-      "refusal": "чтение документов Office ещё не подключено"
+      "refusal": "чтение документов Office ещё не подключено",
+      "name_en": "Office documents",
+      "what_en": "Reads docx, xlsx, pptx and pdf",
+      "evidence_en": "",
+      "refusal_en": "reading Office documents is not wired up yet"
     },
     {
       "id": "vision.read",
@@ -123,7 +162,11 @@
       "permission": "files.read",
       "verified": false,
       "evidence": "Гейт зрения 13 октября 2026, T3 RTX 5060 8 ГБ: 4 из 4 на Qwen3-VL-4B Q4_K_M. Кириллица «КОТ» и «ПРИВЕТ» прочитана верно 5 из 5 прогонов, ответ по-русски, зрение 0.8-2 с на картинку. Зрение и агент работают одновременно: 2118 МиБ на зрение плюс агент на 30 слоях, пересылок нет",
-      "refusal": "Зрение работает отдельной моделью Qwen3-VL-4B, слои в оперативке, на карте только зритель. Между символами теряются пробелы: «7 3 9» читается как «739»"
+      "refusal": "Зрение работает отдельной моделью Qwen3-VL-4B, слои в оперативке, на карте только зритель. Между символами теряются пробелы: «7 3 9» читается как «739»",
+      "name_en": "Reading images",
+      "what_en": "Makes sense of the contents of images and screenshots",
+      "evidence_en": "Vision gate, 13 October 2026, T3 RTX 5060 8 GB: 4 out of 4 on Qwen3-VL-4B Q4_K_M. Cyrillic «КОТ» and «ПРИВЕТ» read correctly in 5 out of 5 runs, the answer is in Russian, vision 0.8–2 s per image. Vision and the agent run at the same time: 2118 MiB for vision plus the agent on 30 layers, no swapping",
+      "refusal_en": "Vision runs as a separate Qwen3-VL-4B model, layers in RAM, only the viewer on the graphics card. Spaces between characters are lost: «7 3 9» reads as «739»"
     },
     {
       "id": "voice.stt",
@@ -134,7 +177,11 @@
       "permission": "voice.stt",
       "verified": false,
       "evidence": "",
-      "refusal": "распознавание речи ещё не подключено, на этапе S9"
+      "refusal": "распознавание речи ещё не подключено, на этапе S9",
+      "name_en": "Speech recognition",
+      "what_en": "Turns speech into text",
+      "evidence_en": "",
+      "refusal_en": "speech recognition is not wired up yet, it is at stage S9"
     },
     {
       "id": "voice.tts",
@@ -145,7 +192,11 @@
       "permission": "voice.tts",
       "verified": false,
       "evidence": "",
-      "refusal": "озвучивание ещё не подключено, на этапе S9"
+      "refusal": "озвучивание ещё не подключено, на этапе S9",
+      "name_en": "Speaking",
+      "what_en": "Reads answers aloud",
+      "evidence_en": "",
+      "refusal_en": "speaking is not wired up yet, it is at stage S9"
     },
     {
       "id": "voice.wake",
@@ -156,7 +207,11 @@
       "permission": "voice.wake",
       "verified": false,
       "evidence": "",
-      "refusal": "пробуждение по слову ещё не подключено, на этапе S9"
+      "refusal": "пробуждение по слову ещё не подключено, на этапе S9",
+      "name_en": "Waking by name",
+      "what_en": "Responds to its name instead of recording everything",
+      "evidence_en": "",
+      "refusal_en": "waking by name is not wired up yet, it is at stage S9"
     },
     {
       "id": "memory.recall",
@@ -167,7 +222,11 @@
       "permission": "memory.write",
       "verified": false,
       "evidence": "",
-      "refusal": "память ещё не подключена"
+      "refusal": "память ещё не подключена",
+      "name_en": "Memory",
+      "what_en": "Remembers facts and decisions between conversations and finds them later",
+      "evidence_en": "",
+      "refusal_en": "memory is not wired up yet"
     },
     {
       "id": "memory.search",
@@ -178,7 +237,11 @@
       "permission": "files.read",
       "verified": false,
       "evidence": "",
-      "refusal": "поиск по корпусу ещё не подключён, нужны эмбеддинги"
+      "refusal": "поиск по корпусу ещё не подключён, нужны эмбеддинги",
+      "name_en": "Searching the corpus",
+      "what_en": "Searches your documents and answers from what it found",
+      "evidence_en": "",
+      "refusal_en": "corpus search is not wired up yet, embeddings are needed"
     },
     {
       "id": "browser.dom",
@@ -189,7 +252,11 @@
       "permission": "web.fetch",
       "verified": false,
       "evidence": "",
-      "refusal": "управление браузером ещё не подключено"
+      "refusal": "управление браузером ещё не подключено",
+      "name_en": "Controlling the browser",
+      "what_en": "Reads a page as a tree of elements rather than as a picture",
+      "evidence_en": "",
+      "refusal_en": "browser control is not wired up yet"
     },
     {
       "id": "workflow.run",
@@ -200,7 +267,11 @@
       "permission": "apps.launch",
       "verified": false,
       "evidence": "",
-      "refusal": "сценарии ещё не подключены, они собираются из других инструментов"
+      "refusal": "сценарии ещё не подключены, они собираются из других инструментов",
+      "name_en": "Workflows",
+      "what_en": "Runs multi-step records: open, find, fill in, save",
+      "evidence_en": "",
+      "refusal_en": "workflows are not wired up yet, they are built from the other tools"
     }
   ]
 }

@@ -1318,6 +1318,31 @@ button:disabled {
   margin-top: 4px;
 }
 
+/* Переключатель языка. Прижат вправо от вкладок и отделён от них
+   вертикальной линейкой — как две разные вещи, а не девятая вкладка.
+   Подпись на кнопке всегда «на том языке, который получишь». */
+.lang {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  clip-path: none;
+  margin-left: auto;
+  padding: 4px 9px;
+  font: inherit;
+  font-size: calc(var(--кегль, 14px) * 0.714);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--ход), border-color var(--ход);
+}
+
+.lang:hover {
+  color: var(--gold-lit);
+  border-color: rgba(178, 141, 32, 0.5);
+}
+
 /* ---------------------------------------------------------------
    Полоса памяти
    --------------------------------------------------------------- */

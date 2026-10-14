@@ -1,290 +1,140 @@
-# ArkHa
+[English](/README.md) | [Русский](/README_RU.md)
 
-Локальный ИИ-секретарь для Windows. Голос, доступ к ПК, документы, память.
+<p align="center">
+  <a href="https://github.com/13winged/arkha/releases"><img src="https://img.shields.io/github/v/release/13winged/arkha" alt="Release"></a>
+  <a href="https://github.com/13winged/arkha/actions"><img src="https://img.shields.io/github/actions/workflow/status/13winged/arkha/ci.yml.svg" alt="Build"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Rust-1.85%2B-8B2BE6?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
+  <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React"></a>
+  <a href="https://github.com/13winged/arkha/releases/latest"><img src="https://img.shields.io/github/downloads/13winged/arkha/total.svg" alt="Downloads"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg?longCache=true" alt="License"></a>
+</p>
 
-Своё приложение. ODS, Hermes и AIRI — референсы, не зависимости.
+**ArkHa** is a local AI secretary for Windows. It runs entirely on your own machine — voice, access to your files and windows, documents, memory. No cloud, no telemetry, no account.
+
+It is built as a Tauri 2 desktop app around `llama.cpp`, and it picks a model that fits your hardware automatically. A machine with 8 GB of RAM and an RTX 3060 gets a different model than one with 64 GB and an RTX 4090.
+
+> [!IMPORTANT]
+> ArkHa can read your files, control your windows and launch programs. It starts in **show-only** mode and asks before anything risky, but it is still software with real permissions. Read [What it may do](#what-it-may-do) before you grant access.
+
+## Features
+
+- **Honest capability registry** — every one of the 18 abilities carries the gate that verified it and the exact refusal it gives when it cannot do something. Unverified abilities are marked as such rather than quietly listed as working.
+- **Self-choosing model** — the app detects CPU, RAM and VRAM, picks a profile from T1 to T5, and starts a model that fits. Nothing to configure by hand.
+- **Access levels that mean something** — show-only by default, optional execution, and a choice of when to ask: risky actions only, everything, or nothing.
+- **Voice you switch on yourself** — Qwen3-ASR for recognition, Qwen3-TTS for speech, through the same `llama-server`. Never turns itself on.
+- **Window control without coordinates** — the agent finds elements through UI Automation and presses them **by their visible label**. Clicking blind pixels is not implemented and will not be.
+- **Scoped file access** — pick individual folders or grant the whole disk, as an explicit separate decision rather than a folder list that silently means everything.
+- **Integrated model browser** — type `gemma` and the whole family comes back with download counts. Filtered to GGUF, so everything listed can actually be downloaded and run.
+- **A memory strip that tells the truth** — RAM and VRAM read live. If VRAM cannot be measured, it is hidden rather than guessed.
+- **Memory-bar layout** — built after the inventory screen of a game HUD: flat, hairlines, cut corners, and colour used only where it means something.
+- **2 interface languages** — Russian and English, switchable in one click, remembered between runs.
+
+## Screenshots
+
+<details>
+<summary>Click to expand</summary>
+
+The HUD is deliberately flat and low-contrast: a sterile surface with gold for action, red for danger and blue for data. The state of a thing is carried by weight and brightness, not by a palette — the same rule the reference interface uses to stay readable at low contrast.
+
+</details>
+
+## Quick Start
+
+Download the installer from [releases](https://github.com/13winged/arkha/releases) and run it. Then press **Download** and fetch a model — the app will suggest one that fits your profile.
+
+Building from source:
+
+```bash
+git clone https://github.com/13winged/arkha
+cd arkha
+npm install
+npx tauri build --release
+```
+
+`llama.cpp` binaries are not in the repository — they are several hundred megabytes per architecture. The app looks for them next to the executable and in `data/bin`.
+
+Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (256 unit) · Gates run against live hardware and are started separately, see [Testing](#testing).
+
+## How it decides what it may do
+
+Three levels, and each one says plainly what it costs you.
+
+| Level | What happens |
+|---|---|
+| **Show only** (`dry-run`) | The secretary writes what it is about to do and waits. Nothing happens without your word |
+| **Ask for risky ones** (`actions`, default) | Safe actions run immediately; deleting, launching and overwriting files ask first |
+| **Ask for nothing** (`never`) | It does everything allowed. A wrong command is not caught |
+
+Filesystem access is a separate decision from execution: you choose either named folders or the whole disk, and the choice is shown as what it is. "Whole disk" is not smuggled in as `C:\` in a folder list.
+
+## Supported hardware
+
+**Minimum:** Windows 10 1809 or newer, 8 GB RAM. A GPU is not required.
+
+**Profiles are picked automatically:**
+
+| Profile | Needs | Typical model |
+|---|---|---|
+| **T1** | 8 GB RAM, no GPU | Qwen3.5 4B, 16K context |
+| **T2** | 16 GB RAM | Qwen3.5 9B, 32K context |
+| **T3** | 32 GB + 8 GB VRAM | Qwen3.5 9B, 64K context |
+| **T4** | 32 GB + 12 GB VRAM | Qwen3.5 27B, 128K context |
+| **T5** | 32 GB + 24 GB VRAM | Qwen3.5 27B, 256K context |
+
+The table above is the plan. What your machine actually gets was measured on the development machine (Ryzen 7 8700F, 32 GB, RTX 5060 8 GB): **profile T3, Qwen3.5 9B Q5_K_M, all 33 layers on the GPU, 64K context**. Every number in `docs/10-замеры.md` comes from that machine and nowhere else.
+
+## Voice
+
+| Part | Model | Measured |
+|---|---|---|
+| Recognition | `Qwen3-ASR-0.6B-Q8_0` | **274 ms** per phrase, **143 MiB** in RAM |
+| Speech | `Qwen3-TTS-1.7B-Q4_K_M` | **3.62×** real time, Apache-2.0 |
+
+Recognition runs on the **processor, deliberately**. On the GPU it occupies 2594 MiB and answers in 86 ms; in RAM it occupies 143 MiB and answers in 274 ms. Giving back 2.4 GiB is worth 188 ms, especially when the model already has the card.
+
+Both models are `Apache-2.0`, verified against the Hugging Face API on 14.10.2026. The GGUF packaging repositories declare no license of their own; see [docs/09-лицензии.md](docs/09-лицензии.md).
+
+## Environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `ARKHA_BIN_DIR` | Folder holding `llama-server.exe` | searched near the executable |
+| `ARKHA_MODELS_DIR` | Folder holding GGUF models | `%APPDATA%\ArkHa\models` |
+| `ARKHA_BIN_DIR` / `ARKHA_MODELS_DIR` in tests | Required by gates that need a real model and a real engine | — |
+
+## Supported Languages
+
+The interface is available in **2** languages:
+
+Русский · English
+
+## Testing
+
+Unit tests are fast and run anywhere:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --lib
+```
+
+Gates check the live machine — a real model, a real Chrome window, a real file on disk. They are the only place where claims like "works" mean anything:
+
+| Gate | What it proves |
+|---|---|
+| `s3_gate` | Capability registry integrity |
+| `s4_gate` | Onboarding collects settings correctly |
+| `s6_gate` | File reading and skills |
+| `s8_gate` | Window reading, launching and control on a live desktop |
+| `uia_gate` | UI Automation tree and button press on a real Chrome |
+| `vision_gate` | Image reading with a separate vision model |
+
+## Contributing
+
+Issues and pull requests are welcome. `cargo test --lib` and `npx tsc --noEmit` must stay green. Documents live in the repository under `docs/` — the Russian ones are the primary record and the English README mirrors them.
+
+## Acknowledgment
+
+Design of the interface follows the principles described in *UI Design in NieR:Automata* by Hisayoshi Kijima, in the [PlatinumGames official blog](https://www.platinumgames.com/official-blog/article/9624) — flat and systematic, colour used sparingly, state carried by weight rather than palette. No code was taken from it.
 
 ---
 
-## Что это
-
-Пользователь узнаёт, что умеет агент, и собирает его в разговоре.
-Дальше — голос, интернет, документы, управление ПК. Всё локально.
-
-## Документы
-
-| Файл | Что внутри |
-|---|---|
-| [docs/01-контекст.md](docs/01-контекст.md) | зачем проект, аудитория, профили железа, границы |
-| [docs/02-архитектура.md](docs/02-архитектура.md) | стек, компоненты, решения с обоснованием |
-| [docs/03-дорожная-карта.md](docs/03-дорожная-карта.md) | этапы S0–S13, гейты, точки остановки |
-| [docs/04-онбординг.md](docs/04-онбординг.md) | главный сценарий: знакомство и сборка агента |
-| [docs/05-безопасность.md](docs/05-безопасность.md) | approvals, границы, инъекции, деградация |
-| [docs/06-референсы.md](docs/06-референсы.md) | что взяли из ODS, Hermes, AIRI и что нет |
-| [docs/07-скиллы.md](docs/07-скиллы.md) | навыки разработки и навыки продукта |
-| [docs/08-exvram.md](docs/08-exvram.md) | рецепты, KV-кэш, методика замеров, quality gate |
-| [docs/09-лицензии.md](docs/09-лицензии.md) | проверка лицензий компонентов, два блокера |
-| [docs/10-замеры.md](docs/10-замеры.md) | реальные цифры S2: скорость, KV, поправки к плану |
-| [docs/11-находки.md](docs/11-находки.md) | журнал поломок и расхождений по ходу работы |
-| [docs/12-план-работ.md](docs/12-план-работ.md) | что делать сейчас, по шагам |
-| [docs/13-приватность-и-поиск.md](docs/13-приватность-и-поиск.md) | что уходит с машины, чем заменить поиск |
-| [docs/14-модели-и-выбор.md](docs/14-модели-и-выбор.md) | почему загрузчик открыт, где граница свободы выбора |
-| [docs/15-muse-glimmer.md](docs/15-muse-glimmer.md) | разбор Muse Glimmer: лицензия, поддержка сборкой, размеры |
-| [ideas.md](ideas.md) | банк идей из репозиториев moeru-ai. Не план |
-| [old/README.md](old/README.md) | черновики, из которых собраны документы. История решения, не для чтения |
-
-## Статус
-
-| Проверено | Результат |
-|---|---|
-| Русский в Qwen3.5 9B Q4 | работает |
-| VRAM на 32K контексте | хватает |
-| Tool calling на русском | работает |
-| **S0** каркас собирается и запускается | exe 7.35 МБ, установщики NSIS 2.68 МБ и MSI 4.34 МБ |
-| **S0** лицензии компонентов | 8 разрешено, 2 блокера, 1 ловушка |
-| **S1** профиль определяется на реальном железе | RTX 5060 8 ГБ + 32 ГБ → **T3**, гейт пройден |
-| **S1** 15 тестов, release без предупреждений | зелёные |
-| **S2** сайдкар поднимается, все слои на GPU | 33/33 на RTX 5060, гейт пройден |
-| **S2** русский, стрим, tool calling | гейт пройден на живом запросе |
-| **S2** нет отказа на безобидной задаче | отказа не было |
-| **S2** замер на заполненном контексте | 65.85 tok/s, KV выбран измерением |
-| **S2** загрузчик проверен на живом Hugging Face | докачка сработала, сводка сошлась |
-| **S2** профиль T3: 9B Q5_K_M при 64K | 33/33 слоёв на GPU, запас 1.7 ГиБ |
-| **S2** замер T3 | 56.31 tok/s, рецепт помечен верифицированным |
-| **S2** профиль T1: 4B Q4_K_M | работает, но скорость не измерена на нужном железе |
-| **S2** гейт не проходит молча | нет модели — падение, а не «3 passed за 0 сек» |
-| **S2** гейты T1, T2, T3 | все три проходят настоящими прогонами |
-| **S2** загрузчик не блокируется на полном `.part` | 416 устранён, тест ловит именно этот баг |
-| **S3** реестр возможностей на живом железе | гейт пройден, 6 тестов |
-| **S3** агент знает свои границы | на T3 работает 1 из 16, у каждого отказа названа причина |
-| **S3** разрешения по умолчанию безопасны | dry-run, секретарь в своём запрете |
-| **S4** знакомство собирает настройки из разговора | гейт пройден, 11 тестов |
-| **S4** инструменты выбираются кнопками | список с галочками, а не разбор JSON |
-| **S4** не применяет, пока не показал итог | `dry-run` до явного подтверждения |
-| **S6** агент вызывает инструменты по живой модели | гейт пройден, 5 из 5 прогонов |
-| **S6** отказ доходит до модели и не выдумывается | файл вне папок не прочитан, цифры нет в ответе |
-| **S6** инструмент не выходит за разрешённые папки | `..`, другой диск, похожие имена — отказ |
-| **S7** агент спрашивает и ждёт, а не возвращается | цикл ждёт на месте, три кнопки |
-| **S7** страховка убирает половину провалов | «не звала вовсе» 8 из 16 → **0 из 10** |
-| **S7** отказ пользователя не даёт прочитать | гейт на живом железе, содержимое не утекает |
-| **S8** навык с диска выполняется по шагам | гейт 3 из 3, `skill.run` + чтения |
-| **S8** навык не даёт прав | без разрешения на запись не запускается |
-| **S8** сжатие длинного разговора | первая просьба и хвост сохраняются, сжатие видно |
-| **S8** пять сценариев управления ПК | гейт 9 из 9 на живом железе: окна, запуск, фокус, русский ввод, клик по кнопке |
-| **S8** клик по несуществующей кнопке отказывает | не кликает «куда-нибудь» |
-| **S8** неразрешённый инструмент виден, но не исполняется | отказ приходит как отказ, а не как незнание |
-| **S2–S8** 233 unit + 5 downloader + 44 гейт | зелёные |
-| **Правило 23** числа в коде — наши замеры | offload и надёжность вызовов переизмерены |
-
-Сделано в S0: каркас Tauri 2 + React, 37 модулей-заглушек, два навыка,
-`data/` с `permissions.json`, окно с полем ввода.
-
-Сделано в S1: `profile.rs` с определением железа через DXGI и CPUID,
-команды `get_profile` / `set_profile_tier` / `set_context`, экран профиля
-с ручным выбором и объяснением, почему недоступны T4 и T5.
-
-Сделано в S2: каталог рецептов с флагом `verified`, параметры выборки,
-запуск llama.cpp сайдкаром с транзакционным откатом, проверка
-размещения по логу, чат со стримом и остановкой, журнал запуска,
-загрузчик моделей с проверкой сводки и докачкой, экран загрузки.
-
-Сделано в S3: реестр возможностей `capabilities.rs` с причиной отказа
-вместо молчаливого отказа, разрешения `permissions.rs` с режимом
-dry-run по умолчанию, 16 возможностей в каталоге, вкладка «возможности»
-и гейт на живом железе.
-
-Готово 18 модулей из 48. Остальные 30 — заглушки по два-три строки:
-память, состояние, голос, остальные инструменты.
-
-Сделано в S4: `onboarding.rs` — пять шагов знакомства, разбор ответов
-в JSON с отказом от угадывания, приведение названий папок к настоящим
-путям, `onboarding_commands.rs` — предпросмотр и применение только по
-явному подтверждению, вкладка «знакомство» и гейт на живом железе.
-
-Инструменты и папки выбираются галочками, а не ответом фразой:
-человек не должен писать JSON, чтобы отметить пункт.
-
-Сделано в S6: `tools/mod.rs` — типизированные инструменты, у каждого два
-имени: `id` для модели и `capability` для разрешений. `tools/fs.rs` —
-`fs.read` и `fs.list` с проверкой пути: `..` разрешается приёмом, симлинки
-разворачиваются, похожие имена папок не путаются. `agent/executor.rs` —
-цикл вызовов инструментов, не знающий про HTTP: проверяется подставной
-моделью, три ограничителя обязательны (лимит шагов, запрет повтора,
-подтверждение). `agent/live.rs` — живой сайдкар и системная строка.
-Вкладка «секретарь» показывает каждый вызов и каждый отказ с причиной.
-
-Гейт S6 на живой модели прошёл 5 из 5: модель вызывает инструмент по
-нашей схеме, содержимое доходит до ответа, отказ доходит и не
-выдумывается.
-
-Двухшаговые задачи проходят 16 из 16 — **но только если не ограничивать
-длину ответа**. Уточнение «ответь одним предложением» даёт 1 из 16 и
-уверенные выдумки содержимого. Измерено, разобрано и записано в
-[docs/10-замеры.md](docs/10-замеры.md). Повтор всё равно нужен в S7, но
-как страховка от единичных провалов, а не как лечение.
-
-Не сделано: запись, запуск программ, управление окнами, память, голос.
-
-### Почему exe вырос с 4.3 до 7.35 МБ
-
-Замер сделан 11 октября 2026, сборка того же дня в 21:36. Рост
-объясним и законен: между замерами появились S1 и S2 — определение
-железа через DXGI и CPUID, каталог рецептов, загрузчик моделей с
-SHA-256 и докачкой, стрим чата.
-
-Заодно исправлены цифры установщиков: NSIS 2.68 МБ вместо 1.4,
-MSI 4.34 МБ вместо 2.2. Прежние значения относились к сборке S0.
-
-Модели в этот размер не входят: `llama-server.exe` и `cudart`
-лежат в `data/bin` и в exe не встраиваются.
-
-**Честное ограничение.** Сейчас эти файлы кладутся рядом с проектом
-вручную, и `preflight()` только ищет бинарник и объясняет, куда
-смотреть, если его нет. Раздачи при первом запуске нет — это
-незакрытый пункт S2, и он виден пользователю как ошибка, а не
-решается сам.
-
-### Загрузчик проверен на живом Hugging Face
-
-| Проверка | Результат |
-|---|---|
-| Дерево репозитория | 28 файлов, лицензия `apache-2.0` |
-| Свой SHA-256 против эталон�� Windows | совпало |
-| Докачка | оборвалось на 2 165 083 647, продолжилось до конца |
-| Сводка скачанного файла | `00fe7986ff5f6b46…` сошлась с репозиторием |
-| Скорость | 35 МБ/с |
-| Список доменов | 21 штука |
-
-Докачка проверена не искусственным тестом: сеть оборвала соединение
-дважды на файле в 2.7 ГБ, и оба раза загрузчик продолжил с места
-остановки. Для файла на 6 ГБ по домашнему интернету это главное
-свойство, а не деталь.
-
-### Что дала проверка на живом железе
-
-Три находки, каждая ломала план.
-
-**Правило выбора профиля** было написано в гигабайтах, а видеопамять так не
-отдаётся. DXGI показывает 7895 МБ на карте 8 ГБ, `nvidia-smi` — 8151 МиБ.
-Сравнение с порогом 8192 отправляло **любую** 8-гиговую карту в T2, и T3
-был недостижим на dev-машине. Исправлено округлением вверх до класса карты,
-поправка в [docs/01-контекст.md](docs/01-контекст.md).
-
-**`CPU_Mapped model buffer size = 545 МиБ`** выглядит как провал размещения,
-то есть ровно то, что план запрещает. Это не так: буфер, отображённый из
-файла. Настоящий признак — `offloaded X/Y layers to GPU`. Поверили бы глазам,
-отвергли бы рабочий рецепт и начали менять квант без причины.
-
-**`--tool-call-parser` из плана больше не существует** в llama.cpp b11557,
-запуск падает. И не нужен: шаблон Qwen3.5 разбирает вызовы инструментов
-сам при `--jinja`. Проверено живым запросом.
-
-Ещё две поправки по ходу:
-
-| Что | Было | Стало |
-|---|---|---|
-| `cargo build --release` | не выполняет `beforeBuildCommand`, в exe попадал устаревший интерфейс | `npm run app:build` |
-| Уровень лога | на `-lv 3` нет строки о размещении, проверка молча провалилась бы | `-lv 4`, закреплено тестом |
-
-**Замеры не подтвердили вывод статьи.** План опирался на «`q4_0` быстрее
-`q8_0` на 8 ГБ». Намеромо вышло 65.85 против 65.35 tok/s — разница
-0.8 процента при разбросе 0.5, то есть шум. Формулировка заменена на
-«выбирается измерением на конкретной машине».
-
-**Первая задержка 10–15 секунд, а не 1–2** как в оценке: на 24 000 токенах
-промпта разбор занимает 10.9 секунды. Отсюда требования к интерфейсу:
-индикатор работы сразу, мгновенная отмена, контекст по умолчанию меньше
-максимума.
-
-Все цифры и методика — в [docs/10-замеры.md](docs/10-замеры.md).
-
-## Решения по лицензиям
-
-| Компонент | Проблема | Решение |
-|---|---|---|
-| openWakeWord, веса | `CC-BY-NC-SA-4.0`, запрет коммерческого использования | чужие веса стоп, **свою модель обучить можно**: код фреймворка `Apache-2.0` |
-| SearXNG | `AGPL-3.0-or-later` | в дистрибутив не входит, адрес инстанса настраивает пользователь |
-
-SearXNG не распространяется и не модифицируется. По статье 0 AGPL,
-«mere interaction through a computer network, with no transfer of a
-copy, is not conveying» — наши HTTP-запросы к инстансу не передают ему
-ничего. §5(c) и §13 не применяются.
-
-Остаётся не лицензия, а удобство: поле адреса по умолчанию пустое, а
-значит у большинства поиск не работает с первого запуска. Инстанс
-получает запросы пользователя — это его выбор, но выбирать ему не из
-чего. Это продуктовая задача S6.
-
-Подробности — в [docs/09-лицензии.md](docs/09-лицензии.md).
-
-## Решения
-
-| Вопрос | Ответ |
-|---|---|
-| Стек | свой нативный процесс, без WSL2 и Docker |
-| Оболочка | Tauri 2 + React, один `.exe` |
-| Агентный рантайм | свой код, MIT-референсы как источник |
-| Модель | Qwen3.5, по профилю 4B → 27B |
-| Рецепты | квант + KV-кэш + контекст, выбор по замеру |
-| Размещение | все слои на GPU; частичное — градация по замеру |
-| Замеры | медиана пяти прогонов; цифра в коде = наш замер (правило 23) |
-| Профили | T1–T5, автоопределение по VRAM/RAM |
-| Управление ПК | UIA-first, browser DOM отдельно, vision на T4+ |
-| Первый сценарий | знакомство и сборка агента в разговоре |
-| Приватность | всё локально по умолчанию, облако выключено |
-
-## Быстрый старт
-
-Следующий шаг — **S8, навыки и повторяемые операции**.
-
-Полный проект — **38–45 дней**. Две точки остановки: **S4** (агент не может
-рассказать о своих возможностях) и **S8** (повторяемые операции не собираются,
-на T1 и T2 продукт тормозит).
-
-## Что изменилось после разбора ideas.md
-
-| Этап | Добавлено | Цена |
-|---|---|---|
-| S5 | промпт как дерево блоков с бюджетом токенов | 0 |
-| S7 | повтор внутри операции, а не в рассуждении модели | 0 |
-| S8 | типизированные операции вместо цикла вызовов инструментов | +1 день |
-| S9 | `TTSProvider`, совместимый с `/v1/audio/speech` | 0 |
-| S10 | RRF: слияние векторного и BM25 рангов | 0 |
-| S11 | два слоя памяти, консолидация с инвалидацией | +1 день |
-
-Подробности и список отклонённых идей — в [ideas.md](ideas.md).
-
-## Лицензии
-
-Проверено в S0, первичные источники. Полный отчёт с URL, владельцами
-и цитатами — в [docs/09-лицензии.md](docs/09-лицензии.md).
-
-Модели и референсы:
-
-| Компонент | Статус |
-|---|---|
-| Qwen3.5, Bonsai 27B, Gemma 4 | Apache-2.0, свободно |
-| ODS (корень) | Apache-2.0, можно с атрибуцией |
-| ODS `vendor/pixel` | ODS-only grant, **нельзя копировать** |
-| Hermes Agent | MIT, можно копировать |
-| AIRI | MIT, можно копировать |
-| **anthropics/skills: docx, pdf, pptx, xlsx** | **проприетарные, не копировать** |
-
-Зависимости:
-
-| Компонент | SPDX | Решение |
-|---|---|---|
-| llama.cpp | `MIT` | можно |
-| Tauri 2, `@tauri-apps/api` | `Apache-2.0 OR MIT` | можно, выбран MIT |
-| sqlite-vec | `Apache-2.0 OR MIT` | можно |
-| faster-whisper + веса Whisper | `MIT` / `Apache-2.0` | можно |
-| Kokoro-82M, код и веса | `Apache-2.0` | можно |
-| Silero VAD, код и веса | `MIT` | можно |
-| `windows` crate | `MIT OR Apache-2.0` | можно |
-| `uiautomation` | `Apache-2.0` | можно |
-| agentskills.io | `Apache-2.0` | можно |
-| **openWakeWord, веса** | **`CC-BY-NC-SA-4.0`** | **стоп, но обходим: модель обучаем свою** |
-| **SearXNG** | **`AGPL-3.0-or-later`** | **не встраиваем** |
-
-Не проверено и не используется: BGE-M3, `tokenizers`, NSIS, WiX,
-замена SearXNG.
+> 🇷🇺 Русская версия: [README_RU.md](./README_RU.md)

@@ -38,13 +38,24 @@ pub struct Report {
 }
 
 /// Полный отчёт: что умеем, что нет и почему.
+///
+/// Язык приходит параметром, а не берётся из настроек: человек
+/// переключает язык кнопкой и ждёт отклика немедленно, а читать
+/// отчёт, собранный на прошлом языке, он не станет. Неизвестное
+/// значение считается русским — молча угадывать язык нельзя.
 #[tauri::command]
-pub fn capabilities_report() -> Result<Report, String> {
+pub fn capabilities_report(lang: Option<String>) -> Result<Report, String> {
     let tier = detect_and_persist().effective();
-    build(tier)
+    build_lang(tier, lang.as_deref() == Some("en"))
 }
 
+/// Отчёт на русском. Отдельная обёртка, чтобы вызывающие не знали
+/// про языки: тесты и внутренний код не переводят.
 pub fn build(tier: Tier) -> Result<Report, String> {
+    build_lang(tier, false)
+}
+
+pub fn build_lang(tier: Tier, en: bool) -> Result<Report, String> {
     let reg = Registry::load()?;
     // Повреждённый реестр — повод остановиться, а не показать
     // пустой список: пустой список читается как «я ничего не умею».
@@ -64,15 +75,20 @@ pub fn build(tier: Tier) -> Result<Report, String> {
         }
         rows.push(Row {
             id: c.id.clone(),
-            name: c.name.clone(),
-            what: c.what.clone(),
+            name: c.name_for(en),
+            what: c.what_for(en),
             available: blocker.is_none(),
-            blocked_by: blocker.map(|b: Blocker| b.title().to_string()),
-            refusal: blocker.map(|b| c.refusal_for(b)),
+            blocked_by: blocker.map(|b: Blocker| b.title_for(en).to_string()),
+            refusal: blocker.map(|b| c.refusal_for_lang(b, en)),
             evidence: if c.evidence.is_empty() {
                 None
             } else {
-                Some(c.evidence.clone())
+                let текст = if en && !c.evidence_en.is_empty() {
+                    c.evidence_en.clone()
+                } else {
+                    c.evidence.clone()
+                };
+                Some(текст)
             },
             min_tier: c.min_tier.as_str().to_string(),
         });

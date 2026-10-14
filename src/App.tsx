@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { t, язык, поставитьЯзык, восстановитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
 import "./App.css";
 
@@ -116,8 +117,7 @@ function Picker({
       )}
       {items.length > 0 && (
         <div className="onb-input">
-          <button type="button" onClick={onDone} disabled={busy}>
-            дальше
+          <button type="button" onClick={onDone} disabled={busy}>{t("дальше")}
           </button>
         </div>
       )}
@@ -142,9 +142,8 @@ function ToolPicker({
 }) {
   return (
     <>
-      <p className="muted">
-        Отметь, что секретарю можно делать. Недоступное сейчас всё равно
-        отметить можно — включишь, когда появится.
+      <p className="muted">{t("Отметь, что секретарю можно делать. Недоступное сейчас всё равно отметить можно — включишь, когда появится.")}
+
       </p>
       <Picker
         items={rows.map((r) => ({
@@ -157,7 +156,7 @@ function ToolPicker({
         onToggle={onToggle}
         onDone={onDone}
         busy={busy}
-        empty="Возможностей в реестре нет."
+        empty={t("Возможностей в реестре нет.")}
       />
     </>
   );
@@ -231,15 +230,18 @@ function Capabilities() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<CapabilitiesReport>("capabilities_report")
+    invoke<CapabilitiesReport>("capabilities_report", { lang: язык() })
       .then(setReport)
       .catch((e) => setError(String(e)));
-  }, []);
+    // Отчёт перезапрашивается при смене языка: он приходит из Rust
+    // уже переведённым, и без повторного вызова переключатель оставит
+    // на экране текст на прежнем языке.
+  }, [язык()]);
 
   if (error) {
     return (
       <div className="panel">
-        <h2>Возможности</h2>
+        <h2>{t("Возможности")}</h2>
         <p className="error">{error}</p>
       </div>
     );
@@ -248,8 +250,8 @@ function Capabilities() {
   if (!report) {
     return (
       <div className="panel">
-        <h2>Возможности</h2>
-        <p className="muted">Читаем реестр…</p>
+        <h2>{t("Возможности")}</h2>
+        <p className="muted">{t("Читаем реестр…")}</p>
       </div>
     );
   }
@@ -259,32 +261,31 @@ function Capabilities() {
 
   return (
     <div className="panel">
-      <h2>Возможности</h2>
+      <h2>{t("Возможности")}</h2>
 
       <div className="stat-row">
-        <span className="stat"><b>{report.available}</b> работает</span>
-        <span className="stat"><b>{report.total - report.available}</b> закрыто</span>
-        <span className="stat"><b>{report.verified}</b> проверено на железе</span>
-        <span className="stat gold"><b>{report.tier}</b> профиль</span>
+        <span className="stat"><b>{report.available}</b> {t("работает")}</span>
+        <span className="stat"><b>{report.total - report.available}</b> {t("закрыто")}</span>
+        <span className="stat"><b>{report.verified}</b> {t("проверено на железе")}</span>
+        <span className="stat gold"><b>{report.tier}</b> {t("профиль")}</span>
       </div>
 
       <section className="sector">
-        <h3 className="sector-head">
-          работает
+        <h3 className="sector-head">{t("работает")}
           <span className="sector-count">{ready.length}</span>
         </h3>
         {ready.length === 0 ? (
-          <p className="muted">Ничего не проверено. Это значит «ещё не сделано», а не «сломалось».</p>
+          <p className="muted">{t("Ничего не проверено. Это значит «ещё не сделано», а не «сломалось».")}</p>
         ) : (
           <div className="cards">
             {ready.map((r) => (
               <article key={r.id} className="card ok">
                 <header className="card-head">
                   <span className="card-name">{r.name}</span>
-                  <span className="cap-tag cap-tag-ok">работает</span>
+                  <span className="cap-tag cap-tag-ok">{t("работает")}</span>
                 </header>
                 <p className="card-what">{r.what}</p>
-                {r.evidence && <p className="card-note">Проверено: {r.evidence}</p>}
+                {r.evidence && <p className="card-note">{t("Проверено")}: {r.evidence}</p>}
               </article>
             ))}
           </div>
@@ -292,13 +293,11 @@ function Capabilities() {
       </section>
 
       <section className="sector">
-        <h3 className="sector-head">
-          пока недоступно
+        <h3 className="sector-head">{t("пока недоступно")}
           <span className="sector-count dim">{blocked.length}</span>
         </h3>
-        <p className="muted sector-lead">
-          Секретарь знает про эти возможности и честно скажет, что не может.
-          Не молчит и не обещает.
+        <p className="muted sector-lead">{t("Секретарь знает про эти возможности и честно скажет, что не может. Не молчит и не обещает.")}
+
         </p>
         <div className="cards">
           {blocked.map((r) => (
@@ -354,10 +353,10 @@ function Welcome() {
     // монтируется не только при первом открытии, но и при возврате на
     // вкладку, и при перерисовке окна. Знакомство слетало на первый
     // шаг, стоило переключиться куда угодно.
-    invoke<OnboardingStep>("onboarding_current")
+    invoke<OnboardingStep>("onboarding_current", { lang: язык() })
       .then(setStep)
       .catch((e) => setError(String(e)));
-    invoke<CapabilitiesReport>("capabilities_report")
+    invoke<CapabilitiesReport>("capabilities_report", { lang: язык() })
       .then((r) => {
         setReport(r);
         setChosen(new Set(r.rows.filter((x) => x.available).map((x) => x.id)));
@@ -378,7 +377,7 @@ function Welcome() {
   // вкладку.
   useEffect(() => {
     if (!step || step.step !== "summary" || preview) return;
-    invoke<OnboardingPreview>("onboarding_preview")
+    invoke<OnboardingPreview>("onboarding_preview", { lang: язык() })
       .then(setPreview)
       .catch((e) => setError(String(e)));
   }, [step, preview]);
@@ -387,7 +386,7 @@ function Welcome() {
     setBusy(true);
     setError(null);
     try {
-      const r = await invoke<OnboardingSay>("onboarding_set_paths", {
+      const r = await invoke<OnboardingSay>("onboarding_set_paths", { lang: язык(),
         paths: Array.from(picked),
       });
       setStep(r.next);
@@ -407,7 +406,7 @@ function Welcome() {
     setError(null);
     setWholeDisk(want);
     try {
-      const r = await invoke<OnboardingSay>("onboarding_set_whole_disk", {
+      const r = await invoke<OnboardingSay>("onboarding_set_whole_disk", { lang: язык(),
         enabled: want,
       });
       if (want) setStep(r.next);
@@ -426,7 +425,7 @@ const отправитьРежимы = async () => {
   setBusy(true);
   setError(null);
   try {
-    const r = await invoke<OnboardingSay>("onboarding_set_modes", {
+    const r = await invoke<OnboardingSay>("onboarding_set_modes", { lang: язык(),
       executor: режим,
       approval: уровень,
     });
@@ -449,7 +448,7 @@ const pickTools = async () => {
         if (chosen.has(r.id)) enable.push(r.id);
         else disable.push(r.id);
       });
-      const r = await invoke<OnboardingSay>("onboarding_set_tools", { enable, disable });
+      const r = await invoke<OnboardingSay>("onboarding_set_tools", { lang: язык(), enable, disable });
       setStep(r.next);
       setLines((prev) => [
         ...prev,
@@ -471,7 +470,7 @@ const pickTools = async () => {
     setBusy(true);
     setError(null);
     try {
-      const r = await invoke<OnboardingSay>("onboarding_say", { text });
+      const r = await invoke<OnboardingSay>("onboarding_say", { text, lang: язык() });
       setLines((prev) => [...prev, { who: "вы", text }]);
       setInput("");
       if (!r.understood) {
@@ -481,7 +480,7 @@ const pickTools = async () => {
       }
       setStep(r.next);
       if (r.finished) {
-        const p = await invoke<OnboardingPreview>("onboarding_preview");
+        const p = await invoke<OnboardingPreview>("onboarding_preview", { lang: язык() });
         setPreview(p);
       }
     } catch (e) {
@@ -495,7 +494,7 @@ const pickTools = async () => {
     setBusy(true);
     setError(null);
     try {
-      const p = await invoke<OnboardingPreview>("onboarding_apply");
+      const p = await invoke<OnboardingPreview>("onboarding_apply", { lang: язык() });
       setPreview(p);
     } catch (e) {
       setError(String(e));
@@ -508,13 +507,13 @@ const pickTools = async () => {
     setLines([]);
     setPreview(null);
     setError(null);
-    setStep(await invoke<OnboardingStep>("onboarding_start"));
+    setStep(await invoke<OnboardingStep>("onboarding_start", { lang: язык() }));
   };
 
   if (error && !step) {
     return (
       <div className="panel">
-        <h2>Знакомство</h2>
+        <h2>{t("Знакомство")}</h2>
         <p className="error">{error}</p>
       </div>
     );
@@ -523,15 +522,15 @@ const pickTools = async () => {
   if (!step) {
     return (
       <div className="panel">
-        <h2>Знакомство</h2>
-        <p className="muted">Готовлюсь…</p>
+        <h2>{t("Знакомство")}</h2>
+        <p className="muted">{t("Готовлюсь…")}</p>
       </div>
     );
   }
 
   return (
     <div className="panel">
-      <h2>Знакомство</h2>
+      <h2>{t("Знакомство")}</h2>
       <p className="muted">
         Шаг {step.index} из {step.total}: {step.title}. Собираем {step.what}.
       </p>
@@ -569,9 +568,8 @@ const pickTools = async () => {
         />
       ) : step.step === "folders" ? (
         <>
-          <p className="muted">
-            Реши, насколько широко секретарь сможет читать. На этом шаге
-            содержимое не читается — только названия папок.
+          <p className="muted">{t("Реши, насколько широко секретарь сможет читать. На этом шаге содержимое не читается — только названия папок.")}
+
           </p>
 
           {/* Сначала широкий вариант, потом узкий. Порядок не
@@ -586,17 +584,16 @@ const pickTools = async () => {
             aria-pressed={wholeDisk}
             onClick={() => toggleWholeDisk(!wholeDisk)}
           >
-            <span className="wide-title">читать весь диск</span>
-            <span className="wide-note">
-              Секретарь сможет читать что угодно в любой папке. Удобно,
-              если документы разбросаны. Он всё равно не напишет и не
-              удалит ничего без твоего вопроса.
+            <span className="wide-title">{t("читать весь диск")}</span>
+            <span className="wide-note">{t("Секретарь сможет читать что угодно в любой папке. Удобно, если документы разбросаны. Он всё равно не напишет и не удалит ничего без твоего вопроса.")}
+
+
             </span>
           </button>
 
           {!wholeDisk && (
             <>
-              <p className="muted alt-lead">или отметь отдельные папки</p>
+              <p className="muted alt-lead">{t("или отметь отдельные папки")}</p>
               <Picker
                 items={folders.map((f) => ({ id: f.label, title: f.label, note: f.path }))}
                 chosen={picked}
@@ -610,7 +607,7 @@ const pickTools = async () => {
                 }}
                 onDone={pickPaths}
                 busy={busy}
-                empty="Папок по умолчанию не нашлось. Можно назвать свою в поле ниже."
+                empty={t("Папок по умолчанию не нашлось. Можно назвать свою в поле ниже.")}
               />
               {folders.length === 0 && (
                 <div className="onb-input">
@@ -618,11 +615,10 @@ const pickTools = async () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") say(); }}
-                    placeholder="путь к папке"
+                    placeholder={t("путь к папке")}
                     disabled={busy}
                   />
-                  <button type="button" onClick={say} disabled={busy || !input.trim()}>
-                    сказать
+                  <button type="button" onClick={say} disabled={busy || !input.trim()}>{t("сказать")}
                   </button>
                 </div>
               )}
@@ -631,12 +627,11 @@ const pickTools = async () => {
         </>
       ) : step.step === "levels" ? (
         <>
-          <p className="muted">
-            Два решения, и оба про то, насколько секретарь будет
-            действовать сам. Сначала — показывать или делать.
+          <p className="muted">{t("Два решения, и оба про то, насколько секретарь будет действовать сам. Сначала — показывать или делать.")}
+
           </p>
 
-          <p className="muted alt-lead">режим</p>
+          <p className="muted alt-lead">{t("режим")}</p>
           <div className="picks">
             {РЕЖИМЫ.map((m) => (
               <button
@@ -655,7 +650,7 @@ const pickTools = async () => {
             ))}
           </div>
 
-          <p className="muted alt-lead">уровень доступа</p>
+          <p className="muted alt-lead">{t("уровень доступа")}</p>
           <div className="picks">
             {УРОВНИ.map((u) => (
               <button
@@ -679,8 +674,7 @@ const pickTools = async () => {
               type="button"
               onClick={отправитьРежимы}
               disabled={busy || !режим || !уровень}
-            >
-              дальше
+            >{t("дальше")}
             </button>
           </div>
         </>
@@ -692,11 +686,10 @@ const pickTools = async () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") say(); }}
-                placeholder="твой ответ"
+                placeholder={t("твой ответ")}
                 disabled={busy}
               />
-              <button type="button" onClick={say} disabled={busy || !input.trim()}>
-                сказать
+              <button type="button" onClick={say} disabled={busy || !input.trim()}>{t("сказать")}
               </button>
             </div>
           )}
@@ -705,11 +698,11 @@ const pickTools = async () => {
 
       {preview && (
         <div className="onb-preview">
-          <h3>Итог</h3>
+          <h3>{t("Итог")}</h3>
           <p>{preview.summary}</p>
 
           <div className="cap-row cap-ok">
-            <div className="cap-head"><b>Как буду работать</b></div>
+            <div className="cap-head"><b>{t("Как буду работать")}</b></div>
             <div className="cap-what">{preview.settings.executor.title}</div>
             <div className="cap-evidence">{preview.settings.executor.explain}</div>
             <div className="cap-what" style={{ marginTop: 6 }}>
@@ -720,17 +713,16 @@ const pickTools = async () => {
 
           {preview.settings.paths.length > 0 && (
             <div className="cap-row cap-ok">
-              <div className="cap-head"><b>Папки</b></div>
+              <div className="cap-head"><b>{t("Папки")}</b></div>
               <div className="cap-what">{preview.settings.paths.join(", ")}</div>
             </div>
           )}
 
-          <p className="muted">
-            Ничего ещё не применено. Проверь и нажми «сохранить», если всё верно.
+          <p className="muted">{t("Ничего ещё не применено. Проверь и нажми «сохранить», если всё верно.")}
           </p>
           <div className="onb-input">
-            <button type="button" onClick={apply} disabled={busy}>сохранить</button>
-            <button type="button" onClick={restart} disabled={busy}>начать заново</button>
+            <button type="button" onClick={apply} disabled={busy}>{t("сохранить")}</button>
+            <button type="button" onClick={restart} disabled={busy}>{t("начать заново")}</button>
           </div>
         </div>
       )}
@@ -762,53 +754,53 @@ function Settings({ profile, onChange }: {
 
   return (
     <section className="panel">
-      <h2>Ваш компьютер</h2>
+      <h2>{t("Ваш компьютер")}</h2>
       <dl className="facts">
-        <div><dt>Видеокарта</dt><dd>{profile.gpu_name}</dd></div>
+        <div><dt>{t("Видеокарта")}</dt><dd>{profile.gpu_name}</dd></div>
         <div>
-          <dt>Видеопамять</dt>
+          <dt>{t("Видеопамять")}</dt>
           <dd>
             {gb(profile.vram_mb)}
             <span className="muted"> доступно {gb(profile.vram_usable_mb)}</span>
           </dd>
         </div>
-        <div><dt>Процессор</dt><dd>{profile.cpu_brand}</dd></div>
-        <div><dt>Оперативная память</dt><dd>{gb(profile.ram_mb)}</dd></div>
+        <div><dt>{t("Процессор")}</dt><dd>{profile.cpu_brand}</dd></div>
+        <div><dt>{t("Оперативная память")}</dt><dd>{gb(profile.ram_mb)}</dd></div>
       </dl>
 
-      <h2>Профиль</h2>
+      <h2>{t("Профиль")}</h2>
       <p className="summary">{profile.summary}</p>
       {profile.unsupported_reason && (
         <p className="error">Не поддерживается: {profile.unsupported_reason}</p>
       )}
 
       <ul className="tiers">
-        {profile.available_tiers.map((t) => {
-          const active = t.tier === profile.effective;
-          const blocked = t.blocked_because !== null;
+        {profile.available_tiers.map((уровень) => {
+          const active = уровень.tier === profile.effective;
+          const blocked = уровень.blocked_because !== null;
           return (
             // Причина и пометка лежат внутри карточки, а не рядом с
             // ней. Раньше `<em>` был соседом пункта списка и вылезал
             // за его границы — на скриншоте это и читалось как наезд
             // текста на подпись кнопки.
-            <li key={t.tier} className={active ? "tier active" : "tier"}>
+            <li key={уровень.tier} className={active ? "tier active" : "tier"}>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() =>
                   call(() =>
                     invoke<ProfileView>("set_profile_tier", {
-                      tier: active && profile.forced ? null : t.tier,
+                      tier: active && profile.forced ? null : уровень.tier,
                     })
                   ).then((p) => p && onChange(p))
                 }
-                title={t.blocked_because ?? "Выбрать этот профиль"}
+                title={уровень.blocked_because ?? t("Выбрать этот профиль")}
               >
-                <strong>{t.tier}</strong>
-                <span>{t.describe.replace(`${t.tier} — `, "")}</span>
+                <strong>{уровень.tier}</strong>
+                <span>{уровень.describe.replace(`${уровень.tier} — `, "")}</span>
               </button>
-              {blocked && <p className="tier-note muted">{t.blocked_because}</p>}
-              {active && !blocked && <p className="tier-note chosen">выбран</p>}
+              {blocked && <p className="tier-note muted">{уровень.blocked_because}</p>}
+              {active && !blocked && <p className="tier-note chosen">{t("выбран")}</p>}
             </li>
           );
         })}
@@ -817,16 +809,14 @@ function Settings({ profile, onChange }: {
       {profile.forced && (
         <button type="button" className="link" disabled={busy}
           onClick={() => call(() => invoke<ProfileView>("set_profile_tier", { tier: null }))
-            .then((p) => p && onChange(p))}>
-          вернуть автоматическое определение
+            .then((p) => p && onChange(p))}>{t("вернуть автоматическое определение")}
         </button>
       )}
 
-      <h2>Контекст</h2>
-      <p className="muted">
-        Сколько токенов модель держит в голове за раз. Больше — больше
-        помнит, но дольше думает: на 24 000 токенах первый ответ приходит
-        через 11 секунд.
+      <h2>{t("Контекст")}</h2>
+      <p className="muted">{t("Сколько токенов модель держит в голове за раз. Больше — больше помнит, но дольше думает: на 24 000 токенах первый ответ приходит через 11 секунд.")}
+
+
       </p>
       <div className="context-row">
         {[16384, 32768, 65536, 131072, 262144].map((c) => (
@@ -932,8 +922,7 @@ function Chat({ model }: { model: ModelStatus }) {
       </div>
 
       {busy && (
-        <button type="button" className="stop" onClick={() => invoke("stop_generation")}>
-            остановить ответ
+        <button type="button" className="stop" onClick={() => invoke("stop_generation")}>{t("остановить ответ")}
         </button>
       )}
       {notice && <p className="muted notice">{notice}</p>}
@@ -945,10 +934,9 @@ function Chat({ model }: { model: ModelStatus }) {
           onChange={(e) => setInput(e.currentTarget.value)}
           placeholder={model.running ? "Напишите сообщение" : "Сначала запустите модель"}
           disabled={!model.running || busy}
-          aria-label="Сообщение"
+          aria-label={t("Сообщение")}
         />
-        <button className="app-send" type="submit" disabled={!input.trim() || busy || !model.running}>
-          Отправить
+        <button className="app-send" type="submit" disabled={!input.trim() || busy || !model.running}>{t("Отправить")}
         </button>
       </form>
     </section>
@@ -1059,7 +1047,7 @@ function Downloader({ model }: { model: ModelStatus }) {
 
   return (
     <section className="panel">
-      <h2>Скачать модель</h2>
+      <h2>{t("Скачать модель")}</h2>
 
       {model.running ? (
         <p className="muted">
@@ -1067,9 +1055,8 @@ function Downloader({ model }: { model: ModelStatus }) {
           ничего не сломает, но запускать её придётся заново.
         </p>
       ) : (
-        <p className="muted">
-          Под текущий профиль нужен квант из списка. Показан размер
-          файла, а не скорость: она станет известна после сверки сводки.
+        <p className="muted">{t("Под текущий профиль нужен квант из списка. Показан размер файла, а не скорость: она станет известна после сверки сводки.")}
+
         </p>
       )}
 
@@ -1078,12 +1065,11 @@ function Downloader({ model }: { model: ModelStatus }) {
           className="app-input"
           value={repo}
           onChange={(e) => setRepo(e.currentTarget.value)}
-          placeholder="начни набирать: gemma, qwen, llama…"
-          aria-label="Репозиторий"
+          placeholder={t("начни набирать: gemma, qwen, llama…")}
+          aria-label={t("Репозиторий")}
         />
         <button className="chip" onClick={loadFiles}
-          disabled={state.kind === "meta" || !repo.trim()}>
-          показать файлы
+          disabled={state.kind === "meta" || !repo.trim()}>{t("показать файлы")}
         </button>
       </div>
 
@@ -1108,11 +1094,10 @@ function Downloader({ model }: { model: ModelStatus }) {
           ))}
         </ul>
       )}
-      {ищет && <p className="muted hint-status">ищем…</p>}
+      {ищет && <p className="muted hint-status">{t("ищем…")}</p>}
       {hits && hits.length === 0 && !ищет && (
-        <p className="muted hint-status">
-          по этому слову моделей не нашлось. Проверь написание или укажи
-          репозиторий целиком.
+        <p className="muted hint-status">{t("по этому слову моделей не нашлось. Проверь написание или укажи репозиторий целиком.")}
+
         </p>
       )}
 
@@ -1146,8 +1131,7 @@ function Downloader({ model }: { model: ModelStatus }) {
           <p className="muted">
             {gib(state.downloaded)} из {gib(state.total)}, {state.mib.toFixed(1)} МБ/с
           </p>
-          <button className="stop" onClick={() => invoke("cancel_download")}>
-            отменить
+          <button className="stop" onClick={() => invoke("cancel_download")}>{t("отменить")}
           </button>
         </div>
       )}
@@ -1166,15 +1150,13 @@ function Downloader({ model }: { model: ModelStatus }) {
 
       {picked && (
         <button className="app-send" onClick={start}
-          disabled={state.kind === "busy" || state.kind === "meta"}>
-          Скачать
+          disabled={state.kind === "busy" || state.kind === "meta"}>{t("Скачать")}
         </button>
       )}
 
       {hosts && (
         <details className="hosts">
-          <summary className="muted">
-            если не скачивается: нужны разрешённые домены
+          <summary className="muted">{t("если не скачивается: нужны разрешённые домены")}
           </summary>
           <ul>
             {hosts.map((h) => <li key={h}>{h}</li>)}
@@ -1188,7 +1170,7 @@ function Downloader({ model }: { model: ModelStatus }) {
 function Problems({ pre }: { pre: Preflight }) {
   return (
     <section className="panel">
-      <h2>Что мешает запуску</h2>
+      <h2>{t("Что мешает запуску")}</h2>
       <ol className="problems">
         {pre.problems.map((p, i) => (
           <li key={i}>
@@ -1239,7 +1221,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 
   return (
     <section className="panel">
-      <h2>Модель</h2>
+      <h2>{t("Модель")}</h2>
 
       {!model.running ? (
         <button type="button" className="app-send" disabled={starting} onClick={start}>
@@ -1248,30 +1230,29 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
       ) : (
         <>
           <dl className="facts">
-            <div><dt>Рецепт</dt><dd>{model.recipe}</dd></div>
-            <div><dt>KV-кэш</dt><dd>{model.kv_cache}</dd></div>
-            <div><dt>Контекст</dt><dd>{model.context ? `${model.context / 1024}K` : "—"}</dd></div>
+            <div><dt>{t("Рецепт")}</dt><dd>{model.recipe}</dd></div>
+            <div><dt>{t("KV-кэш")}</dt><dd>{model.kv_cache}</dd></div>
+            <div><dt>{t("Контекст")}</dt><dd>{model.context ? `${model.context / 1024}K` : "—"}</dd></div>
             <div>
-              <dt>Размещение</dt>
+              <dt>{t("Размещение")}</dt>
               <dd className={model.full_gpu ? "ok" : "bad"}>
                 {model.full_gpu
                   ? `все слои на GPU (${model.gpu_layers}/${model.total_layers})`
                   : `частично: ${model.gpu_layers}/${model.total_layers}`}
               </dd>
             </div>
-            <div><dt>Устройство</dt><dd>{model.device ?? "—"}</dd></div>
+            <div><dt>{t("Устройство")}</dt><dd>{model.device ?? "—"}</dd></div>
             <div>
-              <dt>Скорость</dt>
+              <dt>{t("Скорость")}</dt>
               <dd>
                 {model.tok_s ? `${model.tok_s} tok/s` : "не измерена"}
-                {!model.verified && <span className="muted"> · рецепт не замерян</span>}
+                {!model.verified && <span className="muted">{t("· рецепт не замерян")}</span>}
               </dd>
             </div>
           </dl>
 
           <div className="context-row">
-            <button type="button" className="chip" onClick={() => invoke("stop_model")}>
-              остановить модель
+            <button type="button" className="chip" onClick={() => invoke("stop_model")}>{t("остановить модель")}
             </button>
             <button type="button" className="chip" onClick={toggleLog}>
               {showLog ? "скрыть журнал" : "журнал запуска"}
@@ -1364,20 +1345,19 @@ function РазмерШрифта() {
 
   return (
     <section className="panel">
-      <h2>настройки</h2>
+      <h2>{t("настройки")}</h2>
 
       <div className="pref-row">
         <div className="pref-text">
-          <b>Размер шрифта</b>
-          <span className="muted">
-            Меняет весь интерфейс сразу. Если текст мелкий — поставь
-            побольше, секретарь от этого не тупеет.
+          <b>{t("Размер шрифта")}</b>
+          <span className="muted">{t("Меняет весь интерфейс сразу. Если текст мелкий — поставь побольше, секретарь от этого не тупеет.")}
+
           </span>
         </div>
         <div className="stepper">
           <button
             type="button"
-            aria-label="мельче"
+            aria-label={t("мельче")}
             disabled={шаг <= 0}
             onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг - 1] ?? кегль)}
           >
@@ -1386,7 +1366,7 @@ function РазмерШрифта() {
           <span className="stepper-val">{кегль}</span>
           <button
             type="button"
-            aria-label="крупнее"
+            aria-label={t("крупнее")}
             disabled={шаг >= РАЗМЕРЫ_ШРИФТА.length - 1}
             onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг + 1] ?? кегль)}
           >
@@ -1395,8 +1375,7 @@ function РазмерШрифта() {
         </div>
       </div>
 
-      <p className="muted pref-sample" style={{ fontSize: `${кегль}px` }}>
-        Образец: Проверка распознавания речи. Сегодня вторник.
+      <p className="muted pref-sample" style={{ fontSize: `${кегль}px` }}>{t("Образец: Проверка распознавания речи. Сегодня вторник.")}
       </p>
     </section>
   );
@@ -1463,7 +1442,7 @@ function VoiceToggle() {
     }
   };
 
-  if (!state) return <span className="voice">голос: …</span>;
+  if (!state) return <span className="voice">{t("голос: …")}</span>;
 
   return (
     <span className="voice">
@@ -1473,15 +1452,15 @@ function VoiceToggle() {
         disabled={busy}
         onClick={переключить}
         title={state.on
-          ? "выключить голос и освободить место"
-          : "включить голос: поднимется распознавание"}
+          ? t("выключить голос и освободить место")
+          : t("включить голос: поднимется распознавание")}
       >
-        {busy ? "…" : state.on ? "голос включён" : "включить голос"}
+        {busy ? "…" : state.on ? t("голос включён") : t("включить голос")}
       </button>
       {state.on && state.weightMb !== null && (
         <span className="voice-mb">{state.weightMb} МБ</span>
       )}
-      {error && <span className="voice-error" title={error}>не вышло</span>}
+      {error && <span className="voice-error" title={error}>{t("не вышло")}</span>}
     </span>
   );
 }
@@ -1536,7 +1515,7 @@ function MemoryBar() {
   }, []);
 
   if (!mem || mem.ramTotalMb === 0) {
-    return <span className="mem">память: …</span>;
+    return <span className="mem">{t("память: …")}</span>;
   }
 
   const ram = Math.min(100, Math.round((mem.ramUsedMb * 100) / mem.ramTotalMb));
@@ -1547,7 +1526,7 @@ function MemoryBar() {
   return (
     <span className="mem">
       <span className="mem-item" title={`оперативная память: ${гиг(mem.ramUsedMb)} из ${гиг(mem.ramTotalMb)} ГиБ`}>
-        <span className="mem-label">ОЗУ</span>
+        <span className="mem-label">{t("ОЗУ")}</span>
         <span className="bar"><span className="fill" style={{ width: `${ram}%` }} /></span>
         <span className="mem-num">{ram}%</span>
       </span>
@@ -1562,11 +1541,46 @@ function MemoryBar() {
   );
 }
 
+/**
+ * Переключатель языка.
+ *
+ * Кнопка, а не список: двух языка ровно два, и список ради двух
+ * пунктов превращает переключатель в лишний шаг.
+ *
+ * Подпись на кнопке всегда «на том языке, который получишь»:
+ * RU надписью «EN» ждёт нажатия, RU надписью «RU» не ждёт ничего и
+ * читается как «уже русский». Так человек не гадает, что нажатие
+ * сделает.
+ */
+function ЯзыкКнопка() {
+  const текущийЯзык = язык();
+  return (
+    <button
+      type="button"
+      className="lang"
+      title={текущийЯзык === "ru" ? "Switch to English" : "Переключить на русский"}
+      aria-label={текущийЯзык === "ru" ? "Switch to English" : "Переключить на русский"}
+      onClick={() => поставитьЯзык(текущийЯзык === "ru" ? "en" : "ru")}
+    >
+      {текущийЯзык === "ru" ? "EN" : "RU"}
+    </button>
+  );
+}
+
 function App() {
   const [profile, setProfile] = useState<ProfileView | null>(null);
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("model");
+  // Пустое состояние, которое меняется при смене языка: `t()` читает
+  // модульную переменную, и React об этом не знает. Подписка шлёт
+  // событие, подписчик меняет состояние, дерево перерисовывается.
+  const [, перерисовать] = useState(0);
+
+  useEffect(() => {
+    восстановитьЯзык();
+    return следить(() => перерисовать((n) => n + 1));
+  }, []);
 
   useEffect(() => {
     invoke<ProfileView>("get_profile").then(setProfile).catch((e) => setError(String(e)));
@@ -1592,13 +1606,13 @@ function App() {
         <header className="app-header">
           <div className="brand">
             <span className="brand-mark">ARKHA</span>
-            <span className="app-subtitle">локальный секретарь</span>
+            <span className="app-subtitle">{t("локальный секретарь")}</span>
           </div>
         </header>
         <div className="res-strip">
-          <span className="res"><span className="res-label">статус</span><span className="res-val">загрузка…</span></span>
+          <span className="res"><span className="res-label">{t("статус")}</span><span className="res-val">{t("загрузка…")}</span></span>
         </div>
-        <section className="app-body"><p className="app-hint">Поднимаем интерфейс…</p></section>
+        <section className="app-body"><p className="app-hint">{t("Поднимаем интерфейс…")}</p></section>
       </main>
     );
   }
@@ -1608,43 +1622,44 @@ function App() {
       <header className="app-header">
         <div className="brand">
           <span className="brand-mark">ARKHA</span>
-          <span className="app-subtitle">локальный секретарь</span>
+          <span className="app-subtitle">{t("локальный секретарь")}</span>
         </div>
         <nav className="tabs">
-          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs"] as Tab[]).map((t) => (
-            <button key={t} type="button"
-              data-tone={ТОН[t]}
-              className={tab === t ? "tab active" : "tab"}
-              onClick={() => setTab(t)}>
-              {{
+          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs"] as Tab[]).map((вкладка) => (
+            <button key={вкладка} type="button"
+              data-tone={ТОН[вкладка]}
+              className={tab === вкладка ? "tab active" : "tab"}
+              onClick={() => setTab(вкладка)}>
+              {t({
                 model: "модель",
                 agent: "секретарь",
                 chat: "чат",
                 download: "загрузка",
                 capabilities: "возможности",
-                welcome: "знакомство",
+                welcome: "Знакомство",
                 settings: "профиль",
                 prefs: "настройки",
-              }[t]}
+              }[вкладка])}
             </button>
           ))}
         </nav>
+        <ЯзыкКнопка />
       </header>
 
       <div className="res-strip">
         <span className="res">
-          <span className="res-label">профиль</span>
+          <span className="res-label">{t("профиль")}</span>
           <span className="res-val gold">{profile ? profile.effective : "…"}</span>
         </span>
         <span className="res">
-          <span className="res-label">модель</span>
+          <span className="res-label">{t("модель")}</span>
           <span className={`res-val ${model.running ? "ok" : "muted"}`}>
-            {model.running ? (model.recipe ?? "запущена") : "не запущена"}
+            {model.running ? (model.recipe ?? t("запущена")) : t("не запущена")}
           </span>
         </span>
         {model.running && model.tok_s !== null && model.tok_s !== undefined && (
           <span className="res">
-            <span className="res-label">скорость</span>
+            <span className="res-label">{t("скорость")}</span>
             <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
           </span>
         )}
@@ -1668,7 +1683,7 @@ function App() {
         <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">8</kbd> вкладки</span>
         <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
         <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
-        <span className="hint dim">всё считается на этой машине, облако выключено</span>
+        <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
       </footer>
     </main>
   );

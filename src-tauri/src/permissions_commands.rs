@@ -62,10 +62,94 @@ fn approval_view(m: ApprovalMode) -> ModeView {
     }
 }
 
+/// Режим и уровень на выбранном языке.
+///
+/// Переводится то, что читает человек. Идентификаторы (`dry-run`,
+/// `actions`) остаются прежними: по ним агент ищет настройки, и перевод
+/// сломал бы разбор ответа модели.
+fn executor_view_lang(e: Executor, en: bool) -> ModeView {
+    ModeView {
+        value: match e {
+            Executor::DryRun => "dry-run",
+            Executor::Live => "live",
+        }
+        .to_string(),
+        title: if en {
+            match e {
+                Executor::DryRun => "Show only",
+                Executor::Live => "Execute",
+            }
+            .to_string()
+        } else {
+            e.title().to_string()
+        },
+        explain: match (e, en) {
+            (Executor::DryRun, true) => "Show what the agent is about to do and do none of it.",
+            (Executor::DryRun, false) => "Показывать, что агент собирается сделать, и ничего не выполнять.",
+            (Executor::Live, true) => "Carry out actions for real.",
+            (Executor::Live, false) => "Выполнять действия по-настоящему.",
+        }
+        .to_string(),
+    }
+}
+
+fn approval_view_lang(m: ApprovalMode, en: bool) -> ModeView {
+    ModeView {
+        value: match m {
+            ApprovalMode::Risky => "actions",
+            ApprovalMode::Confirm => "all",
+            ApprovalMode::Auto => "never",
+        }
+        .to_string(),
+        title: if en {
+            match m {
+                ApprovalMode::Risky => "Ask for risky ones",
+                ApprovalMode::Confirm => "Ask for everything",
+                ApprovalMode::Auto => "Ask for nothing",
+            }
+            .to_string()
+        } else {
+            m.title().to_string()
+        },
+        explain: match (m, en) {
+            (ApprovalMode::Risky, true) => {
+                "Deleting, launching programs and overwriting files ask first."
+            }
+            (ApprovalMode::Risky, false) => {
+                "Подтверждать удаление, запуск программ и перезапись файлов."
+            }
+            (ApprovalMode::Confirm, true) => "A confirmation for every action.",
+            (ApprovalMode::Confirm, false) => "Подтверждать каждое действие.",
+            (ApprovalMode::Auto, true) => {
+                "It does everything allowed. It will not stop a wrong command."
+            }
+            (ApprovalMode::Auto, false) => "Делает всё, что разрешено. Промах в команде он не остановит.",
+        }
+        .to_string(),
+    }
+}
+
+pub fn view_lang(s: &Settings, en: bool) -> SettingsView {
+    let mut v = view(s);
+    v.executor = executor_view_lang(s.executor, en);
+    v.approval_mode = approval_view_lang(s.approval_mode, en);
+    v.warning = v.warning.map(|w| {
+        if en {
+            "Execution mode is on: the agent will change files and launch programs \
+             without you taking part. Confirmations remain, but without them it still \
+             refuses deletions, launches and overwrites outside the folders you allowed."
+                .to_string()
+        } else {
+            w
+        }
+    });
+    v
+}
+
 #[tauri::command]
-pub fn permission_settings() -> Result<SettingsView, String> {
+pub fn permission_settings(lang: Option<String>) -> Result<SettingsView, String> {
     let s = Settings::load()?;
-    Ok(view(&s))
+    Ok(view_lang(&s, lang.as_deref() == Some("en")))
 }
 
 pub fn view(s: &Settings) -> SettingsView {

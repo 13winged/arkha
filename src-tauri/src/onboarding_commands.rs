@@ -43,12 +43,44 @@ pub struct Progress {
 }
 
 fn describe(step: Step) -> &'static str {
+    describe_lang(step, false)
+}
+
+/// Подпись шага на выбранном языке.
+///
+/// Тот же список, что и `Step::title`, но словами проще: заголовок
+/// называет шаг, а подпись — что именно на нём решается.
+fn describe_lang(step: Step, en: bool) -> &'static str {
+    if en {
+        return match step {
+            Step::Introduction => "the name you answer to",
+            Step::Tools => "which tools to turn on",
+            Step::Folders => "which folders to search for documents",
+            Step::Levels => "what needs no confirmation",
+            Step::Summary => "check it and finish",
+        };
+    }
     match step {
         Step::Introduction => "имя, которым тебя зовут",
         Step::Tools => "какие инструменты включать",
         Step::Folders => "в каких папках искать документы",
         Step::Levels => "что можно без подтверждения",
         Step::Summary => "проверить и закончить",
+    }
+}
+
+/// Название шага на выбранном языке.
+fn title_lang(step: Step, en: bool) -> String {
+    if en {
+        match step {
+            Step::Introduction => "Welcome".to_string(),
+            Step::Tools => "Tools".to_string(),
+            Step::Folders => "Folders".to_string(),
+            Step::Levels => "Access levels".to_string(),
+            Step::Summary => "Summary".to_string(),
+        }
+    } else {
+        step.title().to_string()
     }
 }
 
@@ -67,30 +99,51 @@ fn state() -> &'static Mutex<Option<State>> {
 // обёртка над этими функциями.
 
 pub fn view_of(s: &State, tier: crate::profile::Tier) -> StepView {
+    view_of_lang(s, tier, false)
+}
+
+/// Вид шага на выбранном языке.
+///
+/// Промпт модели остаётся русским при любом языке интерфейса: модель
+/// работает по-русски, и перевод промпта означал бы, что на вопросы
+/// человека ей приходит инструкция на другом языке. Переводится то,
+/// что читает человек.
+pub fn view_of_lang(s: &State, tier: crate::profile::Tier, en: bool) -> StepView {
     let index = Step::ALL.iter().position(|x| *x == s.step).unwrap_or(0);
     StepView {
         step: s.step.as_str().to_string(),
         // Название берётся из самого шага: копия в интерфейсе
         // рано или поздно разъехалась бы с логикой.
-        title: s.step.title().to_string(),
+        title: title_lang(s.step, en),
         index: index + 1,
         total: Step::ALL.len(),
-        what: describe(s.step),
+        what: describe_lang(s.step, en),
         prompt: s.step.prompt(tier),
     }
 }
 
 pub fn preview_of(s: &State) -> Preview {
-    Preview { summary: s.summary(), settings: view(&s.to_settings()) }
+    preview_of_lang(s, false)
+}
+
+pub fn preview_of_lang(s: &State, en: bool) -> Preview {
+    Preview {
+        summary: s.summary(),
+        settings: crate::permissions_commands::view_lang(&s.to_settings(), en),
+    }
 }
 
 pub fn say_to(s: &mut State, tier: crate::profile::Tier, text: &str) -> SayResult {
+    say_to_lang(s, tier, text, false)
+}
+
+pub fn say_to_lang(s: &mut State, tier: crate::profile::Tier, text: &str, en: bool) -> SayResult {
     let understood = s.apply(text);
     SayResult {
         understood,
         // При неудаче шаг не сдвинулся, поэтому повторяется тот же
         // вопрос, а не следующий.
-        next: view_of(s, tier),
+        next: view_of_lang(s, tier, en),
         summary: s.summary(),
         finished: s.finished,
     }
@@ -118,21 +171,23 @@ pub fn apply(s: &State) -> Result<Preview, String> {
 
 /// Начать знакомство с нуля.
 #[tauri::command]
-pub fn onboarding_start() -> Result<StepView, String> {
+pub fn onboarding_start(lang: Option<String>) -> Result<StepView, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let s = State::start();
-    let v = view_of(&s, tier);
+    let v = view_of_lang(&s, tier, en);
     *state().lock().map_err(|e| format!("состояние занято: {e}"))? = Some(s);
     Ok(v)
 }
 
 /// Текущий шаг, без сброса. Нужен при перерисовке окна.
 #[tauri::command]
-pub fn onboarding_current() -> Result<StepView, String> {
+pub fn onboarding_current(lang: Option<String>) -> Result<StepView, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
-    Ok(view_of(s, tier))
+    Ok(view_of_lang(s, tier, en))
 }
 
 /// Ответ агента на текущем шаге.
@@ -158,14 +213,16 @@ pub struct SayResult {
 pub fn onboarding_set_tools(
     enable: Vec<String>,
     disable: Vec<String>,
+    lang: Option<String>,
 ) -> Result<SayResult, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
     s.set_tools(enable, disable);
     Ok(SayResult {
         understood: true,
-        next: view_of(s, tier),
+        next: view_of_lang(s, tier, en),
         summary: s.summary(),
         finished: s.finished,
     })
@@ -196,14 +253,15 @@ pub fn onboarding_folders() -> Vec<FolderView> {
 /// Выбор папок кнопками. Названия, а не пути: именно названия видит
 /// человек, а пути он мог и не знать.
 #[tauri::command]
-pub fn onboarding_set_paths(paths: Vec<String>) -> Result<SayResult, String> {
+pub fn onboarding_set_paths(paths: Vec<String>, lang: Option<String>) -> Result<SayResult, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
     s.set_paths(paths);
     Ok(SayResult {
         understood: true,
-        next: view_of(s, tier),
+        next: view_of_lang(s, tier, en),
         summary: s.summary(),
         finished: s.finished,
     })
@@ -215,14 +273,15 @@ pub fn onboarding_set_paths(paths: Vec<String>) -> Result<SayResult, String> {
 /// весь диск — широкое, и человек должен видеть его как отдельное
 /// решение, а не как «выбрана папка C:\».
 #[tauri::command]
-pub fn onboarding_set_whole_disk(enabled: bool) -> Result<SayResult, String> {
+pub fn onboarding_set_whole_disk(enabled: bool, lang: Option<String>) -> Result<SayResult, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
     s.set_whole_disk(enabled);
     Ok(SayResult {
         understood: true,
-        next: view_of(s, tier),
+        next: view_of_lang(s, tier, en),
         summary: s.summary(),
         finished: s.finished,
     })
@@ -239,6 +298,7 @@ pub fn onboarding_set_whole_disk(enabled: bool) -> Result<SayResult, String> {
 pub fn onboarding_set_modes(
     executor: Option<String>,
     approval: Option<String>,
+    lang: Option<String>,
 ) -> Result<SayResult, String> {
     let исп = match executor.as_deref() {
         Some(v) => Some(
@@ -255,13 +315,14 @@ pub fn onboarding_set_modes(
         None => None,
     };
 
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
     s.set_modes(исп, ур);
     Ok(SayResult {
         understood: true,
-        next: view_of(s, tier),
+        next: view_of_lang(s, tier, en),
         summary: s.summary(),
         finished: s.finished,
     })
@@ -275,7 +336,8 @@ pub struct Preview {
 }
 
 #[tauri::command]
-pub fn onboarding_say(text: String) -> Result<SayResult, String> {
+pub fn onboarding_say(text: String, lang: Option<String>) -> Result<SayResult, String> {
+    let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
@@ -283,7 +345,7 @@ pub fn onboarding_say(text: String) -> Result<SayResult, String> {
 }
 
 #[tauri::command]
-pub fn onboarding_preview() -> Result<Preview, String> {
+pub fn onboarding_preview(lang: Option<String>) -> Result<Preview, String> {
     let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.as_ref().ok_or("знакомство не начато")?;
     Ok(preview_of(s))
@@ -292,7 +354,7 @@ pub fn onboarding_preview() -> Result<Preview, String> {
 /// Применить. Единственный вызов, меняющий систему, и он требует
 /// отдельного нажатия после того, как пользователь увидел итог.
 #[tauri::command]
-pub fn onboarding_apply() -> Result<Preview, String> {
+pub fn onboarding_apply(lang: Option<String>) -> Result<Preview, String> {
     let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.as_ref().ok_or("знакомство не начато")?;
     apply(s)

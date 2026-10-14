@@ -56,6 +56,31 @@ impl Blocker {
     pub fn title_ru(self) -> &'static str {
         self.title()
     }
+
+    /// Заголовок на английском.
+    ///
+    /// Те же пять вариантов, тот же смысл. Перевод придумывать на
+    /// лету нельзя: если причину недоступности перепишет интерфейс,
+    /// она неизбежно разойдётся с русской и начнёт врать о том, что
+    /// мешает. А её читают буквально — когда инструмент не сработал.
+    pub fn title_en(self) -> &'static str {
+        match self {
+            Blocker::Hardware => "Not enough resources",
+            Blocker::Model => "The model cannot do this",
+            Blocker::Permission => "Forbidden by settings",
+            Blocker::NotConfigured => "Not configured",
+            Blocker::NotBuilt => "Not built yet",
+        }
+    }
+
+    /// Заголовок на выбранном языке.
+    pub fn title_for(self, en: bool) -> &'static str {
+        if en {
+            self.title_en()
+        } else {
+            self.title()
+        }
+    }
 }
 
 /// Одна возможность агента.
@@ -83,6 +108,55 @@ pub struct Capability {
     /// Что сказать, когда возможности нет. Пишет человек, не модель.
     #[serde(default)]
     pub refusal: String,
+
+    // Английские тексты того же человека. Русский остаётся
+    // обязательным, английский — дополнение: интерфейс на любом языке
+    // показывает русский, если перевода нет, а не пустоту.
+    #[serde(default)]
+    pub name_en: String,
+    #[serde(default)]
+    pub what_en: String,
+    #[serde(default)]
+    pub evidence_en: String,
+    #[serde(default)]
+    pub refusal_en: String,
+}
+
+impl Capability {
+    /// Текст на выбранном языке. Пустой перевод берёт русский:
+    /// пустая ячейка на экране хуже, чем текст на другом языке.
+    fn по_языку(ru: &str, en: &str, en_выбран: bool) -> String {
+        if en_выбран && !en.is_empty() {
+            en.to_string()
+        } else {
+            ru.to_string()
+        }
+    }
+
+    pub fn name_for(&self, en: bool) -> String {
+        Self::по_языку(&self.name, &self.name_en, en)
+    }
+
+    pub fn what_for(&self, en: bool) -> String {
+        Self::по_языку(&self.what, &self.what_en, en)
+    }
+
+    pub fn refusal_for_lang(&self, blocker: Blocker, en: bool) -> String {
+        let отказ = Self::по_языку(&self.refusal, &self.refusal_en, en);
+        if отказ.is_empty() {
+            return format!(
+                "{} {}: {}",
+                self.name_for(en),
+                if en {
+                    "is not available"
+                } else {
+                    "недоступно"
+                },
+                blocker.title_for(en)
+            );
+        }
+        отказ
+    }
 }
 
 impl Capability {
@@ -263,6 +337,10 @@ mod tests {
                 String::new()
             },
             refusal: String::new(),
+            name_en: String::new(),
+            what_en: String::new(),
+            evidence_en: String::new(),
+            refusal_en: String::new(),
         }
     }
 
