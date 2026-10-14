@@ -340,9 +340,21 @@ function Welcome() {
   // Весь диск или отдельные папки. Второе — узкий вариант, и он
   // стоит по умолчанию: широкий доступ человек выдаёт сам и осознанно.
   const [wholeDisk, setWholeDisk] = useState(false);
+  // Режим выполнения и уровень доступа. Пустая строка означает
+  // «ещё не выбрано», и это не то же самое, что выбор не сделан:
+  // пока пусто, кнопка «дальше» заблокирована.
+  const [режим, setРежим] = useState("");
+  const [уровень, setУровень] = useState("");
 
   useEffect(() => {
-    invoke<OnboardingStep>("onboarding_start")
+    // `onboarding_current`, а не `onboarding_start`: первый читает
+    // текущий шаг, второй начинает с нуля.
+    //
+    // Разница видна не сразу, но стоит целого знакомства: компонент
+    // монтируется не только при первом открытии, но и при возврате на
+    // вкладку, и при перерисовке окна. Знакомство слетало на первый
+    // шаг, стоило переключиться куда угодно.
+    invoke<OnboardingStep>("onboarding_current")
       .then(setStep)
       .catch((e) => setError(String(e)));
     invoke<CapabilitiesReport>("capabilities_report")
@@ -355,6 +367,21 @@ function Welcome() {
       .then(setFolders)
       .catch(() => undefined);
   }, []);
+
+  // Итог подгружается по самому шагу, а не в том месте, где шаг
+  // закончился.
+  //
+  // Раньше предпросмотр брали только из свободного ответа, и путь
+  // через кнопки его вовсе не касался: человек доходил до последнего
+  // шага и видел пустое поле вместо «что получится». Привязка к шагу
+  // закрывает все дороги сразу — и кнопки, и текст, и возврат на
+  // вкладку.
+  useEffect(() => {
+    if (!step || step.step !== "summary" || preview) return;
+    invoke<OnboardingPreview>("onboarding_preview")
+      .then(setPreview)
+      .catch((e) => setError(String(e)));
+  }, [step, preview]);
 
   const pickPaths = async () => {
     setBusy(true);
@@ -392,7 +419,27 @@ function Welcome() {
     }
   };
 
-  const pickTools = async () => {
+  // Режим и уровень доступа отправляются одной командой: по отдельности
+// шаг не двигался бы, потому что решение одно — насколько секретарь
+// будет действовать сам.
+const отправитьРежимы = async () => {
+  setBusy(true);
+  setError(null);
+  try {
+    const r = await invoke<OnboardingSay>("onboarding_set_modes", {
+      executor: режим,
+      approval: уровень,
+    });
+    setStep(r.next);
+    setLines((prev) => [...prev, { who: "ты", text: "уровни выбраны" }]);
+  } catch (e) {
+    setError(String(e));
+  } finally {
+    setBusy(false);
+  }
+};
+
+const pickTools = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -581,6 +628,61 @@ function Welcome() {
               )}
             </>
           )}
+        </>
+      ) : step.step === "levels" ? (
+        <>
+          <p className="muted">
+            Два решения, и оба про то, насколько секретарь будет
+            действовать сам. Сначала — показывать или делать.
+          </p>
+
+          <p className="muted alt-lead">режим</p>
+          <div className="picks">
+            {РЕЖИМЫ.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={режим === m.id ? "pick pick-on" : "pick"}
+                disabled={busy}
+                onClick={() => setРежим(m.id)}
+              >
+                <span className="pick-box">{режим === m.id ? "×" : ""}</span>
+                <span className="pick-body">
+                  <span className="pick-name">{m.title}</span>
+                  <span className="pick-what">{m.note}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p className="muted alt-lead">уровень доступа</p>
+          <div className="picks">
+            {УРОВНИ.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                className={уровень === u.id ? "pick pick-on" : "pick"}
+                disabled={busy}
+                onClick={() => setУровень(u.id)}
+              >
+                <span className="pick-box">{уровень === u.id ? "×" : ""}</span>
+                <span className="pick-body">
+                  <span className="pick-name">{u.title}</span>
+                  <span className="pick-what">{u.note}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="onb-input">
+            <button
+              type="button"
+              onClick={отправитьРежимы}
+              disabled={busy || !режим || !уровень}
+            >
+              дальше
+            </button>
+          </div>
         </>
       ) : (
         <>
@@ -1204,6 +1306,46 @@ type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" 
  * ровно то, что нарисовано, без перезагрузки и без перезапуска.
  */
 const РАЗМЕРЫ_ШРИФТА = [13, 14, 15, 16, 18] as const;
+
+/**
+ * Варианты для шага «Уровни доступа».
+ *
+ * Идентификаторы совпадают с тем, что ждёт Rust: `dry-run`/`live`
+ * и `actions`/`all`/`never`. Название и пояснение живут здесь, а не
+ * приходят с сервера: на этом шаге человек принимает решение о том,
+ * насколько секретарь будет действовать сам, и читать его должно
+ * прямо на кнопке, а не после запроса.
+ */
+const РЕЖИМЫ = [
+  {
+    id: "dry-run",
+    title: "только показывать",
+    note: "Секретарь пишет, что собирается сделать, и ждёт. Ничего не происходит без твоего слова.",
+  },
+  {
+    id: "live",
+    title: "выполнять",
+    note: "Согласные действия выполняются сразу. Опасные — всё равно спросит.",
+  },
+];
+
+const УРОВНИ = [
+  {
+    id: "actions",
+    title: "опасные — спросить",
+    note: "Удаление, запуск программ и переписывание файлов требуют твоего подтверждения.",
+  },
+  {
+    id: "all",
+    title: "спросить всё",
+    note: "Подтверждения на каждое действие. Медленнее, зато предсказуемо.",
+  },
+  {
+    id: "never",
+    title: "не спрашивать",
+    note: "Делает всё, что разрешено. Опасно: промах в команде он не остановит.",
+  },
+];
 
 function РазмерШрифта() {
   const [кегль, setКегль] = useState<number>(() => {

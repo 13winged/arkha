@@ -72,6 +72,7 @@ pub fn run() {
             onboarding_commands::onboarding_folders,
             onboarding_commands::onboarding_set_paths,
             onboarding_commands::onboarding_set_whole_disk,
+            onboarding_commands::onboarding_set_modes,
             onboarding_commands::onboarding_preview,
             onboarding_commands::onboarding_apply,
         ]);

@@ -11,10 +11,47 @@ use arkha_lib::onboarding::{Step, State};
 use arkha_lib::onboarding_commands::{
     check_applicable, onboarding_folders, preview_of, say_to, view_of,
 };
+use arkha_lib::permissions::{ApprovalMode, Executor};
 use arkha_lib::profile::{detect_and_persist, Tier};
 
 fn tier() -> Tier {
     detect_and_persist().effective()
+}
+
+/// Шаг уровней обязан принимать кнопки.
+///
+/// На этом шаге не было ни одной кнопки: человек доходил до пустого
+/// экрана с одним полем ввода и вынужден был объяснять словами, насколько
+/// секретарь вправе действовать сам. Решение одно — и «показать или
+/// сделать», и «когда спрашивать», — поэтому шаг двигается, когда
+/// выбраны оба.
+#[test]
+fn гейт_s4_уровни_принимаются_кнопками() {
+    let mut s = State::start();
+    s.step = Step::Levels;
+
+    // Половина ответа — ещё не ответ.
+    s.set_modes(Some(Executor::DryRun), None);
+    assert_eq!(
+        s.step,
+        Step::Levels,
+        "один выбранный параметр не должен двигать шаг: человек ещё не ответил про подтверждения"
+    );
+
+    s.set_modes(None, Some(ApprovalMode::Risky));
+    assert_eq!(s.step, Step::Summary, "оба выбраны — шаг должен закончиться");
+
+    let настройки = s.to_settings();
+    assert_eq!(
+        настройки.executor,
+        Executor::DryRun,
+        "выбор режима обязан дойти до разрешений"
+    );
+    assert_eq!(
+        настройки.approval_mode,
+        ApprovalMode::Risky,
+        "выбор уровня обязан дойти до разрешений"
+    );
 }
 
 /// Промпт первого шага обязан содержать границы из настоящего

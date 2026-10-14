@@ -12,6 +12,7 @@ use serde::Serialize;
 use std::sync::Mutex;
 
 use crate::onboarding::{self, Step, State};
+use crate::permissions::{ApprovalMode, Executor};
 use crate::permissions_commands::view;
 
 /// Знание о текущем шаге — для интерфейса и для промпта.
@@ -219,6 +220,45 @@ pub fn onboarding_set_whole_disk(enabled: bool) -> Result<SayResult, String> {
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.get_or_insert_with(State::start);
     s.set_whole_disk(enabled);
+    Ok(SayResult {
+        understood: true,
+        next: view_of(s, tier),
+        summary: s.summary(),
+        finished: s.finished,
+    })
+}
+
+/// Режим выполнения и уровень доступа кнопками.
+///
+/// Отдельная команда, а не часть произвольного текста: на шаге
+/// «Уровни доступа» не было ни одной кнопки, и человек оказывался
+/// перед пустым экраном с одним полем ввода. Спросить словами можно,
+/// но по кнопке ответ не перепутать, а «спросить у модели, чего он
+/// хочет» — значит отдать выбор модели вместо человека.
+#[tauri::command]
+pub fn onboarding_set_modes(
+    executor: Option<String>,
+    approval: Option<String>,
+) -> Result<SayResult, String> {
+    let исп = match executor.as_deref() {
+        Some(v) => Some(
+            serde_json::from_value::<Executor>(serde_json::Value::String(v.to_string()))
+                .map_err(|e| format!("не понял режим выполнения «{v}»: {e}"))?,
+        ),
+        None => None,
+    };
+    let ур = match approval.as_deref() {
+        Some(v) => Some(
+            serde_json::from_value::<ApprovalMode>(serde_json::Value::String(v.to_string()))
+                .map_err(|e| format!("не понял уровень доступа «{v}»: {e}"))?,
+        ),
+        None => None,
+    };
+
+    let tier = crate::profile::detect_and_persist().effective();
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.get_or_insert_with(State::start);
+    s.set_modes(исп, ур);
     Ok(SayResult {
         understood: true,
         next: view_of(s, tier),

@@ -150,7 +150,7 @@ body {
 }
 
 .brand-mark {
-  font-size: 15px;
+  font-size: calc(var(--кегль, 14px) * 1.071);
   font-weight: 700;
   letter-spacing: 0.3em;
   color: var(--gold-lit);
@@ -158,7 +158,7 @@ body {
 }
 
 .app-subtitle {
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
@@ -189,7 +189,7 @@ body {
   clip-path: none;
   padding: 9px 15px 8px;
   font: inherit;
-  font-size: 10.5px;
+  font-size: calc(var(--кегль, 14px) * 0.750);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -243,7 +243,7 @@ body {
   padding: 7px 18px;
   border-bottom: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.22);
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
 }
 
 .res {
@@ -253,7 +253,7 @@ body {
 }
 
 .res-label {
-  font-size: 9.5px;
+  font-size: calc(var(--кегль, 14px) * 0.679);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--muted);
@@ -286,7 +286,7 @@ body {
   padding: 8px 18px;
   border-top: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.3);
-  font-size: 10.5px;
+  font-size: calc(var(--кегль, 14px) * 0.750);
   color: var(--muted);
 }
 
@@ -294,7 +294,7 @@ body {
   margin-left: auto;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 9.5px;
+  font-size: calc(var(--кегль, 14px) * 0.679);
 }
 
 /* Двойная черта вместо точки в конце блока — знак конца такта.
@@ -315,7 +315,7 @@ body {
 
 h2 {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -324,7 +324,7 @@ h2 {
 
 h3 {
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -341,7 +341,7 @@ h3 {
 }
 
 .small {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
 }
 
 .gold {
@@ -350,7 +350,7 @@ h3 {
 
 .error {
   color: var(--red-lit);
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   line-height: 1.55;
 }
 
@@ -365,7 +365,7 @@ h3 {
 }
 
 .notice {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.5;
   color: var(--muted);
 }
@@ -397,7 +397,7 @@ h3 {
 
 .summary {
   color: var(--text-dim);
-  font-size: 12.5px;
+  font-size: calc(var(--кегль, 14px) * 0.893);
   line-height: 1.6;
   margin: 0 0 14px;
 }
@@ -423,14 +423,14 @@ h3 {
   margin-bottom: 12px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
 
 .sector-count {
-  font-size: 9.5px;
+  font-size: calc(var(--кегль, 14px) * 0.679);
   color: var(--gold-lit);
   border: 1px solid rgba(178, 141, 32, 0.4);
   padding: 1px 7px;
@@ -483,14 +483,14 @@ h3 {
 }
 
 .card-name {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   font-weight: 600;
   color: var(--text);
 }
 
 .card-what {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   line-height: 1.5;
   color: var(--text-dim);
 }
@@ -498,7 +498,7 @@ h3 {
 .card-note,
 .card-refusal {
   margin: 0;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.5;
   padding-top: 6px;
   border-top: 1px solid var(--line);
@@ -527,7 +527,7 @@ h3 {
   gap: 7px;
   padding: 0 18px;
   border-left: 1px solid var(--line);
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   color: var(--muted);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -539,7 +539,7 @@ h3 {
 }
 
 .stat b {
-  font-size: 14px;
+  font-size: var(--кегль, 14px);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   text-transform: none;
@@ -571,7 +571,7 @@ h3 {
 }
 
 .cap-what {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   color: var(--text-dim);
   line-height: 1.5;
 }
@@ -580,7 +580,7 @@ h3 {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--line);
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--muted);
 }
 
@@ -593,7 +593,7 @@ h3 {
 }
 
 .cap-tag {
-  font-size: 9px;
+  font-size: calc(var(--кегль, 14px) * 0.643);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   padding: 2px 7px;
@@ -636,7 +636,7 @@ h3 {
 }
 
 .facts dt {
-  font-size: 9.5px;
+  font-size: calc(var(--кегль, 14px) * 0.679);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
@@ -645,7 +645,7 @@ h3 {
 
 .facts dd {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -665,7 +665,7 @@ h3 {
 .context-row > span:first-child {
   width: 140px;
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -724,7 +724,7 @@ h3 {
 
 .tier strong {
   display: block;
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   letter-spacing: 0.14em;
   color: var(--text);
   margin-bottom: 3px;
@@ -735,14 +735,14 @@ h3 {
 }
 
 .tier button span {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.4;
 }
 
 .tier-note {
   margin: 0;
   padding: 5px 12px 8px;
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   line-height: 1.4;
   border-top: 1px solid var(--line);
 }
@@ -779,7 +779,7 @@ button[type="button"]:not(.tab):not(.cap):not(.pick):not(.wide-opt) {
   color: var(--text);
   padding: 8px 14px;
   font: inherit;
-  font-size: 10.5px;
+  font-size: calc(var(--кегль, 14px) * 0.750);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
@@ -823,7 +823,7 @@ button:disabled {
   border-radius: 0;
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: calc(var(--кегль, 14px) * 0.893);
   padding: 9px 12px;
   min-width: 0;
   transition: border-color var(--ход), background var(--ход);
@@ -890,7 +890,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--gold-lit);
 }
 
@@ -903,7 +903,7 @@ button:disabled {
 }
 
 .pick-name {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -913,7 +913,7 @@ button:disabled {
 }
 
 .pick-what {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.45;
   color: var(--muted);
 }
@@ -946,7 +946,7 @@ button:disabled {
   border-radius: 0;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(var(--кегль, 14px) * 0.929);
   letter-spacing: 0;
   text-transform: none;
   cursor: pointer;
@@ -965,7 +965,7 @@ button:disabled {
 }
 
 .wide-title {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -976,14 +976,14 @@ button:disabled {
 }
 
 .wide-note {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   line-height: 1.5;
   color: var(--muted);
 }
 
 .alt-lead {
   margin: 16px 0 8px;
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -1010,7 +1010,7 @@ button:disabled {
 .onb-agent {
   max-width: 74%;
   padding: 10px 13px;
-  font-size: 13px;
+  font-size: calc(var(--кегль, 14px) * 0.929);
   line-height: 1.55;
   border: 1px solid var(--line);
   margin-bottom: 8px;
@@ -1049,7 +1049,7 @@ button:disabled {
 
 .onb-preview pre {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.5;
   color: var(--muted);
   white-space: pre-wrap;
@@ -1073,9 +1073,14 @@ button:disabled {
 }
 
 .messages .msg {
-  max-width: 78%;
+  /* Реплики широкие. Узкий пузырь заставляет переносить текст по
+     три-четыре слова на строку, и читать длинный ответ секретаря
+     становится неудобно — а ответы как раз длинные. Ровно настолько
+     оставлено сбоку, чтобы было видно, кто говорил: свои реплики
+     прижаты вправо, чужие влево. */
+  max-width: 92%;
   padding: 9px 12px;
-  font-size: 13px;
+  font-size: calc(var(--кегль, 14px) * 0.929);
   line-height: 1.55;
   border: 1px solid var(--line);
   word-break: break-word;
@@ -1105,7 +1110,11 @@ button:disabled {
 }
 
 .chat {
-  max-width: 900px;
+  /* Широко: секретарь отвечает развёрнуто, и на 900 пикселях ответ
+     переносился так часто, что читать приходилось по складам.
+     Ограничение осталось, но отодвинуто — служит для сверхшироких
+     мониторов, а не душит переписку. */
+  max-width: 1400px;
 }
 
 /* Журнал — моноширинный по определению: это вывод программы,
@@ -1118,7 +1127,7 @@ button:disabled {
   max-height: 320px;
   overflow: auto;
   font-family: "Cascadia Mono", "Consolas", monospace;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   line-height: 1.5;
   color: var(--text-dim);
   white-space: pre-wrap;
@@ -1174,7 +1183,7 @@ button:disabled {
   padding: 7px 11px;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   letter-spacing: 0;
   text-transform: none;
   color: var(--text);
@@ -1188,7 +1197,7 @@ button:disabled {
 /* Семейство выделяется: человек набирал «gemma», и ему важно
    видеть, что нашлось именно gemma. */
 .hint-family {
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1198,7 +1207,7 @@ button:disabled {
 }
 
 .hint-repo {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1207,7 +1216,7 @@ button:disabled {
 
 .hint-dl {
   margin-left: auto;
-  font-size: 10px;
+  font-size: calc(var(--кегль, 14px) * 0.714);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
@@ -1215,7 +1224,7 @@ button:disabled {
 
 .hint-status {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
 }
 
 .files {
@@ -1243,7 +1252,7 @@ button:disabled {
   padding: 7px 11px;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--text-dim);
   transition: background var(--ход), color var(--ход);
 }
@@ -1293,14 +1302,14 @@ button:disabled {
 }
 
 .problems .what {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   color: var(--red-lit);
   margin-bottom: 4px;
 }
 
 .problems .why,
 .problems .how {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--muted);
   line-height: 1.5;
 }
@@ -1327,14 +1336,14 @@ button:disabled {
 }
 
 .mem-label {
-  font-size: 9.5px;
+  font-size: calc(var(--кегль, 14px) * 0.679);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .mem-num {
-  font-size: 15px;
+  font-size: calc(var(--кегль, 14px) * 1.071);
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
@@ -1350,13 +1359,13 @@ button:disabled {
 }
 
 .voice-mb {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .voice-error {
-  font-size: 11px;
+  font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--red-lit);
 }
 
@@ -1380,12 +1389,12 @@ button:disabled {
 }
 
 .pref-text b {
-  font-size: 13px;
+  font-size: calc(var(--кегль, 14px) * 0.929);
   font-weight: 600;
 }
 
 .pref-text .muted {
-  font-size: 12px;
+  font-size: calc(var(--кегль, 14px) * 0.857);
   max-width: 52ch;
 }
 
@@ -1403,7 +1412,7 @@ button:disabled {
 .stepper-val {
   min-width: 34px;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--кегль, 14px);
   font-variant-numeric: tabular-nums;
   color: var(--gold-lit);
 }
@@ -1423,7 +1432,7 @@ button:disabled {
 kbd.cap,
 .cap {
   font-family: inherit;
-  font-size: 9px;
+  font-size: calc(var(--кегль, 14px) * 0.643);
   letter-spacing: 0.1em;
   border: 1px solid var(--line-2);
   padding: 1px 5px;

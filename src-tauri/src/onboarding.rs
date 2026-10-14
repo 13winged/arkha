@@ -345,7 +345,27 @@ impl State {
         }
     }
 
-        /// Принимает выбор папок кнопками.
+        /// Принимает выбор режима и уровня доступа кнопками.
+    ///
+    /// Шаг сдвигается, когда выбраны оба. Один выбранный — это
+    /// половина ответа, и двигать шаг после неё нельзя: человек
+    /// окажется на следующем вопросе, не ответив на второй.
+    pub fn set_modes(&mut self, executor: Option<Executor>, approval: Option<ApprovalMode>) {
+        if let Some(e) = executor {
+            self.collected.executor = Some(e);
+        }
+        if let Some(a) = approval {
+            self.collected.approval_mode = Some(a);
+        }
+        if self.step == Step::Levels
+            && self.collected.executor.is_some()
+            && self.collected.approval_mode.is_some()
+        {
+            self.advance();
+        }
+    }
+
+    /// Принимает выбор папок кнопками.
     ///
     /// Названия приводятся к настоящим путям, несуществующие
     /// отбрасываются. Путь, которого нет, всплывёт через месяц и
