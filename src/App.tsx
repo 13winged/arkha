@@ -1207,7 +1207,7 @@ const РАЗМЕРЫ_ШРИФТА = [13, 14, 15, 16, 18] as const;
 
 function РазмерШрифта() {
   const [кегль, setКегль] = useState<number>(() => {
-    const сохранён = Number(localStorage.getItem("arsha-font-size"));
+    const сохранён = Number(localStorage.getItem("arkha-font-size"));
     return РАЗМЕРЫ_ШРИФТА.includes(сохранён as (typeof РАЗМЕРЫ_ШРИФТА)[number])
       ? сохранён
       : 14;
@@ -1215,7 +1215,7 @@ function РазмерШрифта() {
 
   useEffect(() => {
     document.documentElement.style.setProperty("--кегль", `${кегль}px`);
-    localStorage.setItem("arsha-font-size", String(кегль));
+    localStorage.setItem("arkha-font-size", String(кегль));
   }, [кегль]);
 
   const шаг = РАЗМЕРЫ_ШРИФТА.indexOf(кегль as (typeof РАЗМЕРЫ_ШРИФТА)[number]);
@@ -1271,9 +1271,9 @@ function РазмерШрифта() {
  * требует фокуса внимания, а точка под вкладкой видна боковым
  * зрением, и человек узнаёт раздел раньше, чем прочитает его.
  */
-const ТОН: Record<Tab, "gold" | "purple" | "blue"> = {
+const ТОН: Record<Tab, "gold" | "blue"> = {
   model: "gold",
-  agent: "purple",
+  agent: "gold",
   chat: "blue",
   download: "gold",
   capabilities: "blue",
@@ -1449,7 +1449,7 @@ function App() {
       <main className="app">
         <header className="app-header">
           <div className="brand">
-            <span className="brand-mark">ARSHA</span>
+            <span className="brand-mark">ARKHA</span>
             <span className="app-subtitle">локальный секретарь</span>
           </div>
         </header>
@@ -1465,7 +1465,7 @@ function App() {
     <main className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">ARSHA</span>
+          <span className="brand-mark">ARKHA</span>
           <span className="app-subtitle">локальный секретарь</span>
         </div>
         <nav className="tabs">

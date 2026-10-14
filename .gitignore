@@ -23,8 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Archotic
-
 # Модели: тяжёлые, качаются загрузчиком на машину пользователя.
 data/models/*
 !data/models/.gitkeep

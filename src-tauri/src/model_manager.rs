@@ -175,7 +175,7 @@ impl Catalog {
     }
 
     /// Каталог лежит рядом с приложением в `data/recipes.json`, а в
-    /// установленной сборке — в `%APPDATA%\Arsha\recipes.json`.
+    /// установленной сборке — в `%APPDATA%\ArkHa\recipes.json`.
     pub fn load() -> Result<Self, String> {
         for path in Self::candidate_paths() {
             if path.exists() {
@@ -255,7 +255,7 @@ impl Catalog {
 /// «не найден llama-server.exe» вводило в заблуждение: он был
 /// установлен, просто искали не там.
 pub fn bin_dir() -> PathBuf {
-    bin_dir_со(std::env::var("ARSHA_BIN_DIR").ok().as_deref())
+    bin_dir_со(std::env::var("ARKHA_BIN_DIR").ok().as_deref())
 }
 
 /// Строка журнала для человека.
@@ -302,7 +302,7 @@ fn по_человечески(строка: &str) -> String {
 /// окружения общая для всего процесса, и тест, который её ставит,
 /// влияет на все прочие тесты, запущенные рядом. На живой машине
 /// из-за этого один и тот же тест то проходил, то падал: чужой
-/// `ARSHA_BIN_DIR` был виден в момент проверки. Переопределение
+/// `ARKHA_BIN_DIR` был виден в момент проверки. Переопределение
 /// параметром убирает гонку вовсе — тесты просто передают нужное
 /// значение, и общее состояние не трогают.
 fn bin_dir_со(переопределение: Option<&str>) -> PathBuf {
@@ -318,7 +318,7 @@ fn bin_dir_со(переопределение: Option<&str>) -> PathBuf {
             searched.push(dir.join("llama"));
             searched.push(dir.join("bin"));
 
-            // Сборка из проекта: target/release/arsha.exe,
+            // Сборка из проекта: target/release/arkha.exe,
             // бинарники в data/bin от корня репозитория.
             for up in dir.ancestors().skip(1).take(5) {
                 searched.push(up.join("data").join("bin"));
@@ -346,7 +346,7 @@ fn bin_dir_со(переопределение: Option<&str>) -> PathBuf {
 /// Все места, где искали бинарник. Показываются в ошибке, чтобы
 /// пользователь не гадал.
 pub fn bin_search_paths() -> Vec<PathBuf> {
-    if let Ok(dir) = std::env::var("ARSHA_BIN_DIR") {
+    if let Ok(dir) = std::env::var("ARKHA_BIN_DIR") {
         return vec![PathBuf::from(dir)];
     }
     пути_от_exe()
@@ -381,7 +381,7 @@ pub fn llama_server_exe() -> PathBuf {
 }
 
 pub fn models_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("ARSHA_MODELS_DIR") {
+    if let Ok(dir) = std::env::var("ARKHA_MODELS_DIR") {
         return PathBuf::from(dir);
     }
     config_dir().join("models")
@@ -1089,7 +1089,7 @@ pub fn preflight(tier: Tier, catalog: &Catalog, models: &Path) -> Preflight {
         tier,
         catalog,
         models,
-        std::env::var("ARSHA_BIN_DIR").ok().as_deref(),
+        std::env::var("ARKHA_BIN_DIR").ok().as_deref(),
     )
 }
 

@@ -7,9 +7,9 @@
 // Пропуск этого гейта не считается успехом. Если файла реестра нет,
 // тест падает — так же, как падает гейт S2 без модели.
 
-use arsha_lib::capabilities::Registry;
-use arsha_lib::permissions::{Executor, Settings};
-use arsha_lib::profile::{detect_and_persist, Tier};
+use arkha_lib::capabilities::Registry;
+use arkha_lib::permissions::{Executor, Settings};
+use arkha_lib::profile::{detect_and_persist, Tier};
 
 /// Реестр лежит в `data`, путь — как в приложении.
 fn registry() -> Registry {
@@ -96,7 +96,7 @@ fn гейт_s3_у_каждого_отказа_есть_причина() {
 /// На слабом железе «не хватает ресурсов» вместо «ещё не сделано».
 #[test]
 fn гейт_s3_причина_зависит_от_железа() {
-    use arsha_lib::capabilities::Blocker;
+    use arkha_lib::capabilities::Blocker;
 
     let reg = registry();
     let vision = reg.get("vision.read").expect("vision.read описан в реестре");

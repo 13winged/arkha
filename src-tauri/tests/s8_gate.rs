@@ -17,8 +17,8 @@
 //!
 //! Запуск:
 //! ```text
-//! ARSHA_BIN_DIR=data/bin ARSHA_MODELS_DIR=<папка с gguf> \
-//!   ARSHA_TEST_TIER=T3 \
+//! ARKHA_BIN_DIR=data/bin ARKHA_MODELS_DIR=<папка с gguf> \
+//!   ARKHA_TEST_TIER=T3 \
 //!   cargo test --test s8_gate -- --nocapture --test-threads=1
 //! ```
 //!
@@ -27,16 +27,16 @@
 
 mod common;
 
-use arsha_lib::agent::executor::{Agent, Message, Outcome, PendingApproval};
-use arsha_lib::permissions::Settings;
-use arsha_lib::tools::Registry;
+use arkha_lib::agent::executor::{Agent, Message, Outcome, PendingApproval};
+use arkha_lib::permissions::Settings;
+use arkha_lib::tools::Registry;
 use common::{Живая, поднять};
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::atomic::AtomicBool;
 
 const ПОРТ: u16 = 18108;
-const ЗАГОЛОВОК_ФОРМЫ: &str = "Проверка Arsha";
+const ЗАГОЛОВОК_ФОРМЫ: &str = "Проверка ArkHa";
 
 /// Подставной пользователь: разрешает всё на задачу.
 ///
@@ -47,10 +47,10 @@ struct Разрешающий {
     вопросы: Vec<PendingApproval>,
 }
 
-impl arsha_lib::agent::executor::Спрашивающий for Разрешающий {
-    fn спросить(&mut self, вопрос: &PendingApproval) -> arsha_lib::agent::approvals::Решение {
+impl arkha_lib::agent::executor::Спрашивающий for Разрешающий {
+    fn спросить(&mut self, вопрос: &PendingApproval) -> arkha_lib::agent::approvals::Решение {
         self.вопросы.push(вопрос.clone());
-        arsha_lib::agent::approvals::Решение::ВсюЗадачу
+        arkha_lib::agent::approvals::Решение::ВсюЗадачу
     }
 }
 
@@ -64,10 +64,10 @@ impl arsha_lib::agent::executor::Спрашивающий for Разрешающ
 /// Если убрать эти строки, сценарии начнут падать на «не разрешено
 /// явно» — и это будет правильным поведением, а не поломкой гейта.
 fn настройки() -> Settings {
-    use arsha_lib::permissions::{CapabilityRule, Executor};
+    use arkha_lib::permissions::{CapabilityRule, Executor};
     let mut s = Settings::default();
     s.executor = Executor::Live;
-    s.approval_mode = arsha_lib::permissions::ApprovalMode::Risky;
+    s.approval_mode = arkha_lib::permissions::ApprovalMode::Risky;
     for возможность in ["apps.launch", "windows.control"] {
         s.capabilities.insert(
             возможность.into(),
@@ -86,7 +86,7 @@ fn скрипт() -> PathBuf {
 ///
 /// `Child` при падении не убивает процесс. Без явного `kill` каждое
 /// окно переживало бы тест, и к четвёртому сценарию их было бы
-/// несколько: поиск «Проверка Arsha» стал бы неоднозначным, а
+/// несколько: поиск «Проверка ArkHa» стал бы неоднозначным, а
 /// гейт начал бы проверять не то.
 struct Форма {
     ребёнок: Child,
@@ -129,7 +129,7 @@ fn открыть_форму(выход: &PathBuf) -> Форма {
             // Что именно видно в переборе. Без этой распечатки провал
             // выглядит как «модель не позвала», хотя на самом деле
             // окна может не быть в списке вообще.
-            let видимые = arsha_lib::tools::windows::окна();
+            let видимые = arkha_lib::tools::windows::окна();
             let заголовки: Vec<&str> = видимые.iter().map(|о| о.заголовок.as_str()).collect();
             eprintln!("S8: окна при подъёме формы: {заголовки:?}");
             return Форма { ребёнок };
@@ -155,13 +155,13 @@ fn ждать_окна(подстрока: &str, секунд: u64) -> bool {
 
 /// Проверить, что окно видно прямо сейчас.
 fn окно_есть(подстрока: &str) -> bool {
-    arsha_lib::tools::windows::найти(подстрока)
+    arkha_lib::tools::windows::найти(подстрока)
         .iter()
         .any(|о| о.видимое)
 }
 
 /// Прогнать задачу через живой цикл и вернуть результат.
-fn цикл(sidecar: &arsha_lib::model_manager::Sidecar, задача: &str) -> (Outcome, Разрешающий) {
+fn цикл(sidecar: &arkha_lib::model_manager::Sidecar, задача: &str) -> (Outcome, Разрешающий) {
     let mut модель = Живая::новый(sidecar.base_url());
     let mut спрашивающий = Разрешающий { вопросы: Vec::new() };
     let итог = Agent::со_спросом(
@@ -203,7 +203,7 @@ fn сценарий_1_видит_открытые_окна() {
     let Some((sidecar, _)) = поднять(ПОРТ, "S8") else {
         return;
     };
-    let dir = std::env::temp_dir().join(format!("arsha-s8-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("arkha-s8-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("папка");
     let _форма = открыть_форму(&dir.join("out.txt"));
 
@@ -212,12 +212,12 @@ fn сценарий_1_видит_открытые_окна() {
 
     // Замер после работы агента: окно могло пропасть, а могло остаться
     // невидимым в списке. Это разные поломки, и лечатся они по-разному.
-    let видимые = arsha_lib::tools::windows::видимые();
+    let видимые = arkha_lib::tools::windows::видимые();
     eprintln!(
         "S8-1: после цикла видимых окон {}, форма среди них: {}, найти(): {}",
         видимые.len(),
         видимые.iter().any(|о| о.заголовок.contains(ЗАГОЛОВОК_ФОРМЫ)),
-        arsha_lib::tools::windows::найти(ЗАГОЛОВОК_ФОРМЫ).len()
+        arkha_lib::tools::windows::найти(ЗАГОЛОВОК_ФОРМЫ).len()
     );
     eprintln!(
         "S8-1: видимые — {:?}",
@@ -273,7 +273,7 @@ fn сценарий_3_переводит_фокус() {
     let Some((sidecar, _)) = поднять(ПОРТ, "S8") else {
         return;
     };
-    let dir = std::env::temp_dir().join(format!("arsha-s8f-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("arkha-s8f-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("папка");
     let _форма = открыть_форму(&dir.join("out.txt"));
 
@@ -283,7 +283,7 @@ fn сценарий_3_переводит_фокус() {
     ждать_окна("Блокнот", 20);
     std::thread::sleep(std::time::Duration::from_millis(1500));
 
-    let активное_до = arsha_lib::tools::windows::активное();
+    let активное_до = arkha_lib::tools::windows::активное();
     eprintln!("S8-3: до — {:?}", активное_до.as_ref().map(|о| &о.заголовок));
 
     let (итог, _) = цикл(
@@ -299,7 +299,7 @@ fn сценарий_3_переводит_фокус() {
         итог.answer
     );
 
-    let активное_после = arsha_lib::tools::windows::активное();
+    let активное_после = arkha_lib::tools::windows::активное();
     let переключились = активное_после
         .as_ref()
         .map(|о| о.заголовок.contains(ЗАГОЛОВОК_ФОРМЫ))
@@ -324,7 +324,7 @@ fn сценарий_4_печатает_русский_текст() {
     let Some((sidecar, _)) = поднять(ПОРТ, "S8") else {
         return;
     };
-    let dir = std::env::temp_dir().join(format!("arsha-s8t-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("arkha-s8t-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("папка");
     let выход = dir.join("out.txt");
     let _ = std::fs::remove_file(&выход);
@@ -368,7 +368,7 @@ fn сценарий_5_клик_по_найденному_элементу() {
     let Some((sidecar, _)) = поднять(ПОРТ, "S8") else {
         return;
     };
-    let dir = std::env::temp_dir().join(format!("arsha-s8c-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("arkha-s8c-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("папка");
     let выход = dir.join("out.txt");
     let _ = std::fs::remove_file(&выход);
@@ -385,7 +385,7 @@ fn сценарий_5_клик_по_найденному_элементу() {
             &format!(
                 "Add-Type -AssemblyName System.Windows.Forms;\
                  $f=New-Object System.Windows.Forms.Form;\
-                 $f.Text='Промежуточная Arsha';$f.Width=400;$f.Height=200;\
+                 $f.Text='Промежуточная ArkHa';$f.Width=400;$f.Height=200;\
                  $b=New-Object System.Windows.Forms.TextBox;$b.Multiline=$true;$b.Dock='Fill';$f.Controls.Add($b);\
                  $b.Focus();[void]$f.Show()"
             ),
@@ -427,7 +427,7 @@ fn клик_по_несуществующей_кнопке_не_проходит
     let Some((sidecar, _)) = поднять(ПОРТ, "S8") else {
         return;
     };
-    let dir = std::env::temp_dir().join(format!("arsha-s8n-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("arkha-s8n-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("папка");
     let _форма = открыть_форму(&dir.join("out.txt"));
 
@@ -545,7 +545,7 @@ fn навык_с_управлением_проходит_целиком() {
         return;
     };
 
-    let набор = arsha_lib::skills::Набор::из_папки(&arsha_lib::skills::папка_данных());
+    let набор = arkha_lib::skills::Набор::из_папки(&arkha_lib::skills::папка_данных());
     assert!(
         набор
             .взять("otkroi-i-zapishi")
@@ -673,7 +673,7 @@ impl Гасильщик {
 /// несколько вкладок в одном окне, и наоборот — одно окно может
 /// жить в процессе, который называется иначе.
 fn окон_блокнота() -> usize {
-    arsha_lib::tools::windows::окна()
+    arkha_lib::tools::windows::окна()
         .into_iter()
         .filter(|о| {
             let з = о.заголовок.to_lowercase();

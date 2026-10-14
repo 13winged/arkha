@@ -163,12 +163,12 @@ fn профиль() -> crate::profile::Tier {
 
 /// Профиль для тестов и гейтов.
 ///
-/// Гейты задают профиль через `ARSHA_TEST_TIER`, а [`профиль`]
+/// Гейты задают профиль через `ARKHA_TEST_TIER`, а [`профиль`]
 /// читает железо. Читать железо в гейте бессмысленно: гейт проверяет
 /// поведение на той машине, где запущен, но проверять поведение для
 /// профиля, которого тут нет, — обратное дело.
 pub fn профиль_для_тестов() -> crate::profile::Tier {
-    match std::env::var("ARSHA_TEST_TIER").unwrap_or_default().as_str() {
+    match std::env::var("ARKHA_TEST_TIER").unwrap_or_default().as_str() {
         "T1" => crate::profile::Tier::T1,
         "T2" => crate::profile::Tier::T2,
         "T4" => crate::profile::Tier::T4,

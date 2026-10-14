@@ -18,7 +18,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Проверка Arsha"
+$form.Text = "Проверка ArkHa"
 $form.Width = 560
 $form.Height = 360
 

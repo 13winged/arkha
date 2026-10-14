@@ -1,54 +1,88 @@
-/* Arsha — интерфейс.
+/* ArkHa — интерфейс.
  *
- * Язык взят с игрового экрана инвентаря: тонкие волосяные рамки,
- * срезанные углы, тёмная основа, золото как главный акцент и
- * фиолетовый с синим как дополнительные.
+ * Язык взят с экрана меню NieR:Automata. Источник — статья
+ * «UI Design in NieR:Automata» с официального блога PlatinumGames,
+ * где про интерфейс рассказывает его автор Хисаёси Кидзима.
  *
- * Три решения, из-за которых это не просто тёмная тема.
+ * Четыре принципа, на которых держится всё остальное.
  *
- * **Срезанные углы через clip-path, а не скругления.** Скругление
- * говорит «мягко и по-домашнему», срез говорит «прибор». Срез
- * делается `--срез`, и всё, что хочет им быть рамкой, берёт его
- * оттуда: разные числа выглядят одинаково хорошо.
+ * **Систематично и стерильно, но красиво.** Так Кидзима сформулировал
+ * задание от режиссёра. Отсюда отказ от украшений: панель это
+ * граница, а не заливка; линии волосяные; тени только там, где без
+ * них не понять, что элемент выше плоскости.
  *
- * **Золото только для активного и только на рамках.** Золото —
- * дорогой цвет, и если залить им фон, он перестаёт быть акцентом.
- * Акцент, которого нет на экране, виден за секунду; акцент,
- * которого везде, не виден вообще.
+ * **Мотив нотного стана — намёком, а не прямой цитатой.** В статье
+ * сказано прямо: ноты не рисуют, ноуты не изображают, а партитуру
+ * только подсказывают. Отсюда `--нота`: несколько тонких линий, из
+ * которых получается разделитель, и двойная черта вместо точки в
+ * конце блока — как знак конца такта. Это единственная допустимая
+ * орнаментика, и она держится ниже порога заметности.
  *
- * **Цифры табличными.** В полосах памяти и скорости числа меняются
- * раз в две секунды, и обычный шрифт заставляет всю строку
+ * **Сетка и виньетка.** Кидзима добавлял к плоскому меню едва
+ * заметную сетку и затемнение по краям — выходило ощущение, что
+ * меню показано на выпуклом мониторе. Здесь то же самое: сетка
+ * фоном и четыре линии `radial-gradient` по краям окна.
+ *
+ * **Состояние — толщиной и яркостью, а не палитрой.** Требование из
+ * статьи: широкого набора цветов не использовать, изменения
+ * показывать толщиной и затемнением букв. Поэтому цвет здесь
+ * работает редко и всегда значит что-то конкретное: золото —
+ * действие, красный — опасность, голубой — данные. «Работает»
+ * и «не работает» различаются яркостью, а не разными цветами.
+ *
+ * Четыре цвета, и это осознанно: серый как фон и текст, золото как
+ * главный акцент, красный и голубой — по одному на смысл. Фиолетовый
+ * из прежней палитры убран: статья прямо предупреждает против
+ * разрастания цвета, и четвёртый оттенок без своего смысла был бы
+ * именно таким разрастанием.
+ *
+ * Отдельно: числа табличными. В полосах памяти и скорости числа
+ * меняются каждые две секунды, обычный шрифт заставляет строку
  * подпрыгивать по ширине. Моноширинные цифры держат позицию.
  */
 
 :root {
   /* Основа. Не чёрная: чистый чёрный на OLED даёт banding, а на
-     обычном экране — грязь в градиентах. */
-  --bg: #08090c;
-  --bg-2: #0b0d12;
+     обычном экране — грязь в градиентах. На тон темнее прежнего,
+     фон должен уйти, а не спорить. */
+  --bg: #050609;
+  --bg-2: #080a0e;
 
-  /* Рамки. Волосяные и полупрозрачные: панель должна читаться
-     как граница, а не как заливка. */
-  --line: rgba(190, 200, 215, 0.14);
-  --line-2: rgba(190, 200, 215, 0.28);
-  --panel: rgba(255, 255, 255, 0.026);
-  --panel-2: rgba(255, 255, 255, 0.045);
+  /* Рамки. Волосяные и полупрозрачные: панель читается как
+     граница, а не как заливка. */
+  --line: rgba(196, 205, 220, 0.11);
+  --line-2: rgba(196, 205, 220, 0.24);
+  --panel: rgba(255, 255, 255, 0.022);
+  --panel-2: rgba(255, 255, 255, 0.04);
 
-  --text: #c9cfd8;
-  --muted: #838c99;
+  /* Текст намеренно не белый. Низкий контраст — часть образа:
+     яркость берется акцентом, а не белизной фона текста. */
+  --text: #b6bdc8;
+  --text-dim: #8b93a0;
+  --muted: #6b7481;
 
-  --gold: #c9a227;
-  --gold-lit: #e8c25c;
-  --purple: #8b5cf6;
-  --blue: #3b9eff;
-  --red: #c05a4a;
+  /* Четыре цвета. Золото — единственная роскошь, поэтому оно же
+     единственное тратится на акцент. */
+  --gold: #b28d20;
+  --gold-lit: #d9b352;
+  --red: #a8483a;
+  --red-lit: #c96a58;
+  --blue: #2e82d4;
+  --blue-lit: #5aa6ea;
+  --ok: #6f9c78;
 
-  --срез: 10px;
+  --срез: 6px;
   --радиус: 2px;
+
+  /* Движение. Кидзима просил анимацию «влажную», а не сухую:
+     слегка длиннее и с мягким затуханием, чтобы переход читался
+     как движение, а не как переключение. */
+  --ход: 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  --поворот: 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* ---------------------------------------------------------------
-   Каркас
+   Каркас окна
    --------------------------------------------------------------- */
 
 html,
@@ -62,38 +96,52 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Segoe UI", system-ui, sans-serif;
-  /* Кегль задаётся переменной, а не числом: вкладка настроек
-     меняет его одним присваиванием, и весь интерфейс едет за ним
-     без перезагрузки и без перерисовки по частям. */
+  /* Кегль задаётся переменной: вкладка настроек меняет его одним
+     присваиванием, и весь интерфейс едет за ним без перезагрузки. */
   font-size: var(--кегль, 14px);
   line-height: 1.5;
-  /* Сетка фоном. Две тонкие линии под 45 градусов дают ощущение
-     прибора без картинки и без единого байта ассетов. */
-  background-image:
-    linear-gradient(rgba(140, 160, 190, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140, 160, 190, 0.022) 1px, transparent 1px);
-  background-size: 34px 34px, 34px 34px;
-}
 
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  /* Сетка фоном: едва заметная, ровно на пороге восприятия.
+     Две тонкие линии дают ощущение прибора без картинки и без
+     единого байта ассетов. */
+  background-image:
+    linear-gradient(rgba(150, 168, 196, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 168, 196, 0.018) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px;
+
+  /* Затемнение по краям — выпуклый монитор из статьи. Видно
+     только в углах, и именно поэтому работает: подсознательно
+     читается как форма, а не как эффект. */
+  background-image:
+    radial-gradient(120% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(rgba(150, 168, 196, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 168, 196, 0.018) 1px, transparent 1px);
+  background-attachment: fixed;
 }
 
 /* ---------------------------------------------------------------
-   Шапка и вкладки
+   Каркас: шапка, вкладки, полоса ресурсов, тело, подвал
    --------------------------------------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100%;
+  overflow: hidden;
+}
 
 .app-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 18px 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+  gap: 18px;
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent);
 }
 
+/* Марка. Золото только здесь и на активной вкладке — два места на
+   весь экран. Акцента, которого нет, видно за секунду; акцента,
+   которого везде, не видно вообще. */
 .brand {
   display: flex;
   align-items: baseline;
@@ -101,453 +149,267 @@ body {
   flex-shrink: 0;
 }
 
-/* Марка. Разрядка и золото — читается как имя прибора, а не как
-   заголовок страницы. */
 .brand-mark {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.3em;
   color: var(--gold-lit);
-  text-shadow: 0 0 18px rgba(201, 162, 39, 0.35);
+  text-indent: 0.3em;
 }
 
-/* Подпись убирается раньше, чем марка. На узком окне лучше
-   «ARSHA», чем «ARSHA локальный секретарь» двумя строками. */
 .app-subtitle {
-  font-size: 9px;
-  letter-spacing: 0.2em;
+  font-size: 10px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
 }
 
+/* Вкладки.
+ *
+ * Плоская лента, как в меню игры: без заливки у неактивной, без
+ * закруглений, с волосяной нижней линией. Активная помечена
+ * золотой линией снизу и сдвигом текста вверх на полпикселя —
+ * тот самый приём толщиной и положением вместо цвета.
+ */
 .tabs {
   display: flex;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tabs::-webkit-scrollbar {
-  display: none;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .tab {
   position: relative;
   appearance: none;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  color: var(--muted);
-  padding: 9px 10px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  clip-path: none;
+  padding: 9px 15px 8px;
   font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--muted);
   cursor: pointer;
-  white-space: nowrap;
-  /* Верхние углы срезаны, нижние прямые: вкладка «входит» в строку
-     состояний, как на референсе. */
-  clip-path: polygon(var(--срез) 0, 100% 0, 100% 100%, 0 100%, 0 var(--срез));
-  transition: color 120ms, background 120ms, border-color 120ms;
+  transition: color var(--ход), border-color var(--ход), background var(--ход);
 }
 
-.tab:hover {
+.tab:hover:not(:disabled) {
   color: var(--text);
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tab.active {
   color: var(--gold-lit);
-  border-color: rgba(201, 162, 39, 0.5);
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.14), rgba(201, 162, 39, 0.02));
+  border-bottom-color: var(--gold);
+  background: rgba(255, 255, 255, 0.035);
 }
 
-/* Угол-шеврон на активной вкладке. Единственная деталь, которую
-   стоит украсить: она показывает, где «ты сейчас», даже если
-   вкладки прокручены и глаз потерял строку. */
-.tab.active::before {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: 50%;
-  width: 0;
-  height: 0;
-  transform: translateY(-50%);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 6px solid var(--gold);
-}
-
-/* Точка смысла под каждой вкладкой: чем занимается раздел.
-   Цвет здесь не украшение, а код — тот же, что и у заливок ниже.
-   Золото означает «действие», фиолетовый «секретарь», синий
-   «передача данных». Человек запоминает это один раз и дальше
-   узнаёт раздел по цвету, не читая подпись. */
-.tab::after {
+/* Точка-нота под активной вкладкой: единственное прямое
+   напоминание о нотном стане, и оно размером с точку.
+ *
+   Цвет точки несёт смысл, а не украшает: золото — вкладка что-то
+   делает с моделью, голубой — читает данные. Тот же язык, что и
+   раньше, только без четвёртого оттенка. */
+.tab.active::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: 3px;
+  bottom: 2px;
+  width: 2px;
+  height: 2px;
+  background: var(--gold-lit);
   transform: translateX(-50%);
-  width: 3px;
-  height: 3px;
-  background: currentColor;
-  opacity: 0.32;
-}
-
-.tab.active::after {
-  opacity: 1;
-}
-
-.tab[data-tone="gold"]::after {
-  color: var(--gold);
-}
-.tab[data-tone="purple"]::after {
-  color: var(--purple);
-}
-.tab[data-tone="blue"]::after {
-  color: var(--blue);
-}
-
-.tab.active[data-tone="purple"] {
-  color: #d7c4ff;
-  border-color: rgba(139, 92, 246, 0.55);
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.02));
-}
-
-.tab.active[data-tone="purple"]::before {
-  border-left-color: var(--purple);
 }
 
 .tab.active[data-tone="blue"] {
-  color: #9fd0ff;
-  border-color: rgba(59, 158, 255, 0.55);
-  background: linear-gradient(180deg, rgba(59, 158, 255, 0.16), rgba(59, 158, 255, 0.02));
+  color: var(--blue-lit);
+  border-bottom-color: var(--blue);
 }
 
-.tab.active[data-tone="blue"]::before {
-  border-left-color: var(--blue);
+.tab.active[data-tone="blue"]::after {
+  background: var(--blue-lit);
 }
 
-/* ---------------------------------------------------------------
-   Полоса ресурсов
-   --------------------------------------------------------------- */
-
+/* Полоса ресурсов. Числа здесь меняются сами, поэтому главное —
+   чтобы они не прыгали. */
 .res-strip {
   display: flex;
   align-items: center;
-  gap: 0;
-  flex-wrap: wrap;
-  padding: 9px 18px;
-  border-top: 1px solid var(--line);
+  gap: 16px;
+  padding: 7px 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.016);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 11px;
 }
 
 .res {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 0 16px;
-  border-left: 1px solid var(--line);
-}
-
-.res:first-child {
-  border-left: none;
-  padding-left: 0;
 }
 
 .res-label {
-  font-size: 9px;
+  font-size: 9.5px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .res-val {
-  font-size: 12px;
+  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
-  color: var(--text);
 }
 
-.res-val.gold {
-  color: var(--gold-lit);
-}
-
+/* Состояние различием яркости, а не цветом. */
 .res-val.ok {
-  color: #79c98a;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .res-val.muted {
   color: var(--muted);
 }
 
-/* ---------------------------------------------------------------
-   Полосы памяти
-   --------------------------------------------------------------- */
-
-.mem {
-  display: flex;
-  gap: 18px;
-  margin-left: auto;
-  align-items: center;
-  padding-left: 16px;
-  border-left: 1px solid var(--line);
-}
-
-.mem-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.mem-label {
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* Полоса без скруглений: тот же язык срезов по всей панели. */
-.bar {
-  display: inline-block;
-  width: 86px;
-  height: 6px;
-  border: 1px solid var(--line-2);
-  background: rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-}
-
-.fill {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--gold), var(--gold-lit));
-}
-
-/* Видеопамять — синим. Это другой ресурс, и глаз должен отличать
-   их не только подписью: подписи читаются медленно, цвет — нет. */
-.mem-item:last-child .fill {
-  background: linear-gradient(90deg, #2a6fd0, var(--blue));
-}
-
-.mem-num {
-  min-width: 32px;
-  text-align: right;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-/* ---------------------------------------------------------------
-   Голос
-   --------------------------------------------------------------- */
-
-.voice {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding-left: 16px;
-  border-left: 1px solid var(--line);
-}
-
-.voice-mb {
-  font-size: 10px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.voice-error {
-  font-size: 10px;
-  color: var(--red);
-  cursor: help;
-}
-
-/* ---------------------------------------------------------------
-   Тело
-   --------------------------------------------------------------- */
-
 .app-body {
-  flex: 1;
-  min-height: 0;
   overflow-y: auto;
-  padding: 18px;
+  padding: 20px;
 }
-
-.app-hint {
-  color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
-  padding: 16px;
-  margin-bottom: 14px;
-}
-
-/* ---------------------------------------------------------------
-   Нижняя строка
-   --------------------------------------------------------------- */
 
 .app-footer {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 18px;
   padding: 8px 18px;
   border-top: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 10.5px;
+  color: var(--muted);
 }
 
-.hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  letter-spacing: 0.12em;
+.app-hint {
+  margin-left: auto;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 9.5px;
+}
+
+/* Двойная черта вместо точки в конце блока — знак конца такта.
+   Единственная прямая цитата нотной записи, и она тоже держится
+   тихо: два штриха, а не нотный стан. */
+.bar {
+  height: 3px;
+  background:
+    linear-gradient(var(--line-2), var(--line-2)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(var(--line-2), var(--line-2)) 2px 0 / 1px 3px no-repeat;
+  margin: 14px 0;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------
+   Текст
+   --------------------------------------------------------------- */
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+h3 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.hint.dim {
-  margin-left: auto;
-  opacity: 0.55;
+.muted {
+  color: var(--muted);
 }
 
-/* Клавиша. Квадратная, с волосяной рамкой — читается как физическая
-   клавиша, а не как буква в рамке. */
-.cap {
-  display: inline-block;
-  min-width: 18px;
-  padding: 2px 5px;
-  text-align: center;
-  font: inherit;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--panel-2);
-  border: 1px solid var(--line-2);
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+.dim {
+  color: var(--muted);
+  opacity: 0.7;
 }
 
-/* ---------------------------------------------------------------
-   Кнопки
-   --------------------------------------------------------------- */
-
-button {
-  font-family: inherit;
-}
-
-/* Кнопки-действия. Верхний регистр и разрядка — язык приборной
-   панели, но только здесь. Кнопки, внутри которых лежит ТЕКСТ
-   (выбор возможности, широкий выбор, подсказка модели), этого
-   стиля получать не должны: там заглавные буквы выглядят как крик,
-   а разрядка рвёт слова на «РАЗГОВОРЫВАЕТ Е ТЧТО ТО И ЗПОМНИТ».
-   Список исключений растёт, и это правильно: общий стиль кнопки
-   опаснее одного кривого абзаца. */
-.app-send,
-.stop,
-.chip,
-.stepper button,
-button[type="button"]:not(.tab):not(.cap):not(.pick):not(.wide-opt):not(.hint-item) {
-  appearance: none;
-  background: var(--panel-2);
-  border: 1px solid var(--line-2);
-  color: var(--text);
-  padding: 8px 14px;
-  font: inherit;
+.small {
   font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
-  transition: background 120ms, border-color 120ms, color 120ms;
 }
 
-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(190, 200, 215, 0.42);
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* Главное действие на экране. Золото здесь уместно: оно ровно одно. */
-.app-send {
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.26), rgba(201, 162, 39, 0.06));
-  border-color: rgba(201, 162, 39, 0.6);
+.gold {
   color: var(--gold-lit);
 }
 
-.app-send:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.38), rgba(201, 162, 39, 0.1));
-  border-color: var(--gold);
+.error {
+  color: var(--red-lit);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
-/* Включённый голос — фиолетовый. Фиолетовый здесь «включено», а
-   золотой «главное действие», и путать их нельзя. */
-.chip.on {
-  border-color: var(--purple);
-  color: #d7c4ff;
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.28), rgba(139, 92, 246, 0.06));
-  box-shadow: 0 0 14px rgba(139, 92, 246, 0.22) inset;
+.ok {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.bad {
+  color: var(--red-lit);
+  font-weight: 600;
+}
+
+.notice {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.link {
+  color: var(--blue-lit);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(90, 166, 234, 0.35);
+  cursor: pointer;
+}
+
+.link:hover {
+  border-bottom-color: var(--blue-lit);
 }
 
 /* ---------------------------------------------------------------
-   Формы
+   Панели
    --------------------------------------------------------------- */
 
-.app-input,
-.onb-input,
-input,
-textarea,
-select {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--line-2);
-  color: var(--text);
-  padding: 9px 11px;
-  font: inherit;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
+.panel {
+  max-width: 1160px;
 }
 
-.app-input:focus,
-.onb-input:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.28);
+/* Панель без заливки и без тени. Границы достаточно: изделие
+   «стерильное» держится на волосяных линиях, а не на объёме. */
+.panel + .panel {
+  margin-top: 26px;
 }
 
-.composer {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-  padding: 12px;
-  border-top: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.24);
+.summary {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 14px;
 }
 
 /* ---------------------------------------------------------------
-   Сектора и карточки
+   Секторы и карточки
 
    Почему карточки, а не строки. Раньше строка возможности была
    flex-контейнером внутри flex-контейнера, и четыре колонки
-   наезжали друг на друга: имя лезло в описание, доказательство — на
-   отказ. Карточка разрывает связь: каждая часть занимает свою
-   строку и не может влезть в чужую колонку, сколько бы текста там
-   ни было.
+   наезжали: имя лезло в описание, доказательство — на отказ.
+   Карточка разрывает связь — каждая часть занимает свою строку
+   и не может влезть в чужую колонку.
    --------------------------------------------------------------- */
 
 .sector {
@@ -561,14 +423,19 @@ select:focus {
   margin-bottom: 12px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 .sector-count {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--gold-lit);
-  border: 1px solid rgba(201, 162, 39, 0.45);
+  border: 1px solid rgba(178, 141, 32, 0.4);
   padding: 1px 7px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .sector-count.dim {
@@ -582,8 +449,6 @@ select:focus {
 
 .cards {
   display: grid;
-  /* Две карточки в ряд, но не фиксированной ширины: на узком окне
-     сетка сама схлопнется в одну колонку, и вёрстка не поедет. */
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 10px;
 }
@@ -592,12 +457,17 @@ select:focus {
   border: 1px solid var(--line);
   background: var(--panel);
   padding: 11px 13px;
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+  transition: border-color var(--ход), background var(--ход);
+}
+
+.card:hover {
+  border-color: var(--line-2);
 }
 
 /* Цветная полоса слева — состояние, а не украшение. */
 .card.ok {
-  border-left: 2px solid #79c98a;
+  border-left: 2px solid var(--ok);
 }
 
 .card.no {
@@ -622,7 +492,7 @@ select:focus {
   margin: 0 0 6px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text);
+  color: var(--text-dim);
 }
 
 .card-note,
@@ -639,11 +509,11 @@ select:focus {
 }
 
 .card-refusal {
-  color: var(--red);
+  color: var(--red-lit);
 }
 
-/* Итоговая строка со счётчиками: четыре числа, разделённые
-   вертикальными линейками, как полоса ресурсов наверху. */
+/* Итоговая строка со счётчиками: числа, разделённые вертикальными
+   линейками. Шрифт — как на приборе, отсюда и табличные цифры. */
 .stat-row {
   display: flex;
   flex-wrap: wrap;
@@ -657,9 +527,10 @@ select:focus {
   gap: 7px;
   padding: 0 18px;
   border-left: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .stat:first-child {
@@ -668,18 +539,401 @@ select:focus {
 }
 
 .stat b {
-  font-size: 15px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text);
+  font-weight: 600;
 }
 
 .stat.gold b {
   color: var(--gold-lit);
 }
 
-/* Широкий выбор в знакомстве. Отдельная крупная кнопка, потому что
-   это решение «насколько широко», а не выбор одной строки из
-   списка, и выглядеть оно должно соответственно. */
+/* ---------------------------------------------------------------
+   Возможности (старые строки, оставлены на случай возврата)
+   --------------------------------------------------------------- */
+
+.cap-row {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.cap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.cap-what {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.cap-evidence {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cap-block {
+  border-color: rgba(168, 72, 58, 0.4);
+}
+
+.cap-ok {
+  border-left: 2px solid var(--ok);
+}
+
+.cap-tag {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cap-tag-ok {
+  color: var(--text);
+  border-color: rgba(111, 156, 120, 0.45);
+}
+
+.cap-tag-no {
+  color: var(--red-lit);
+  border-color: rgba(168, 72, 58, 0.5);
+}
+
+/* ---------------------------------------------------------------
+   Факты: пары «подпись — значение»
+   --------------------------------------------------------------- */
+
+/* Разделители рисуются тенью каждой ячейки, а не заливкой промежутка.
+ *
+ * Приём с цветом промежутка короче на строчку, но он показывает дыру
+ * там, где ячейки не хватает: сетка на пять колонок, данных на четыре —
+ * и пятая колонка наливалась серым прямоугольником. Тени рисуются
+ * только под существующими ячейками, поэтому пустого места не видно
+ * вовсе. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  border: 1px solid var(--line);
+  margin: 0 0 18px;
+}
+
+.facts > div {
+  padding: 9px 12px;
+  box-shadow: 1px 0 0 var(--line), 0 1px 0 var(--line);
+}
+
+.facts dt {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.facts dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.context-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.context-row:last-child {
+  border-bottom: none;
+}
+
+.context-row > span:first-child {
+  width: 140px;
+  flex-shrink: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   Профили
+
+   Пять карточек в ряд на узком окне превращались в кашу, где
+   причина блокировки налезала на подпись соседней. Причина лежит
+   внутри карточки и занимает свою строку.
+   --------------------------------------------------------------- */
+
+.tiers {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+}
+
+.tier.active {
+  border-color: rgba(178, 141, 32, 0.55);
+  background: rgba(178, 141, 32, 0.06);
+}
+
+.tier button {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 10px 12px 6px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  clip-path: none;
+  /* Кнопка тянется на всю высоту карточки: у T1 и T2 нет строки с
+     причиной, и без этого карточки в ряду были разной высоты. */
+  flex: 1;
+  transition: color var(--ход);
+}
+
+.tier button:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
+}
+
+.tier strong {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.tier.active strong {
+  color: var(--gold-lit);
+}
+
+.tier button span {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.tier-note {
+  margin: 0;
+  padding: 5px 12px 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  border-top: 1px solid var(--line);
+}
+
+.tier-note.chosen {
+  color: var(--gold-lit);
+}
+
+.pick-on,
+.tier.chosen {
+  border-color: var(--gold);
+  color: var(--gold-lit);
+  background: rgba(178, 141, 32, 0.08);
+}
+
+/* ---------------------------------------------------------------
+   Кнопки и поля
+
+   Общий стиль кнопки не раздаётся всем подряд: кнопки, внутри
+   которых лежит ТЕКСТ (выбор возможности, широкий выбор,
+   подсказка модели), получают его отдельно. Заглавные буквы в
+   середине фразы читаются как крик, и разрядка рвёт слова.
+   --------------------------------------------------------------- */
+
+.app-send,
+.stop,
+.chip,
+.stepper button,
+button[type="button"]:not(.tab):not(.cap):not(.pick):not(.wide-opt) {
+  appearance: none;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+  transition: background var(--ход), border-color var(--ход), color var(--ход);
+}
+
+.app-send:hover:not(:disabled),
+.chip:hover:not(:disabled),
+.stepper button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(178, 141, 32, 0.5);
+  color: var(--gold-lit);
+}
+
+.app-send:disabled,
+.chip:disabled,
+button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* Остановка — единственное место, где красный на кнопке. Красный
+   в палитре означает опасность, и нажатие «стоп» ею и является. */
+.stop {
+  color: var(--red-lit);
+  border-color: rgba(168, 72, 58, 0.5);
+}
+
+.stop:hover:not(:disabled) {
+  background: rgba(168, 72, 58, 0.14);
+  border-color: var(--red);
+  color: var(--red-lit);
+}
+
+.app-input,
+.onb-input {
+  appearance: none;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 9px 12px;
+  min-width: 0;
+  transition: border-color var(--ход), background var(--ход);
+}
+
+.app-input:focus,
+.onb-input:focus {
+  outline: none;
+  border-color: rgba(178, 141, 32, 0.55);
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.app-input::placeholder,
+.onb-input::placeholder {
+  color: var(--muted);
+}
+
+.onb-input,
+.onb-input input {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------
+   Выбор возможности
+
+   Внутри кнопки два куска текста, и они обязаны стоять друг под
+   другом. Раньше это были строчные span, и в разметке читалось
+   «ГОВОРИТ ЧИТАЕТ ФАЙЛЫ».
+   --------------------------------------------------------------- */
+
+.picker {
+  margin: 12px 0;
+}
+
+.pick {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  margin-bottom: 6px;
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+  transition: background var(--ход), border-color var(--ход);
+}
+
+.pick:hover:not(:disabled) {
+  border-color: var(--line-2);
+  background: var(--panel-2);
+}
+
+.pick-box {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  border: 1px solid var(--line-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--gold-lit);
+}
+
+.pick-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pick-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pick-on .pick-name {
+  color: var(--gold-lit);
+}
+
+.pick-what {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.agent-modes,
+.agent-skills,
+.hosts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+/* ---------------------------------------------------------------
+   Широкий выбор в знакомстве
+
+   Это решение «насколько широко», а не выбор строки из списка,
+   поэтому оно выглядит крупнее остального.
+   --------------------------------------------------------------- */
+
 .wide-opt {
   display: flex;
   flex-direction: column;
@@ -689,6 +943,7 @@ select:focus {
   padding: 14px 16px;
   background: var(--panel);
   border: 1px solid var(--line-2);
+  border-radius: 0;
   color: var(--text);
   font: inherit;
   font-size: 13px;
@@ -696,15 +951,17 @@ select:focus {
   text-transform: none;
   cursor: pointer;
   clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+  transition: background var(--ход), border-color var(--ход);
 }
 
 .wide-opt:hover:not(:disabled) {
-  border-color: rgba(190, 200, 215, 0.45);
+  border-color: var(--line-2);
+  background: var(--panel-2);
 }
 
 .wide-opt.on {
-  border-color: var(--purple);
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.03));
+  border-color: var(--gold);
+  background: rgba(178, 141, 32, 0.1);
 }
 
 .wide-title {
@@ -715,7 +972,7 @@ select:focus {
 }
 
 .wide-opt.on .wide-title {
-  color: #d7c4ff;
+  color: var(--gold-lit);
 }
 
 .wide-note {
@@ -726,17 +983,169 @@ select:focus {
 
 .alt-lead {
   margin: 16px 0 8px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-/* Подсказки моделей под полем ввода.
- *
- * Список привязан к полю и стоит прямо под ним: если между полем и
- * подсказкой окажется хоть одна строка текста, человек кликнет не
- * туда и решит, что подсказки не работают.
- */
+/* ---------------------------------------------------------------
+   Знакомство
+
+   Реплики больше не делят рамку: у каждой своя и зазор снизу.
+   Без зазора они читались как один слипшийся блок.
+   --------------------------------------------------------------- */
+
+.onb-log {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.onb-user,
+.onb-agent {
+  max-width: 74%;
+  padding: 10px 13px;
+  font-size: 13px;
+  line-height: 1.55;
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+  word-break: break-word;
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+}
+
+.onb-user {
+  align-self: flex-end;
+  border-color: rgba(46, 130, 212, 0.4);
+  background: rgba(46, 130, 212, 0.08);
+}
+
+.onb-agent {
+  align-self: flex-start;
+  background: var(--panel-2);
+}
+
+.onb-log > .onb-user:last-child,
+.onb-log > .onb-agent:last-child {
+  margin-bottom: 0;
+}
+
+.onb-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onb-preview {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px 14px;
+  margin: 12px 0;
+}
+
+.onb-preview pre {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------------------------------------------------------------
+   Чат и журнал
+
+   Голубой — данные. Реплика человека приходит из интерфейса,
+   ответ секретаря — извне, поэтому различать их нужно сразу.
+   --------------------------------------------------------------- */
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.messages .msg {
+  max-width: 78%;
+  padding: 9px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  border: 1px solid var(--line);
+  word-break: break-word;
+  white-space: pre-wrap;
+  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+}
+
+.messages .msg.user {
+  align-self: flex-end;
+  border-color: rgba(46, 130, 212, 0.4);
+  background: rgba(46, 130, 212, 0.08);
+}
+
+.messages .msg.assistant {
+  align-self: flex-start;
+  background: var(--panel-2);
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.composer .app-input {
+  flex: 1;
+}
+
+.chat {
+  max-width: 900px;
+}
+
+/* Журнал — моноширинный по определению: это вывод программы,
+   и ширина столбцов в нём значима. */
+.log,
+.agent-log {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow: auto;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log {
+  margin-top: 10px;
+}
+
+/* ---------------------------------------------------------------
+   Загрузка: подсказки, файлы, прогресс
+   --------------------------------------------------------------- */
+
+.repo-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.repo-row .app-input {
+  flex: 1;
+}
+
+/* Подсказки под полем. Список стоит прямо под ним: если между
+   полем и подсказкой окажется хоть одна строка текста, человек
+   кликнет не туда и решит, что подсказки не работают. */
 .hints {
   list-style: none;
   margin: 4px 0 0;
@@ -744,7 +1153,11 @@ select:focus {
   max-height: 190px;
   overflow-y: auto;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--panel-2);
+}
+
+.hints li:last-child button {
+  border-bottom: none;
 }
 
 .hints button {
@@ -765,10 +1178,7 @@ select:focus {
   letter-spacing: 0;
   text-transform: none;
   color: var(--text);
-}
-
-.hints li:last-child button {
-  border-bottom: none;
+  transition: background var(--ход);
 }
 
 .hints button:hover {
@@ -776,10 +1186,9 @@ select:focus {
 }
 
 /* Семейство выделяется: человек набирал «gemma», и ему важно
-   видеть, что нашлось именно gemma, а не просто репозиторий
-   с похожим словом внутри. */
+   видеть, что нашлось именно gemma. */
 .hint-family {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -809,7 +1218,151 @@ select:focus {
   font-size: 11px;
 }
 
-/* Настройки */
+.files {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  clip-path: none;
+  padding: 7px 11px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: background var(--ход), color var(--ход);
+}
+
+.file:hover {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+}
+
+.file.active {
+  color: var(--gold-lit);
+  background: rgba(178, 141, 32, 0.08);
+}
+
+.file-name {
+  font-family: "Cascadia Mono", "Consolas", monospace;
+}
+
+.progress {
+  margin-top: 12px;
+}
+
+.progress-bar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gold);
+  transition: width var(--поворот);
+}
+
+.problems {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.problems li {
+  padding: 9px 12px;
+  border: 1px solid rgba(168, 72, 58, 0.35);
+  background: rgba(168, 72, 58, 0.06);
+  margin-bottom: 6px;
+}
+
+.problems .what {
+  font-size: 12px;
+  color: var(--red-lit);
+  margin-bottom: 4px;
+}
+
+.problems .why,
+.problems .how {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.problems .how {
+  margin-top: 4px;
+}
+
+/* ---------------------------------------------------------------
+   Полоса памяти
+   --------------------------------------------------------------- */
+
+.mem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.mem-item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.mem-label {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mem-num {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------
+   Голос
+   --------------------------------------------------------------- */
+
+.voice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-mb {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-error {
+  font-size: 11px;
+  color: var(--red-lit);
+}
+
+/* ---------------------------------------------------------------
+   Настройки
+   --------------------------------------------------------------- */
 
 .pref-row {
   display: flex;
@@ -845,7 +1398,6 @@ select:focus {
 
 .stepper button {
   min-width: 40px;
-  font-size: 12px;
 }
 
 .stepper-val {
@@ -860,506 +1412,31 @@ select:focus {
   margin: 14px 0 0;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.28);
   line-height: 1.5;
 }
 
 /* ---------------------------------------------------------------
-   Текст
+   Клавиши
    --------------------------------------------------------------- */
 
-h1,
-h2,
-h3 {
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
-h1 {
-  font-size: 13px;
-}
-h2 {
-  font-size: 12px;
-}
-h3 {
-  font-size: 11px;
-}
-
-.summary,
-.cap-what,
-.pick-what,
-.agent-basis {
-  font-size: 12px;
-  color: var(--text);
-}
-
-.small {
-  font-size: 11px;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.how {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.link {
-  color: var(--blue);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(59, 158, 255, 0.35);
-}
-
-.link:hover {
-  color: #7cc0ff;
-}
-
-.error,
-.cap-refusal {
-  color: var(--red);
-  font-size: 12px;
-}
-
-.ok,
-.cap-ok {
-  color: #79c98a;
-  font-size: 12px;
-}
-
-.bad,
-.cap-blocked {
-  color: var(--red);
-  font-size: 12px;
-}
-
-.notice {
-  color: var(--gold-lit);
-  font-size: 12px;
-}
-
-/* ---------------------------------------------------------------
-   Панели возможностей
-   --------------------------------------------------------------- */
-
-.cap-block,
-.agent-log,
-.log,
-.pick-box {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-
-.cap-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.cap-row,
-.repo-row,
-.context-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 0;
-  border-top: 1px solid var(--line);
-  font-size: 12px;
-}
-
-.cap-evidence,
-.facts {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-/* Теги: зелёный «можно», красный «нельзя», золотой «на заметку». */
-.cap-tag {
+kbd.cap,
+.cap {
+  font-family: inherit;
   font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border: 1px solid currentColor;
-}
-
-.cap-tag-ok {
-  color: #79c98a;
-}
-
-.cap-tag-no {
-  color: var(--red);
-}
-
-/* ---------------------------------------------------------------
-   Агент
-   --------------------------------------------------------------- */
-
-/* `.tiers` здесь больше нет: профили раскладываются сеткой ниже, и
-   держать для них отдельное правило с флексом значило бы держать
-   два места, где решается их раскладка. */
-.agent-modes,
-.agent-skills,
-.hosts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-/* Профили. Список без маркеров и по сетке: пять карточек в ряд на
-   узком окне превращались в кашу, где причина блокировки налезала
-   на подпись соседней. */
-.tiers {
-  list-style: none;
-  margin: 0 0 16px;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px;
-}
-
-.tier {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-}
-
-/* Активный профиль — золотой: это единственный профиль, который
-   что-то меняет в работе программы, и он должен быть виден сразу. */
-.tier.active {
-  border-color: rgba(201, 162, 39, 0.6);
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.12), rgba(201, 162, 39, 0.02));
-}
-
-.tier button {
-  appearance: none;
-  background: none;
-  border: none;
-  color: var(--muted);
-  padding: 10px 12px 6px;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  clip-path: none;
-  /* Кнопка тянется на всю высоту карточки: у T1 и T2 нет строки с
-     причиной, и без этого карточки в ряду получались разной
-     высоты — заметно глазом. */
-  flex: 1;
-}
-
-.tier button:hover:not(:disabled) {
-  background: none;
-  color: var(--text);
-}
-
-.tier strong {
-  display: block;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  color: var(--text);
-  margin-bottom: 3px;
-}
-
-.tier.active strong {
-  color: var(--gold-lit);
-}
-
-.tier button span {
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-/* Причина внутри карточки. Отдельная строка, а не сноска сбоку:
-   сноска вылезала за границы карточки и наезжала на соседнюю. */
-.tier-note {
-  margin: 0;
-  padding: 5px 12px 8px;
-  font-size: 10px;
-  line-height: 1.4;
-  font-style: normal;
-  border-top: 1px solid var(--line);
-}
-
-.tier-note.chosen {
-  color: var(--gold-lit);
-}
-
-.pick-on,
-.tier.chosen {
-  border-color: var(--gold);
-  color: var(--gold-lit);
-  background: rgba(201, 162, 39, 0.1);
-}
-
-.agent-line {
-  font-size: 12px;
-  padding: 4px 0;
-  border-left: 2px solid var(--line-2);
-  padding-left: 10px;
-  margin-bottom: 4px;
-}
-
-.agent-decide {
-  border-left-color: var(--gold);
-}
-.agent-deny {
-  border-left-color: var(--red);
-  color: var(--red);
-}
-.agent-broken {
-  border-left-color: var(--purple);
-  color: #c9b3ff;
-}
-.agent-compact {
-  border-left-color: var(--blue);
-  color: #9fd0ff;
-}
-.agent-wait {
-  color: var(--muted);
-}
-
-.agent-pending {
-  border: 1px solid rgba(201, 162, 39, 0.5);
-  background: rgba(201, 162, 39, 0.08);
-  padding: 10px 12px;
-  margin-bottom: 10px;
-}
-
-/* ---------------------------------------------------------------
-   Чат
-   --------------------------------------------------------------- */
-
-.messages {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chat {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
-/* Реплики знакомства.
- *
- * Раньше обе реплики стояли вплотную и делили одну рамку, из-за чего
- * читались как один слипшийся блок. Теперь между ними явный зазор
- * и у каждой своя рамка: кто говорил — видно сразу, а не по догадке.
- */
-.onb-user,
-.onb-agent {
-  max-width: 74%;
-  padding: 10px 13px;
-  font-size: 13px;
-  line-height: 1.55;
-  border: 1px solid var(--line);
-  /* Отступ снизу обязателен: без него соседние реплики слипались в
-     одну рамку, и это выглядело как поломка вёрстки. */
-  margin-bottom: 8px;
-  word-break: break-word;
-}
-
-.onb-user {
-  align-self: flex-end;
-  border-color: rgba(59, 158, 255, 0.45);
-  background: rgba(59, 158, 255, 0.09);
-  clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 9px);
-}
-
-.onb-agent {
-  align-self: flex-start;
-  background: var(--panel);
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-}
-
-.onb-log {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  padding: 12px;
-  max-height: 340px;
-  overflow-y: auto;
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-}
-
-.onb-log > .onb-user:last-child,
-.onb-log > .onb-agent:last-child {
-  margin-bottom: 0;
-}
-
-.onb-bubble {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* ---------------------------------------------------------------
-   Файлы, загрузка, прогресс
-   --------------------------------------------------------------- */
-
-.files {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.file,
-.file-name {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.file:hover {
-  border-color: var(--line-2);
-}
-
-.picker {
-  border: 1px solid var(--line);
-  padding: 10px;
-}
-
-/* Кнопка выбора возможности. Внутри неё два куска текста, и они
-   обязаны стоять друг под другом, а не слипаться. Раньше это были
-   строчные `span`, и в разметке читалось «ГОВОРИТ ЧИТАЕТ ФАЙЛЫ»:
-   имя возможности и её описание шли в одну строку без разделителя. */
-.pick {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  width: 100%;
-  text-align: left;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-  margin-bottom: 6px;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-
-.pick:hover:not(:disabled) {
-  border-color: var(--line-2);
-  background: var(--panel-2);
-}
-
-.pick-on {
-  border-color: var(--gold);
-  background: rgba(201, 162, 39, 0.1);
-}
-
-.pick-box {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
+  letter-spacing: 0.1em;
   border: 1px solid var(--line-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--gold-lit);
-}
-
-.pick-body {
-  flex: 1;
-  min-width: 0;
-  /* Колонка вместо строки: имя и описание занимают свои строки и
-     не могут склеиться, сколько бы знаков в них ни было. */
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pick-name {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.pick-on .pick-name {
-  color: var(--gold-lit);
-}
-
-.pick-what {
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.progress,
-.progress-bar {
-  height: 8px;
-  border: 1px solid var(--line-2);
-  background: rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-  margin: 10px 0;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #2a6fd0, var(--blue));
-  transition: width 200ms;
-}
-
-.problems {
-  color: var(--red);
-  font-size: 12px;
+  padding: 1px 5px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* ---------------------------------------------------------------
-   Знакомство
+   Прокрутка
+
+   Полоса прокрутки тоже часть прибора, поэтому она волосяная и
+   не выделяется до момента, когда ею понадобится воспользоваться.
    --------------------------------------------------------------- */
-
-.onb-log {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  padding: 12px;
-  max-height: 320px;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-
-.onb-preview {
-  border: 1px solid rgba(201, 162, 39, 0.4);
-  background: rgba(201, 162, 39, 0.06);
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-/* ---------------------------------------------------------------
-   Полосы прокрутки: под язык панели, а не под браузер
-   --------------------------------------------------------------- */
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(190, 200, 215, 0.3) transparent;
-}
 
 ::-webkit-scrollbar {
   width: 9px;
@@ -1371,17 +1448,12 @@ h3 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(190, 200, 215, 0.25);
+  background: rgba(196, 205, 220, 0.14);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(190, 200, 215, 0.4);
-}
-
-/* ---------------------------------------------------------------
-   Выделение
-   --------------------------------------------------------------- */
-
-::selection {
-  background: rgba(201, 162, 39, 0.28);
+  background: rgba(178, 141, 32, 0.45);
+  background-clip: content-box;
 }

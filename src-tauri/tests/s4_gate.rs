@@ -7,11 +7,11 @@
 // Пропуск не считается успехом. Знакомство — первая точка остановки
 // проекта, и «прошло на трёх из пяти шагов» здесь не подходит.
 
-use arsha_lib::onboarding::{Step, State};
-use arsha_lib::onboarding_commands::{
+use arkha_lib::onboarding::{Step, State};
+use arkha_lib::onboarding_commands::{
     check_applicable, onboarding_folders, preview_of, say_to, view_of,
 };
-use arsha_lib::profile::{detect_and_persist, Tier};
+use arkha_lib::profile::{detect_and_persist, Tier};
 
 fn tier() -> Tier {
     detect_and_persist().effective()
@@ -95,10 +95,10 @@ fn гейт_s4_знакомство_собирает_настройки_цели
 
     // Безопасные значения сохранились: dry-run и подтверждение
     // изменений. Знакомство не имеет права расширять права молча.
-    assert_eq!(settings.executor, arsha_lib::permissions::Executor::DryRun);
+    assert_eq!(settings.executor, arkha_lib::permissions::Executor::DryRun);
     assert_eq!(
         settings.approval_mode,
-        arsha_lib::permissions::ApprovalMode::Risky
+        arkha_lib::permissions::ApprovalMode::Risky
     );
 }
 
@@ -297,7 +297,7 @@ fn гейт_s4_выдуманные_идентификаторы_не_попад
 /// «включить» ничего не включает.
 #[test]
 fn гейт_s4_включённая_кнопка_действительно_разрешает() {
-    use arsha_lib::permissions::Executor;
+    use arkha_lib::permissions::Executor;
 
     let mut s = State::start();
     s.step = Step::Tools;
@@ -316,7 +316,7 @@ fn гейт_s4_включённая_кнопка_действительно_ра
 /// знакомство, и то, что должно быть правдой.
 #[test]
 fn гейт_s4_неотмеченное_действие_запрещено() {
-    use arsha_lib::permissions::Executor;
+    use arkha_lib::permissions::Executor;
 
     let mut s = State::start();
     s.step = Step::Tools;

@@ -8,9 +8,9 @@
 
 #![allow(dead_code)]
 
-use arsha_lib::agent::executor::{Message, Model, Turn};
-use arsha_lib::model_manager::{self, Catalog};
-use arsha_lib::profile::Tier;
+use arkha_lib::agent::executor::{Message, Model, Turn};
+use arkha_lib::model_manager::{self, Catalog};
+use arkha_lib::profile::Tier;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -31,7 +31,7 @@ pub fn выборка() -> Выборка {
 
 /// Profile under test.
 pub fn tier() -> Tier {
-    match std::env::var("ARSHA_TEST_TIER").unwrap_or_default().as_str() {
+    match std::env::var("ARKHA_TEST_TIER").unwrap_or_default().as_str() {
         "T1" => Tier::T1,
         "T2" => Tier::T2,
         "T4" => Tier::T4,
@@ -50,19 +50,19 @@ pub fn env_dir(имя: &str, по_умолчанию: &str) -> PathBuf {
 
 /// Model file for the profile. `None` means the gate is skipped.
 ///
-/// `ARSHA_GATE_MODEL` переопределяет файл. Нужно для проверки
+/// `ARKHA_GATE_MODEL` переопределяет файл. Нужно для проверки
 /// кандидата на замену: пока гейты не пройдены, ставить `verified:
 /// true` в каталоге рано — это заявление, а не измерение, и
 /// `recommended()` начал бы выбирать непроверенное как лучшее.
 pub fn model_файл() -> Option<PathBuf> {
-    let dir = env_dir("ARSHA_MODELS_DIR", "data/models");
-    if let Some(путь) = std::env::var_os("ARSHA_GATE_MODEL") {
+    let dir = env_dir("ARKHA_MODELS_DIR", "data/models");
+    if let Some(путь) = std::env::var_os("ARKHA_GATE_MODEL") {
         let кандидат = PathBuf::from(путь);
         if кандидат.exists() {
             eprintln!("гейт на модели {}", кандидат.display());
             return Some(кандидат);
         }
-        eprintln!("ПРОПУЩЕНО: ARSHA_GATE_MODEL={} не найден", кандидат.display());
+        eprintln!("ПРОПУЩЕНО: ARKHA_GATE_MODEL={} не найден", кандидат.display());
         return None;
     }
     let catalog = Catalog::load().ok()?;
@@ -72,11 +72,11 @@ pub fn model_файл() -> Option<PathBuf> {
         return Some(candidate);
     }
     let msg = format!(
-        "для профиля {} нет модели в {}. Скачайте загрузчиком или ARSHA_ALLOW_SKIP=1",
+        "для профиля {} нет модели в {}. Скачайте загрузчиком или ARKHA_ALLOW_SKIP=1",
         tier().as_str(),
         dir.display()
     );
-    if std::env::var("ARSHA_ALLOW_SKIP").is_ok() {
+    if std::env::var("ARKHA_ALLOW_SKIP").is_ok() {
         eprintln!("ПРОПУЩЕНО: {msg}");
         return None;
     }
@@ -135,7 +135,7 @@ impl Model for Живая {
         // ВАЖНО: сюда идут ВСЕ роли, включая `tool`. Отбрасывание
         // результатов инструментов делает модель слепой к тому, что
         // уже сделано, и она начинает повторять вызовы.
-        let system = arsha_lib::agent::live::системная_строка(arsha_lib::agent::live::профиль_для_тестов());
+        let system = arkha_lib::agent::live::системная_строка(arkha_lib::agent::live::профиль_для_тестов());
         self.один_ход(&system, messages, tools)
     }
 }
@@ -235,8 +235,8 @@ pub const ПОРТ_АГЕНТА_ДЛЯ_ЗРЕНИЯ: u16 = 18113;
 /// слепых зон. Проверяется ровно то, что увидит человек: если блока
 /// нет в этой строке, его нет и в приложении.
 pub fn спросить_текстом(base_url: &str, вопрос: &str) -> String {
-    let system = arsha_lib::agent::live::системная_строка(
-        arsha_lib::agent::live::профиль_для_тестов(),
+    let system = arkha_lib::agent::live::системная_строка(
+        arkha_lib::agent::live::профиль_для_тестов(),
     );
     let payload = json!({
         "messages": [

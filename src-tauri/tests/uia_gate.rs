@@ -28,15 +28,15 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-use arsha_lib::tools::uia;
+use arkha_lib::tools::uia;
 use windows::Win32::Foundation::HWND;
 
 /// Заголовок вкладки до нажатия и после.
-const ДО_НАЖАТИЯ: &str = "Arsha UIA";
-const ПОСЛЕ_НАЖАТИЯ: &str = "Arsha UIA нажата";
+const ДО_НАЖАТИЯ: &str = "ArkHa UIA";
+const ПОСЛЕ_НАЖАТИЯ: &str = "ArkHa UIA нажата";
 
 /// Текст кнопки на странице.
-const КНОПКА: &str = "Нажми Arsha";
+const КНОПКА: &str = "Нажми ArkHa";
 
 fn страница() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/electron.html")
@@ -88,9 +88,9 @@ impl Drop for Профиль {
 fn открыть() -> (Браузер, Профиль) {
     let exe = браузер().expect(
         "не найден ни Chrome, ни Firefox, ни VS Code. \
-         Поставь один из них или укажи путь переменной ARSHA_UIA_EXE",
+         Поставь один из них или укажи путь переменной ARKHA_UIA_EXE",
     );
-    let профиль = std::env::temp_dir().join(format!("arsha-uia-{}", std::process::id()));
+    let профиль = std::env::temp_dir().join(format!("arkha-uia-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&профиль);
 
     let адрес = url_файла(&страница());
@@ -124,14 +124,14 @@ fn url_файла(путь: &Path) -> String {
 }
 
 fn заголовки() -> Vec<String> {
-    arsha_lib::tools::windows::окна().into_iter().map(|о| о.заголовок).collect()
+    arkha_lib::tools::windows::окна().into_iter().map(|о| о.заголовок).collect()
 }
 
 /// Найти окно с подстрокой в заголовке и дождаться его.
 fn ждать_окна(подстрока: &str, секунд: u64) -> Option<isize> {
     let край = Instant::now() + Duration::from_secs(секунд);
     loop {
-        if let Some(о) = arsha_lib::tools::windows::найти(подстрока)
+        if let Some(о) = arkha_lib::tools::windows::найти(подстрока)
             .into_iter()
             .find(|о| о.видимое)
         {
@@ -198,7 +198,7 @@ fn обычный_поиск_в_chrome_не_находит_кнопку() {
     // живой машине так и вышло — окно появилось раньше страницы.
     ждать_элемента(hwnd, КНОПКА, 20);
 
-    let через_окна = arsha_lib::tools::control::найти_элемент(HWND(hwnd as *mut _), КНОПКА);
+    let через_окна = arkha_lib::tools::control::найти_элемент(HWND(hwnd as *mut _), КНОПКА);
     assert!(
         через_окна.is_empty(),
         "Chrome нашёл кнопку обычным поиском: {:?}. Значит, проверка устарела — \
@@ -267,7 +267,7 @@ fn нажатие_не_требует_перехвата_фокуса() {
     let чужое = ждать_окна("PowerShell", 5).or_else(|| ждать_окна("cmd", 5));
     if let Some(чужое) = чужое {
         assert_ne!(чужое, hwnd, "ищем именно другое окно, а не то же");
-        arsha_lib::tools::control::фокус_на(чужое);
+        arkha_lib::tools::control::фокус_на(чужое);
         // Даём системе время увидеть новое активное окно: без паузы
         // проверка прошла бы потому, что фокус ещё никуда не уехал,
         // и доказывала бы пустое.
