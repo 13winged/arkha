@@ -88,7 +88,7 @@ The table above is the plan. What your machine actually gets was measured on the
 | Part | Model | Measured |
 |---|---|---|
 | Recognition | `Qwen3-ASR-0.6B-Q8_0` | **274 ms** per phrase, **143 MiB** in RAM |
-| Speech | `Qwen3-TTS-1.7B-Q4_K_M` | **3.62×** real time, Apache-2.0 |
+| Speech | `Qwen3-TTS-1.7B-Q4_K_M` | **3.87×** real time, Apache-2.0 |
 
 Recognition runs on the **processor, deliberately**. On the GPU it occupies 2594 MiB and answers in 86 ms; in RAM it occupies 143 MiB and answers in 274 ms. Giving back 2.4 GiB is worth 188 ms, especially when the model already has the card.
 

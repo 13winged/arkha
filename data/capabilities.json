@@ -1,7 +1,7 @@
 {
   "_что_это": "Реестр возможностей агента. Агент получает этот список и обязан честно сказать «у меня этого нет», если возможности за пределами его профиля.",
   "_правило": "verified: true означает «проверено гейтом на живом железе», а не «должно работать». Отсутствие поля verified означает «не проверено».",
-  "_обновлено": "2026-10-12, этап S3",
+  "_обновлено": "2026-10-14, этап S9: голос помечен проверенным по замерам 13.10",
   "capabilities": [
     {
       "id": "chat.local",
@@ -175,13 +175,13 @@
       "min_tier": "T2",
       "needs_tool_calling": false,
       "permission": "voice.stt",
-      "verified": false,
-      "evidence": "",
-      "refusal": "распознавание речи ещё не подключено, на этапе S9",
+      "verified": true,
+      "evidence": "Гейт голоса 13.10.2026, T3 RTX 5060: эталон произнесён синтезом «Проверка распознавания речи. Сегодня вторник.» и сверялся дословно. 5 из 5 точных совпадений на процессоре (медиана 274 мс) и 5 из 5 на карте (медиана 86 мс). Живёт на процессоре: 143 МиБ против 2594 МиБ на карте — при поднятом распознавании агент на контексте 65536 сваливается в разделяемую память уже на 16 слоях",
+      "refusal": "работает с файлом, а не с микрофона: живой диалог ещё не собран. Задержка от конца речи до первого звука ответа не измерена, в неё входит генерация ответа агентом",
       "name_en": "Speech recognition",
       "what_en": "Turns speech into text",
-      "evidence_en": "",
-      "refusal_en": "speech recognition is not wired up yet, it is at stage S9"
+      "evidence_en": "Voice gate 13.10.2026, T3 RTX 5060: the reference was spoken by synthesis — “Проверка распознавания речи. Сегодня вторник.” — and compared word for word. 5 out of 5 exact matches on the processor (median 274 ms) and 5 out of 5 on the GPU (median 86 ms). Lives on the processor: 143 MiB against 2594 MiB on the GPU — with recognition up, the agent at a 65536 context spills into shared memory already at 16 layers",
+      "refusal_en": "it works on a file, not a microphone: the live conversation loop is not assembled yet. The delay from the end of speech to the first sound of the answer is not measured — it includes the agent generating its answer"
     },
     {
       "id": "voice.tts",
@@ -190,13 +190,13 @@
       "min_tier": "T1",
       "needs_tool_calling": false,
       "permission": "voice.tts",
-      "verified": false,
-      "evidence": "",
-      "refusal": "озвучивание ещё не подключено, на этапе S9",
+      "verified": true,
+      "evidence": "Гейт голоса 13.10.2026, T3 RTX 5060: синтез на живой машине 3.60 с звука за 0.93 с вычислений, то есть 3.87× реального времени",
+      "refusal": "синтез работает с текстом и пишет файл; озвучивание в ответе агента ещё не собрано — это следующий шаг вместе с живым диалогом",
       "name_en": "Speaking",
       "what_en": "Reads answers aloud",
-      "evidence_en": "",
-      "refusal_en": "speaking is not wired up yet, it is at stage S9"
+      "evidence_en": "Voice gate 13.10.2026, T3 RTX 5060: synthesis on live hardware produced 3.60 s of audio in 0.93 s of compute, which is 3.87× real time",
+      "refusal_en": "synthesis takes text and writes a file; speaking the agent’s answers is not assembled yet — that is the next step together with the live conversation loop"
     },
     {
       "id": "voice.wake",
