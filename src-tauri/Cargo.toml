@@ -62,6 +62,25 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io
 futures-util = "0.3"
 sha2 = "0.11"
 
+# S10: определение речи в потоке (VAD). Silero VAD — 2.22 МиБ ONNX,
+# MIT, snakers4/silero-vad. candle — MIT OR Apache-2.0 (проверено
+# по манифесту и LICENSE в репозитории huggingface/candle 14.10.2026,
+# docs/09-лицензии.md, раздел «VAD»).
+#
+# Почему ONNX, а не Silero через PyTorch: приложение должно
+# собираться в один установщик без Python на машине пользователя.
+candle-onnx = { version = "0.11", default-features = false }
+
+# Тензоры и устройства. Прямая зависимость, а не через candle-onnx:
+# `Tensor` нужен нам в коде, и объявлять чужой транзитивный крейт
+# своей прямой зависимостью нельзя — версия обязана совпадать.
+candle-core = { version = "0.11", default-features = false }
+
+# Разбор ONNX-файла. `prost` — то, чем сам candle-onnx читает
+# `ModelProto`, и его версия обязана совпадать с той, на которой
+# собран candle-onnx: 0.11 тянет prost ^0.14. Лицензия Apache-2.0.
+prost = "0.14"
+
 # Гейту нужен `HWND`, а его тип определён в крейте `windows`.
 # Дублировать его ради теста нельзя: два разных определения одного
 # дескриптора не совпадут, и компилятор об этом не предупредит.

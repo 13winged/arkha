@@ -48,3 +48,6 @@ data/recipes.local.json
 # Незаконченное скачивание. При обрыве остаётся на диске и
 # мешает, но в исходники попадать не должно.
 data/models/*.part
+
+# protoc для сборки candle-onnx: качается scripts/fetch-protoc.ps1
+src-tauri/tools/
