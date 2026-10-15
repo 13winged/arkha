@@ -397,15 +397,14 @@ pub async fn chat(
         }
     };
 
-    let payload = serde_json::json!({
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "stream": true,
-        "temperature": sampling.temperature,
-        "top_p": sampling.top_p,
-        "top_k": sampling.top_k,
-        "repeat_penalty": sampling.repeat_penalty,
-    });
+    // Параметры выборки собираются в одном месте — `to_json`, — а не
+    // перечисляются здесь поимённо. Список здесь означал, что новое
+    // поле можно забыть: `enable_thinking` так и был забыт, и чат
+    // не отвечал (замер 15.10.2026 в docs/10).
+    let mut payload = sampling.to_json();
+    payload["messages"] = serde_json::json!(messages);
+    payload["max_tokens"] = serde_json::json!(max_tokens);
+    payload["stream"] = serde_json::json!(true);
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(600))
