@@ -362,9 +362,24 @@ pub async fn chat(
     sidecar: State<'_, SidecarState>,
     messages: Vec<ChatMessage>,
     max_tokens: Option<u32>,
+    request_id: Option<u64>,
 ) -> Result<u64, String> {
     let base = sidecar.base_url()?;
-    let request_id = REQUEST_ID.fetch_add(1, Ordering::SeqCst);
+    // Номер запроса может прийти из интерфейса, и это не мелочь.
+    //
+    // Раньше он выдавался здесь и возвращался в конце функции, то
+    // есть уже после того, как весь поток прочитан и события
+    // отправлены. Интерфейс записывал полученное значение уже
+    // после того, как все события пришли, и проверка «это мой
+    // запрос?» отбрасывала их все. Ответ не появлялся никогда,
+    // а кнопка «остановить» висела до перезапуска. Замечено
+    // 15.10.2026.
+    //
+    // Теперь номер задаёт интерфейс, до отправки запроса, и
+    // события приходят уже с тем же номером. Свой счётчик здесь
+    // остаётся для вызовов без номера — из гейтов и тестов.
+    let свой = REQUEST_ID.fetch_add(1, Ordering::SeqCst);
+    let request_id = request_id.unwrap_or(свой);
     CANCELLED.store(false, Ordering::SeqCst);
 
     let max_tokens = max_tokens.unwrap_or(1024);

@@ -494,7 +494,14 @@ const pickTools = async () => {
     setBusy(true);
     setError(null);
     try {
-      const p = await invoke<OnboardingPreview>("onboarding_apply", { lang: язык() });
+      // `onboarding_confirm`, а не `onboarding_apply`: применение
+      // требует законченного знакомства, а закончить его должен
+      // человек — этой кнопкой. Раньше здесь стояло применение, и
+      // кнопка упиралась в проверку, которую сама же должна была
+      // снимать. Знакомство нельзя было закончить, настройки не
+      // сохранялись, и секретарь оставался без единой папки —
+      // замечено 15.10.2026.
+      const p = await invoke<OnboardingPreview>("onboarding_confirm", { lang: язык() });
       setPreview(p);
     } catch (e) {
       setError(String(e));
@@ -896,7 +903,15 @@ function Chat({ model }: { model: ModelStatus }) {
     setNotice(null);
 
     try {
-      requestId.current = await invoke<number>("chat", {
+      // Номер задаём мы, до отправки. Команда возвращает его уже
+      // после того, как весь ответ прочитан и события отправлены,
+      // так что взять номер из ответа нельзя: события пришли бы
+      // раньше, чем мы его записали, и все отбросились бы проверкой
+      // «это мой запрос?». Ответ не появлялся никогда.
+      requestId.current += 1;
+      const мой = requestId.current;
+      await invoke<number>("chat", {
+        requestId: мой,
         messages: next.map(({ role, content }) => ({ role, content })),
         maxTokens: 1024,
       });

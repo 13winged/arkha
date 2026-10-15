@@ -345,7 +345,30 @@ impl State {
         }
     }
 
-        /// Принимает выбор режима и уровня доступа кнопками.
+        /// Подтверждение итога человеком.
+    ///
+    /// Итог подтверждается **кнопкой**, а не фразой: человек читает
+    /// собранное и жмёт «сохранить».
+    ///
+    /// Раньше единственным способом закончить знакомство был ответ
+    /// текстом «всё верно, закончить», а кнопка «сохранить» звала
+    /// применение, которое требует `finished`. То есть кнопка
+    /// упиралась в ту же проверку, что и фраза, и не сработать не
+    /// могла: знакомство нельзя было закончить. Замечено человеком
+    /// 15.10.2026, вместе с пустым списком папок — настройки не
+    /// сохранялись, потому что сохранять было нечем.
+    pub fn подтвердить_итог(&mut self) -> Result<(), String> {
+        if self.step != Step::Summary {
+            return Err(format!(
+                "подтвердить можно только на итоге, а сейчас шаг «{}»",
+                self.step.as_str()
+            ));
+        }
+        self.finished = true;
+        Ok(())
+    }
+
+    /// Принимает выбор режима и уровня доступа кнопками.
     ///
     /// Шаг сдвигается, когда выбраны оба. Один выбранный — это
     /// половина ответа, и двигать шаг после неё нельзя: человек
@@ -436,7 +459,18 @@ impl State {
     /// Показанные, а не применённые. Применение — отдельный вызов с
     /// явным подтверждением.
     pub fn to_settings(&self) -> Settings {
-        let mut s = Settings::load().unwrap_or_default();
+        self.to_settings_из(Settings::load().unwrap_or_default())
+    }
+
+    /// Настройки по собранным ответам, начиная с указанной базы.
+    ///
+    /// Отдельная функция не для красоты. `to_settings` читает
+    /// настоящий файл пользователя, и тест, который её зовёт,
+    /// зависит от того, что человек успел настроить: за��омнено
+    /// 15.10.2026 — после обычного сеанса тесты знакомства
+    /// посыпались, потому что в файле уже стояло `executor: live`,
+    /// а тесты ждали чистого старта.
+    pub fn to_settings_из(&self, mut s: Settings) -> Settings {
 
         s.paths = self.collected.paths.clone();
         s.читать_весь_диск = self.collected.whole_disk;
@@ -468,6 +502,15 @@ impl State {
 
     /// Текст итога: что агент понял, словами.
     pub fn summary(&self) -> String {
+        self.summary_из(Settings::load().unwrap_or_default())
+    }
+
+    /// Итог словами, начиная с указанной базы настроек.
+    ///
+    /// Как и `to_settings_из`: база передаётся параметром, а не
+    /// берётся с машины, иначе тест знакомства зависит от того,
+    /// что человек успел настроить.
+    pub fn summary_из(&self, база: Settings) -> String {
         let mut parts: Vec<String> = Vec::new();
         if let Some(n) = &self.collected.name {
             parts.push(format!("Зовут {n}"));
@@ -507,9 +550,9 @@ impl State {
             parts.push(format!("папки: {}", names.join(", ")));
         }
 
-        let settings = self.to_settings();
-        parts.push(format!("выполнение: {}", settings.executor.title()));
-        parts.push(format!("подтверждение: {}", settings.approval_mode.title()));
+        let настройки = self.to_settings_из(база);
+        parts.push(format!("выполнение: {}", настройки.executor.title()));
+        parts.push(format!("подтверждение: {}", настройки.approval_mode.title()));
 
         format!("Понял так. {}", parts.join(". "))
     }
@@ -630,7 +673,7 @@ mod tests {
     fn выключенным_считается_только_то_о_чём_спросили() {
         let mut s = State::start();
         s.collected.disable = vec!["browser.dom".into()];
-        let settings = s.to_settings();
+        let settings = s.to_settings_из(crate::onboarding::Settings::default());
         assert!(!settings.capabilities["browser.dom"].enabled);
         assert!(
             !settings.capabilities.contains_key("files.read"),
@@ -646,7 +689,7 @@ mod tests {
         s.step = Step::Tools;
         s.set_tools(vec!["files.read".into()], vec!["browser.dom".into()]);
 
-        let settings = s.to_settings();
+        let settings = s.to_settings_из(crate::onboarding::Settings::default());
         assert_eq!(
             settings.capabilities["files.read"].enabled, true,
             "включённое потерялось"
@@ -685,7 +728,7 @@ mod tests {
         let mut s = State::start();
         s.step = Step::Levels;
         s.apply(r#"{"paths":["Загрузки"]}"#);
-        let settings = s.to_settings();
+        let settings = s.to_settings_из(crate::onboarding::Settings::default());
         assert_eq!(settings.executor, Executor::DryRun);
         assert_eq!(settings.approval_mode, ApprovalMode::Risky);
     }

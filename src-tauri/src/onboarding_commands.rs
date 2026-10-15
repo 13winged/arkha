@@ -127,9 +127,22 @@ pub fn preview_of(s: &State) -> Preview {
 }
 
 pub fn preview_of_lang(s: &State, en: bool) -> Preview {
+    // Настройки читаются один раз и передаются дальше: `summary`
+    // и `to_settings` по отдельности читали бы файл дважды, и
+    // между этими двумя чтениями он мог бы измениться.
+    let база = crate::permissions::Settings::load().unwrap_or_default();
     Preview {
-        summary: s.summary(),
-        settings: crate::permissions_commands::view_lang(&s.to_settings(), en),
+        summary: s.summary_из(база.clone()),
+        settings: crate::permissions_commands::view_lang(&s.to_settings_из(база), en),
+    }
+}
+
+/// Предпросмотр на заданной базе — для тестов, которые не должны
+/// смотреть в настоящий файл человека.
+pub fn preview_из(s: &State, база: crate::permissions::Settings) -> Preview {
+    Preview {
+        summary: s.summary_из(база.clone()),
+        settings: crate::permissions_commands::view_lang(&s.to_settings_из(база), false),
     }
 }
 
@@ -157,6 +170,30 @@ pub fn check_applicable(s: &State) -> Result<(), String> {
         return Err("знакомство не закончено: сначала дойди до итога".into());
     }
     Ok(())
+}
+
+/// Команда: подтвердить итог и применить.
+///
+/// Кнопка «сохранить» на итоге ведёт сюда. Отдельная команда, а не
+/// `onboarding_apply`, потому что применение требует законченного
+/// знакомства, а закончить его должен человек — кнопкой.
+///
+/// Замечено 15.10.2026: кнопка не работала вовсе, знакомство нельзя
+/// было закончить, и настройки не сохранялись. Из-за этого у
+/// секретаря не было доступа ни к одной папке, хотя в знакомстве
+/// они были выбраны.
+#[tauri::command]
+pub fn onboarding_confirm(lang: Option<String>) -> Result<Preview, String> {
+    let _ = lang;
+    let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
+    let s = guard.as_mut().ok_or("знакомство не начато")?;
+    s.подтвердить_итог()?;
+    let settings = s.to_settings();
+    onboarding::save(&settings)?;
+    Ok(Preview {
+        summary: s.summary(),
+        settings: view(&settings),
+    })
 }
 
 /// Применение разрешений. Отказ, пока знакомство не закончено.
@@ -446,6 +483,60 @@ mod tests {
         assert!(done.summary.contains("Понял"), "{}", done.summary);
     }
 
+    /// Кнопка «сохранить» на итоге обязана доходить до конца.
+///
+/// Тест на то, чего не было: раньше кнопка звала применение, а
+/// применение требовало законченного знакомства, и знакомство
+/// заканчивалось только ответом текстом. Кнопка не сработать не
+/// могла, и настройки не сохранялись.
+#[test]
+    fn кнопка_сохранить_заканчивает_знакомство() {
+        let mut s = State::start();
+        let tier = crate::profile::Tier::T3;
+
+        // Пять шагов: знакомство → инструменты → папки → уровни →
+        // итог. Пропуск шага не «ускоряет» знакомство, а оставляет
+        // его на предыдущем шаге.
+        assert!(say_to(&mut s, tier, "Зовут Артём").understood);
+        assert_eq!(s.step, Step::Tools);
+        assert!(say_to(&mut s, tier, r#"{"enable":["chat.local"]}"#).understood);
+        assert_eq!(s.step, Step::Folders);
+        assert!(say_to(&mut s, tier, r#"{"paths":["Загрузки"]}"#).understood);
+        assert_eq!(s.step, Step::Levels);
+        assert!(say_to(
+            &mut s,
+            tier,
+            r#"{"executor":"dry-run","approval_mode":"actions"}"#
+        )
+        .understood);
+
+        assert_eq!(s.step, Step::Summary);
+        assert!(!s.finished, "до подтверждения знакомство не закончено");
+
+        // Вот ради чего тест: раньше здесь был тупик.
+        s.подтвердить_итог().expect("итог подтверждается");
+        assert!(s.finished);
+
+        let settings = s.to_settings_из(crate::permissions::Settings::default());
+        assert!(
+            !settings.paths.is_empty(),
+            "после сохранения папки обязаны попасть в настройки, а их нет"
+        );
+    }
+
+    /// Подтвердить итог можно только на итоге.
+    ///
+    /// Иначе кнопка на любом шаге тихо завершила бы знакомство, и
+    /// человек получил бы пустые разрешения, ничего об этом не
+    /// зная.
+    #[test]
+    fn подтвердить_можно_только_на_итоге() {
+        let mut s = State::start();
+        let e = s.подтвердить_итог().unwrap_err();
+        assert!(e.contains("итоге"), "{e}");
+        assert!(!s.finished);
+    }
+
     /// Применить раньше времени нельзя: конфигурацию разрешений
     /// невозможно откатить задним числом.
     #[test]
@@ -456,10 +547,14 @@ mod tests {
     }
 
     /// Предпросмотр не должен пугать пользователя, пока он в dry-run.
+    ///
+    /// База задана явно: раньше предпросмотр смотрел в настоящий
+    /// файл человека и требовал увидеть там `dry-run`, то есть
+    /// требовал, чтобы мы запрещали выбор «выполнять».
     #[test]
     fn предпросмотр_ничего_не_меняет() {
         let s = State::start();
-        let p = preview_of(&s);
+        let p = preview_из(&s, crate::permissions::Settings::default());
         assert_eq!(p.settings.executor.value, "dry-run");
         assert!(p.settings.warning.is_none());
     }

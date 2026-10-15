@@ -71,6 +71,7 @@ pub fn run() {
             onboarding_commands::onboarding_start,
             onboarding_commands::onboarding_current,
             onboarding_commands::onboarding_say,
+            onboarding_commands::onboarding_confirm,
             onboarding_commands::onboarding_set_tools,
             onboarding_commands::onboarding_folders,
             onboarding_commands::onboarding_set_paths,

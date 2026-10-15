@@ -382,7 +382,24 @@ pub fn engine_status() -> Состояние {
 #[tauri::command]
 pub async fn engine_download_cuda(
     app: tauri::AppHandle,
+    sidecar: tauri::State<'_, crate::model_manager::SidecarState>,
 ) -> Result<Состояние, String> {
+    // Пока модель работает, движок трогать нельзя.
+    //
+    // Windows не даёт перезаписать запущенный файл: `llama-server.exe`
+    // и его DLL держатся процессом. Без этой проверки загрузка
+    // скачала бы 550 МиБ, довела до распаковки и упала бы на
+    // записи — человек увидел бы «не удалось записать
+    // llama-server.exe» и не понял бы, что надо сначала остановить
+    // модель. Замечено 15.10.2026: движок качался при запущенной
+    // модели.
+    if sidecar.is_running() {
+        return Err(
+            "остановите модель: она держит файлы движка, и Windows не даст их заменить"
+                .into(),
+        );
+    }
+
     let отмена = Arc::new(AtomicBool::new(false));
     let сообщить: Ход_Sink = Box::new(move |ход| {
         let _ = app.emit("engine://progress", ход);
