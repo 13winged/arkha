@@ -511,10 +511,29 @@ const pickTools = async () => {
   };
 
   const restart = async () => {
-    setLines([]);
-    setPreview(null);
+    setBusy(true);
     setError(null);
-    setStep(await invoke<OnboardingStep>("onboarding_start", { lang: язык() }));
+    setLines([]);
+    try {
+      const начало = await invoke<OnboardingStep>("onboarding_start", { lang: язык() });
+      // Порядок здесь и есть исправление. Раньше `setPreview(null)`
+      // стояло до `await`, и в промежутке React успевал отрисовать
+      // состояние «шаг summary, итога нет». Эффект загрузки итога
+      // видел ровно это и запрашивал итог у Rust — где знакомство
+      // ещё не было сброшено. Старые данные возвращались и
+      // показывались на первом шаге: человек жал «начать заново»,
+      // а вопросы и папки оставались прежними.
+      //
+      // Теперь сброс идёт первым, и пустого итога при старом шаге
+      // не возникает: либо шаг ещё summary и итог на месте, либо
+      // знакомство уже чистое.
+      setPreview(null);
+      setStep(начало);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (error && !step) {

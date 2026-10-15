@@ -44,8 +44,17 @@ pub const АКТИВ_БИБЛИОТЕКИ: &str = "cudart-llama-bin-win-cuda-13.
 /// Поля латиницей — не из вкуса. `rename_all = "camelCase"`
 /// переводит кириллицу по байтам и падает на границе символа:
 /// макрос падает при компиляции. Это уже проверено на `ГолосСостояние`
-/// в `voice/mod.rs`, и повторять ту же ошибку незачем.
+/// в `voice/mod.rs`, и повторять ту же ошибку незачем. На латинских
+/// именах тот же перевод безопасен и нужен: без него компилятор
+/// ругается на каждое поле.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+// Правило снимается точечно и с объяснением: serde переводит
+// кириллицу по байтам и роняет макрос на границе символа (проверено
+// на ГолосСостояние в oice/mod.rs), поэтому поля латинские. Но
+// латинское имя в camelCase компилятор считает ошибкой стиля, хотя
+// это ровно то, что ждёт интерфейс.
+#[allow(non_snake_case)]
 pub struct Состояние {
     /// Движок найден и его можно запускать.
     pub found: bool,
@@ -130,7 +139,7 @@ pub enum Ход {
 ///
 /// Отдельный тип, а не `downloader::Sink`: тот жёстко зашит на
 /// `Progress` загрузчика моделей и другой тип в него не влезает.
-pub type Ход_Sink = Box<dyn FnMut(Ход) + Send>;
+pub type СтокХода = Box<dyn FnMut(Ход) + Send>;
 
 /// Докачать движок с картой и библиотеки NVIDIA.
 ///
@@ -138,7 +147,7 @@ pub type Ход_Sink = Box<dyn FnMut(Ход) + Send>;
 /// загрузки нет: 550 МиБ — это решение, а не предвестник.
 pub async fn скачать_движок(
     отмена: Arc<AtomicBool>,
-    mut сообщить: Ход_Sink,
+    mut сообщить: СтокХода,
 ) -> Result<(), String> {
     let (nvidia, имя) = карта_nvidia();
     if !nvidia {
@@ -249,7 +258,7 @@ async fn скачать_архив(
     имя: &str,
     актив: &Актив,
     отмена: Arc<AtomicBool>,
-    сообщить: &mut Ход_Sink,
+    сообщить: &mut СтокХода,
 ) -> Result<PathBuf, String> {
     use std::io::Write;
     use futures_util::StreamExt;
@@ -257,7 +266,7 @@ async fn скачать_архив(
     let путь = std::env::temp_dir().join(format!("arkha-{имя}"));
     let _ = std::fs::remove_file(&путь);
 
-    let mut ответ = reqwest::Client::new()
+    let ответ = reqwest::Client::new()
         .get(&актив.адрес)
         .send()
         .await
@@ -401,7 +410,7 @@ pub async fn engine_download_cuda(
     }
 
     let отмена = Arc::new(AtomicBool::new(false));
-    let сообщить: Ход_Sink = Box::new(move |ход| {
+    let сообщить: СтокХода = Box::new(move |ход| {
         let _ = app.emit("engine://progress", ход);
     });
     скачать_движок(отмена, сообщить).await?;
