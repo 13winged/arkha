@@ -977,6 +977,135 @@ function gib(bytes: number): string {
   return `${(bytes / 1024 ** 3).toFixed(2)} ГиБ`;
 }
 
+/// Что приложение знает о движке. Имена полей латиницей — их
+/// отдаёт Rust, и переводить кириллицу на стороне TypeScript
+/// незачем.
+interface EngineState {
+  found: boolean;
+  path: string | null;
+  searched: string[];
+  cudaNeeded: boolean;
+  cudaPresent: boolean;
+  gpuName: string;
+}
+
+type EngineProgress =
+  | { state: "ищем"; assets: string[] }
+  | {
+      state: "качаем";
+      файл: string;
+      downloaded: number;
+      total: number;
+      megabytes_per_s: number;
+    }
+  | { state: "распаковка"; файл: string; куда: string }
+  | { state: "готово"; в_какую_папку: string };
+
+/// Панель движка: что нашлось и чего не хватает.
+///
+/// Показывается всегда, а не только когда что-то сломалось.
+/// Человек должен видеть, что программа работает с процессором и
+/// картой не пользуется, пока он сам этого не попросил.
+function EnginePanel() {
+  const [state, setState] = useState<EngineState | null>(null);
+  const [progress, setProgress] = useState<EngineProgress | null>(null);
+  const [ошибка, setОшибка] = useState<string | null>(null);
+
+  const опросить = () =>
+    invoke<EngineState>("engine_status").then(setState).catch(() => undefined);
+
+  useEffect(() => {
+    опросить();
+  }, []);
+
+  useEffect(() => {
+    const un = listen<EngineProgress>("engine://progress", (e) => {
+      setProgress(e.payload);
+      if (e.payload.state === "готово") опросить();
+    });
+    return () => { un.then((f) => f()); };
+  }, []);
+
+  const качать = async () => {
+    setОшибка(null);
+    setProgress({ state: "ищем", assets: [] });
+    try {
+      const итог = await invoke<EngineState>("engine_download_cuda");
+      setState(итог);
+      setProgress(null);
+    } catch (e) {
+      setProgress(null);
+      setОшибка(String(e));
+    }
+  };
+
+  if (!state) return null;
+
+  const идёт = progress !== null;
+
+  return (
+    <section className="panel">
+      <h2>{t("Движок")}</h2>
+
+      <p className="muted">
+        {state.found
+          ? t("Движок найден. Работает на процессоре.")
+          : t("Движок не найден ни рядом с программой, ни в папке проекта. Модель не запустится.")}
+      </p>
+
+      {state.gpuName && (
+        <p className="muted">{t("Видеокарта: ")}{state.gpuName}</p>
+      )}
+
+      {state.cudaPresent ? (
+        <p className="muted">{t("Библиотеки карты на месте — движок работает на видеокарте.")}</p>
+      ) : state.cudaNeeded ? (
+        <>
+          <p>
+            {t("Видеокарта есть, а библиотек для неё нет: ")}
+            <strong>523 МиБ</strong>
+            {t(". Без них агент пойдёт на процессоре, медленно. Скачивание делаете вы, и только один раз.")}
+          </p>
+          <button onClick={качать} disabled={идёт}>
+            {идёт ? t("Идёт загрузка…") : t("Скачать библиотеки карты")}
+          </button>
+        </>
+      ) : (
+        <p className="muted">
+          {t("Библиотеки карты не нужны: видеокарты NVIDIA на этой машине нет. Модель работает на процессоре.")}
+        </p>
+      )}
+
+      {progress && progress.state === "качаем" && (
+        <p className="muted">
+          {t("Качаем: ")}
+          {(progress.downloaded / 1048576).toFixed(0)}
+          {" / "}
+          {(progress.total / 1048576).toFixed(0)}
+          {" МиБ, "}
+          {progress.megabytes_per_s.toFixed(1)}
+          {" МиБ/с"}
+        </p>
+      )}
+      {progress && progress.state === "распаковка" && (
+        <p className="muted">{t("Распаковываем: ")}{progress.файл}</p>
+      )}
+
+      {ошибка && <p className="muted">{ошибка}</p>}
+
+      {!state.found && (
+        <p className="muted">
+          {t("Искали здесь:")}
+          <br />
+          {state.searched.map((p) => (
+            <span key={p}>{p}</span>
+          ))}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function Downloader({ model }: { model: ModelStatus }) {
   const [repo, setRepo] = useState("unsloth/Qwen3.5-9B-GGUF");
   const [files, setFiles] = useState<RemoteFile[] | null>(null);
@@ -1672,7 +1801,12 @@ function App() {
         {tab === "model" && <ModelBar model={model} onChange={setModel} />}
         {tab === "agent" && <Agent />}
         {tab === "chat" && <Chat model={model} />}
-        {tab === "download" && <Downloader model={model} />}
+        {tab === "download" && (
+          <>
+            <EnginePanel />
+            <Downloader model={model} />
+          </>
+        )}
         {tab === "capabilities" && <Capabilities />}
         {tab === "welcome" && <Welcome />}
         {tab === "settings" && profile && <Settings profile={profile} onChange={setProfile} />}

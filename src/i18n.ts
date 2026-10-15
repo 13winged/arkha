@@ -152,6 +152,29 @@ const EN: Record<string, string> = {
 
   // Загрузка
   "Скачать модель": "Download a model",
+
+  // Движок. Раздел на вкладке «Скачать» идёт перед моделями: без
+  // движка модель не запустится, и человек должен видеть это раньше,
+  // чем список моделей.
+  "Движок": "Engine",
+  "Движок найден. Работает на процессоре.":
+    "Engine found. Running on the processor.",
+  "Движок не найден ни рядом с программой, ни в папке проекта. Модель не запустится.":
+    "No engine found next to the program or in the project folder. The model will not start.",
+  "Видеокарта: ": "Video card: ",
+  "Библиотеки карты на месте — движок работает на видеокарте.":
+    "Card libraries are in place — the engine runs on the graphics card.",
+  "Видеокарта есть, а библиотек для неё нет: ":
+    "A graphics card is present, but its libraries are not: ",
+  ". Без них агент пойдёт на процессоре, медленно. Скачивание делаете вы, и только один раз.":
+    ". Without them the agent runs on the processor, slowly. You start the download yourself, and only once.",
+  "Скачать библиотеки карты": "Download the card libraries",
+  "Идёт загрузка…": "Downloading…",
+  "Качаем: ": "Downloading: ",
+  "Распаковываем: ": "Unpacking: ",
+  "Библиотеки карты не нужны: видеокарты NVIDIA на этой машине нет. Модель работает на процессоре.":
+    "Card libraries are not needed: there is no NVIDIA card on this machine. The model runs on the processor.",
+  "Искали здесь:": "Looked here:",
   "Под текущий профиль нужен квант из списка. Показан размер файла, а не скорость: она станет известна после сверки сводки.":
     "The current profile needs a quant from the list. The file size is shown, not the speed: that only becomes known after checking the summary.",
   "Репозиторий": "Repository",

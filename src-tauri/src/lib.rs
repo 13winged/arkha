@@ -10,6 +10,7 @@ pub mod capabilities;
 pub mod capabilities_commands;
 pub mod chat;
 pub mod downloader;
+pub mod engine;
 pub mod memory;
 pub mod model_manager;
 pub mod onboarding;
@@ -62,6 +63,8 @@ pub fn run() {
             chat::download_hosts,
             chat::download_model,
             chat::cancel_download,
+            engine::engine_status,
+            engine::engine_download_cuda,
             capabilities_commands::capabilities_report,
             capabilities_commands::capabilities_for_model,
             permissions_commands::permission_settings,
