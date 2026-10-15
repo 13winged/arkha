@@ -51,3 +51,6 @@ data/models/*.part
 
 # protoc для сборки candle-onnx: качается scripts/fetch-protoc.ps1
 src-tauri/tools/
+
+# Движок для установщика: качается scripts/fetch-llama.ps1
+src-tauri/resources/bin/
