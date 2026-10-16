@@ -45,6 +45,12 @@ windows = { version = "0.62", features = [
     # UI Automation отдаёт их элементы. Нажатие идёт через
     # InvokePattern, то есть без перехвата фокуса и без координат.
     "Win32_UI_Accessibility",
+    # Запись с микрофона по нажатию клавиши (push-to-talk, решение
+    # 16.10.2026). WASAPI: перечисление устройств, клиент и разбор
+    # смешанного формата. `Win32_Devices_FunctionDiscovery` нужен
+    # ради `EDataFlow` — «захват» против «воспроизведения».
+    "Win32_Media_Audio",
+    "Win32_Devices_FunctionDiscovery",
 ] }
 
 # Лицензии проверены в S2, см. docs/09-лицензии.md.

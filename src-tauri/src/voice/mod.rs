@@ -15,6 +15,7 @@
 
 pub mod stt;
 pub mod tts;
+pub mod record;
 pub mod vad;
 
 use std::path::{Path, PathBuf};
