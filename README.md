@@ -53,7 +53,7 @@ npx tauri build --release
 
 `llama.cpp` binaries are not in the repository — they are several hundred megabytes per architecture. The app looks for them next to the executable and in `data/bin`.
 
-Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (256 unit) · Gates run against live hardware and are started separately, see [Testing](#testing).
+Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (285 unit) · Gates run against live hardware and are started separately, see [Testing](#testing).
 
 ## How it decides what it may do
 
@@ -130,6 +130,14 @@ Gates check the live machine — a real model, a real Chrome window, a real file
 ## Contributing
 
 Issues and pull requests are welcome. `cargo test --lib` and `npx tsc --noEmit` must stay green. Documents live in the repository under `docs/` — the Russian ones are the primary record and the English README mirrors them.
+
+## License
+
+Apache-2.0. The full text is in [LICENSE](./LICENSE), the copyright notice in [NOTICE](./NOTICE).
+
+You may use, modify and redistribute it, including commercially, provided you keep the copyright notice and state what you changed. The trademark and logo are not licensed.
+
+Licenses of everything the project itself depends on — crates, models, scripts — are recorded in [docs/09-лицензии.md](docs/09-лицензии.md). The models are downloaded at runtime by the user and are not part of this repository.
 
 ## Acknowledgment
 

@@ -1,0 +1,12 @@
+ArkHa
+Copyright 2026 13winged
+
+This product includes software developed as part of the Rust and
+JavaScript ecosystems. Their licenses are recorded in
+docs/09-лицензии.md together with the versions actually used;
+the entries there are checked against the upstream LICENSE files,
+not taken on trust.
+
+Nothing in this project is derived from the models it downloads.
+The models are fetched at runtime by the user and are listed, with
+their own licenses, in docs/09-лицензии.md.

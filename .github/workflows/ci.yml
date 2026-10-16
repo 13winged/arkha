@@ -1,0 +1,75 @@
+# Проверки при каждом пуше.
+#
+# Что здесь есть и чего здесь нет — тоже решение, а не недосмотр.
+#
+# Есть: типы интерфейса, модульные тесты Rust, согласованность
+# переводов. Всё это работает без видеокарты, без микрофона и без
+# скачанной модели, поэтому запускается на обычном windows-latest.
+#
+# Нет: гейтов по живому железу. Им нужна видеокарта, микрофон и
+# примерно 30 ГиБ моделей, а результат их работы невоспроизводим
+# на арендованной машине. Гейты живут в docs/24-план-дальше.md и
+# запускаются вручную на своём железе.
+#
+# Отдельная тонкость: `protoc` обязателен. Крейт `candle-onnx`
+# разбирает схемы ONNX на этапе сборки, а `.cargo/config.toml`
+# указывает на `src-tauri/tools/protoc/bin/protoc.exe`, и эта папка
+# в `.gitignore`. Без шага ниже первая же cargo-команда падает с
+# «protoc not found» — и падает непонятно, потому что на машине
+# разработчика protoc уже есть.
+
+name: Проверки
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Два параллельных пуша не должны драться за один и тот же runner.
+concurrency:
+  group: проверки-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  проверки:
+    # Приложение нативное для Windows: проверять его на Linux
+    # бессмысленно, часть крейтов под Windows просто не соберётся.
+    runs-on: windows-latest
+
+    steps:
+      - name: Забрать код
+        uses: actions/checkout@v4
+
+      - name: Поставить Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Кэш сборки Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Поставить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Поставить зависимости
+        run: npm ci
+
+      # До любой cargo-команды. См. объяснение в шапке.
+      - name: Взять protoc
+        shell: powershell
+        run: ./scripts/fetch-protoc.ps1
+
+      - name: Типы интерфейса
+        run: npx tsc --noEmit
+
+      - name: Модульные тесты
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      # Проверка переводов сама возвращает ненулевой код, если строка
+      # вызывается через t(), а в словаре её нет.
+      - name: Переводы
+        run: node scripts/i18n-check.cjs

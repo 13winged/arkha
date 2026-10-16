@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $root = "C:\Users\winged\src\arkha"
 $bin = "$root\data\bin"
 $env:PATH = "$bin\cudart;$env:PATH"

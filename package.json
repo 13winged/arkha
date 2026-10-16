@@ -11,7 +11,8 @@
     "app:dev": "tauri dev",
     "app:build": "tauri build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "check": "tsc --noEmit && cargo build --manifest-path src-tauri/Cargo.toml"
+    "check:i18n": "node scripts/i18n-check.cjs",
+    "check": "tsc --noEmit && node scripts/i18n-check.cjs && cargo build --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {
     "react": "^19.1.0",
