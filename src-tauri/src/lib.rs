@@ -28,8 +28,11 @@ pub mod voice;
 // S1: профиль. S2: модель и чат. S3: возможности и разрешения.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Плагин открытия ссылок здесь стоял и был мёртвым: он
+    // регистрировался, но интерфейс его ни разу не вызывал, то есть
+    // функции «открыть ссылку в браузере» в приложении не было, а
+    // вес крейта оставался. Убран вместе с зависимостями.
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .manage(model_manager::SidecarState::new())
         .manage(chat::ModelState::new())
         .manage(agent_commands::SettingsState::new())

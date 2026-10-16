@@ -22,7 +22,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -46,7 +45,7 @@ windows = { version = "0.62", features = [
     # InvokePattern, то есть без перехвата фокуса и без координат.
     "Win32_UI_Accessibility",
     # Запись с микрофона по нажатию клавиши (push-to-talk, решение
-    # 16.10.2026). WASAPI: перечисление устройств, клиент и разбор
+    # владельца). WASAPI: перечисление устройств, клиент и разбор
     # смешанного формата. `Win32_Devices_FunctionDiscovery` нужен
     # ради `EDataFlow` — «захват» против «воспроизведения».
     "Win32_Media_Audio",
