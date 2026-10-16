@@ -11,12 +11,25 @@
 # на арендованной машине. Гейты живут в docs/24-план-дальше.md и
 # запускаются вручную на своём железе.
 #
-# Отдельная тонкость: `protoc` обязателен. Крейт `candle-onnx`
-# разбирает схемы ONNX на этапе сборки, а `.cargo/config.toml`
-# указывает на `src-tauri/tools/protoc/bin/protoc.exe`, и эта папка
-# в `.gitignore`. Без шага ниже первая же cargo-команда падает с
-# «protoc not found» — и падает непонятно, потому что на машине
-# разработчика protoc уже есть.
+# Две вещи обязательны до любой cargo-команды, и обе получаются
+# скачиванием, поэтому на машине разработчика уже есть, а на
+# арендованной нет.
+#
+# 1. `protoc`. Крейт `candle-onnx` разбирает схемы ONNX на этапе
+#    сборки, а `.cargo/config.toml` указывает на
+#    `src-tauri/tools/protoc/bin/protoc.exe`; папка в `.gitignore`.
+#    Без шага падает с «protoc not found».
+#
+# 2. Движок llama.cpp. `tauri_build::build()` проверяет, что всё из
+#    `bundle.resources` существует, и падает на
+#    «resource path 'resources/bin/LICENSE-llama.cpp' doesn't exist».
+#    Это происходит даже на `cargo test`, хотя тестам движок не
+#    нужен: проверка идёт на этапе сборки, до запуска чего бы то
+#    ни было. Папка `src-tauri/resources/bin` в `.gitignore`, её
+#    наполняет `scripts/fetch-llama.ps1`.
+#
+# Оба шага полезны сами по себе: без них установщик не собрать, а
+# именно его получает человек, скачавший релиз.
 
 name: Проверки
 
@@ -67,6 +80,10 @@ jobs:
       - name: Взять protoc
         shell: powershell
         run: ./scripts/fetch-protoc.ps1
+
+      - name: Взять движок llama.cpp
+        shell: powershell
+        run: ./scripts/fetch-llama.ps1
 
       - name: Типы интерфейса
         run: npx tsc --noEmit
