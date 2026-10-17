@@ -62,8 +62,22 @@ pub fn model_файл() -> Option<PathBuf> {
             eprintln!("гейт на модели {}", кандидат.display());
             return Some(кандидат);
         }
-        eprintln!("ПРОПУЩЕНО: ARKHA_GATE_MODEL={} не найден", кандидат.display());
-        return None;
+        // Раньше здесь был тихий выход, и это стоило неверного
+        // вывода: гейт ничего не делал, а cargo писал «ok». Так
+        // вышло с именем файла вместо пути: путь не нашёлся,
+        // проверка вернулась, и отчёт о зелёном прогоне оказался
+        // правдой о пустом прогоне.
+        let msg = format!(
+            "ARKHA_GATE_MODEL={} не найден. Нужен полный путь к файлу, \
+             не имя: относительный путь ищется от рабочей папки \
+             и не находится",
+            кандидат.display()
+        );
+        if std::env::var("ARKHA_ALLOW_SKIP").is_ok() {
+            eprintln!("ПРОПУЩЕНО: {msg}");
+            return None;
+        }
+        panic!("{msg}");
     }
     let catalog = Catalog::load().ok()?;
     let recipe = catalog.recommended(tier()).or_else(|| catalog.fallback(tier()))?;
