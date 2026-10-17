@@ -650,6 +650,55 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Выбор устройств звука. Ряд в колонку, подпись слева, список
+   справа: подпись короткая, и на широком окне список остаётся
+   читаемым, а не растягивается на всю ширину. */
+.audio-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.audio-label {
+  font-size: calc(var(--кегль, 14px) * 0.679);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Список должен совпадать с остальными полями ввода: тот же кегль,
+   та же рамка, то же состояние «выключено». Иначе он выглядит
+   чужеродно в панели, где всё остальное нарисовано одним. */
+.audio-select {
+  font: inherit;
+  font-size: calc(var(--кегль, 14px) * 0.857);
+  color: var(--text);
+  background: var(--bg, transparent);
+  border: 1px solid var(--line);
+  padding: 7px 9px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.audio-select:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+
+.audio-select:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .audio-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
 .context-row {
   display: flex;
   align-items: baseline;

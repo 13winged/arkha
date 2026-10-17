@@ -39,18 +39,24 @@ pub const МАКСИМУМ: std::time::Duration = std::time::Duration::from_secs
 /// в mmdevapi.h и не менялось. Проверено пробой 16.10.2026: с этим
 /// GUID перечислитель создаётся и микрофон по умолчанию находится,
 /// `{0.0.1.00000000}.{ccc66bc4-6a74-43f9-ac19-615ee751f80f}`.
-const CLSID_МИКРОФОН: windows::core::GUID =
+pub const CLSID_МИКРОФОН: windows::core::GUID =
     windows::core::GUID::from_u128(0xBCDE_0395_E52F_467C_8E3D_C457_9291_692E);
 
 /// `eCapture` в новтипе `EDataFlow(i32)`: 0 — воспроизведение,
 /// 1 — захват, 2 — все.
-const ЗАХВАТ: windows::Win32::Media::Audio::EDataFlow =
+pub const ЗАХВАТ: windows::Win32::Media::Audio::EDataFlow =
     windows::Win32::Media::Audio::EDataFlow(1);
 
 /// `eConsole` в новтипе `ERole(i32)`: 0 — консоль, 1 — мультимедиа,
 /// 2 — связь. Берём консоль: это то, что человек имеет в виду,
 /// когда говорит «микрофон».
-const КОНСОЛЬ: windows::Win32::Media::Audio::ERole = windows::Win32::Media::Audio::ERole(0);
+pub const КОНСОЛЬ: windows::Win32::Media::Audio::ERole = windows::Win32::Media::Audio::ERole(0);
+/// `eRender` в новтипе `EDataFlow(i32)`. Отличается от `ЗАХВАТ`
+/// только значением, но назван отдельно: перечисление устройств
+/// вывода и запись — разные вещи, и путать их в одном месте
+/// нельзя.
+pub const ВОСПРОИЗВЕДЕНИЕ: windows::Win32::Media::Audio::EDataFlow =
+    windows::Win32::Media::Audio::EDataFlow(0);
 
 /// `WAVE_FORMAT_EXTENSIBLE`, mmreg.h. В крейте константы нет.
 /// Значение 0xFFFE, проверено поиском по `windows-0.62.2`.

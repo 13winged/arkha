@@ -50,6 +50,13 @@ windows = { version = "0.62", features = [
     # ради `EDataFlow` — «захват» против «воспроизведения».
     "Win32_Media_Audio",
     "Win32_Devices_FunctionDiscovery",
+    # Выбор устройств звука человеком. `PKEY_Device_FriendlyName`
+    # лежит в `Win32_Devices_FunctionDiscovery` и уже включён, но
+    # тип хранилища свойств приходит из
+    # `Win32_UI_Shell_PropertiesSystem`, а без него не собирается.
+    # Без читаемого имени выбор устройства в настройках
+    # превратился бы в список вида `{0.0.1.00000000}.{ccc66bc4-…}`.
+    "Win32_UI_Shell_PropertiesSystem",
 ] }
 
 # Лицензии проверены в S2, см. docs/09-лицензии.md.

@@ -207,6 +207,21 @@ const EN: Record<string, string> = {
   "отменить": "cancel",
   "загрузка…": "downloading…",
   "голос включён": "voice on",
+
+  // Выбор устройств звука
+  "Звук": "Sound",
+  "устройства звука: …": "sound devices: …",
+  "Микрофон": "Microphone",
+  "Вывод": "Output",
+  "По умолчанию Windows": "Windows default",
+  "по умолчанию": "default",
+  "Без имени": "Unnamed",
+  "Запись и голос идут на те устройства, которые ты выберешь. Системное устройство по умолчанию не меняется — это остаётся в панели Windows.":
+    "Recording and speech go to the devices you pick. The system default is left alone — that stays in the Windows panel.",
+  "В системе нет ни одного микрофона. Запись работать не будет.":
+    "There is no microphone on this system. Recording will not work.",
+  "В системе нет ни одного устройства вывода. Голос не прозвучит.":
+    "There is no output device on this system. Speech will be silent.",
 };
 
 /** Текущий язык. Модульная переменная, а не состояние React. */

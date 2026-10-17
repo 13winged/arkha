@@ -1581,6 +1581,128 @@ interface VoiceState {
  * 8 ГиБ нужно агенту. Выключенный голос не занимает ничего — поэтому
  * он и выключен по умолчанию, а человек включает его на время разговора.
  */
+/** Устройство звука в том виде, как его отдаёт Rust. */
+type AudioDevice = {
+  id: string;
+  имя: string;
+  по_умолчанию: boolean;
+};
+
+/** Что человек выбрал для звука. */
+type AudioChoice = {
+  микрофон: string | null;
+  вывод: string | null;
+  горячая_клавиша: string | null;
+};
+
+type AudioDevices = {
+  микрофоны: AudioDevice[];
+  выводы: AudioDevice[];
+  выбор: AudioChoice | null;
+};
+
+/** Выбор устройств звука.
+ *
+ * Отдельный список на каждое направление, потому что у человека их
+ * два независимо: микрофон один, а наушники и колонки — разные
+ * устройства, и выбирать их надо по отдельности.
+ *
+ * Устройство по умолчанию идёт первым и подписан: иначе человек
+ * ищет его глазами в списке, который Windows отдаёт в случайном
+ * порядке.
+ */
+function AudioSettings() {
+  const [data, setData] = useState<AudioDevices | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const перечитать = () => {
+    invoke<AudioDevices>("voice_devices").then(setData).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    перечитать();
+  }, []);
+
+  async function сохранить(микрофон: string, вывод: string) {
+    setBusy(true);
+    setNote(null);
+    try {
+      await invoke<AudioChoice>("voice_audio_set", {
+        микрофон: микрофон || null,
+        вывод: вывод || null,
+        горячая_клавиша: data?.выбор?.горячая_клавиша ?? null,
+      });
+      перечитать();
+    } catch (e) {
+      // Ошибка показывается текстом и остаётся на экране: молча
+      // сбросить выбор к умолчанию хуже, чем сказать, что не
+      // вышло. Человек ушёл с неверным выбором и не узнает об этом.
+      setNote(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Один список выбора.
+   *
+   * Метка передаётся параметром, а не зашита: списка два, и
+   * зашитая надпись «Микрофон» на списке вывода была бы ошибкой,
+   * которую заметил бы человек, а не компилятор.
+   */
+  function список(
+    устройства: AudioDevice[],
+    выбранное: string,
+    метка: string,
+    подпись: string,
+    onChange: (id: string) => void,
+  ) {
+    return (
+      <div className="audio-row">
+        <label className="audio-label" htmlFor={`audio-${метка}`}>{подпись}</label>
+        <select
+          id={`audio-${метка}`}
+          className="audio-select"
+          value={выбранное}
+          disabled={busy || устройства.length === 0}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">{t("По умолчанию Windows")}</option>
+          {устройства.map((устройство) => (
+            <option key={устройство.id} value={устройство.id}>
+              {устройство.имя || t("Без имени")}
+              {устройство.по_умолчанию ? ` — ${t("по умолчанию")}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (!data) return <section className="panel"><h2>{t("Звук")}</h2><p className="muted">{t("устройства звука: …")}</p></section>;
+
+  const микрофон = data.выбор?.микрофон ?? "";
+  const вывод = data.выбор?.вывод ?? "";
+
+  return (
+    <section className="panel">
+      <h2>{t("Звук")}</h2>
+      <p className="muted">{t("Запись и голос идут на те устройства, которые ты выберешь. Системное устройство по умолчанию не меняется — это остаётся в панели Windows.")}</p>
+
+      {список(data.микрофоны, микрофон, "mic", t("Микрофон"), (id) => сохранить(id, вывод))}
+      {список(data.выводы, вывод, "out", t("Вывод"), (id) => сохранить(микрофон, id))}
+
+      {data.микрофоны.length === 0 && (
+        <p className="error">{t("В системе нет ни одного микрофона. Запись работать не будет.")}</p>
+      )}
+      {data.выводы.length === 0 && (
+        <p className="error">{t("В системе нет ни одного устройства вывода. Голос не прозвучит.")}</p>
+      )}
+      {note && <p className="error">{note}</p>}
+    </section>
+  );
+}
+
 function VoiceToggle() {
   const [state, setState] = useState<VoiceState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1843,7 +1965,12 @@ function App() {
         )}
         {tab === "capabilities" && <Capabilities />}
         {tab === "welcome" && <Welcome />}
-        {tab === "settings" && profile && <Settings profile={profile} onChange={setProfile} />}
+        {tab === "settings" && profile && (
+          <>
+            <Settings profile={profile} onChange={setProfile} />
+            <AudioSettings />
+          </>
+        )}
         {tab === "prefs" && <РазмерШрифта />}
       </section>
 
