@@ -41,7 +41,7 @@ fn гейт_s4_уровни_принимаются_кнопками() {
     s.set_modes(None, Some(ApprovalMode::Risky));
     assert_eq!(s.step, Step::Summary, "оба выбраны — шаг должен закончиться");
 
-    let настройки = s.to_settings();
+    let настройки = s.to_settings_из(Settings::default());
     assert_eq!(
         настройки.executor,
         Executor::DryRun,
@@ -120,7 +120,7 @@ fn гейт_s4_знакомство_собирает_настройки_цели
     assert!(r.summary.contains("Понял"));
 
     // Названия папок должны стать настоящими путями.
-    let settings = s.to_settings();
+    let settings = s.to_settings_из(Settings::default());
     for p in &settings.paths {
         assert!(p.is_dir(), "путь не существует: {}", p.display());
         assert!(p.is_absolute(), "путь не абсолютный: {}", p.display());
@@ -182,7 +182,7 @@ fn гейт_s4_выбор_папок_доходит_до_разрешений() 
     s.set_paths(vec!["Загрузки".into(), "D:\\нет\\такой".into()]);
     assert_eq!(s.step, Step::Levels, "шаг должен сдвинуться");
 
-    let settings = s.to_settings();
+    let settings = s.to_settings_из(Settings::default());
     assert!(!settings.paths.is_empty(), "ни одной папки не записалось");
     for p in &settings.paths {
         assert!(p.is_dir(), "{p:?} не существует");
@@ -201,7 +201,7 @@ fn гейт_s4_весь_диск_доходит_до_разрешений_отд
     s.set_whole_disk(true);
     assert_eq!(s.step, Step::Levels, "включение должно закончить шаг");
 
-    let settings = s.to_settings();
+    let settings = s.to_settings_из(Settings::default());
     assert!(settings.читать_весь_диск, "флаг не дошёл до разрешений");
     assert!(
         settings.paths.is_empty(),
@@ -219,7 +219,7 @@ fn гейт_s4_снятие_всего_диска_не_двигает_шаг() {
 
     s.set_whole_disk(false);
     assert_eq!(s.step, Step::Folders, "снятие галочки не должно двигать шаг");
-    assert!(!s.to_settings().читать_весь_диск);
+    assert!(!s.to_settings_из(Settings::default()).читать_весь_диск);
 }
 
 /// Папок на диске может не оказаться. Тогда выбор пустой и шаг всё
@@ -230,7 +230,7 @@ fn гейт_s4_пустой_выбор_папок_не_ломает_знаком
     s.step = Step::Folders;
     s.set_paths(vec![]);
     assert_eq!(s.step, Step::Levels);
-    assert!(s.to_settings().paths.is_empty());
+    assert!(s.to_settings_из(Settings::default()).paths.is_empty());
 }
 
 /// Подсказки содержат только папки: ни одного имени файла.
@@ -305,7 +305,7 @@ fn гейт_s4_выбор_кнопками_доходит_до_настроек(
     s.set_tools(vec!["chat.local".into()], vec!["files.write".into()]);
     assert_eq!(s.step, Step::Folders,  "шаг должен сдвинуться");
 
-    let settings = s.to_settings();
+    let settings = s.to_settings_из(Settings::default());
     assert_eq!(
         settings.capabilities.get("chat.local").map(|r| r.enabled),
         Some(true),
@@ -330,7 +330,7 @@ fn гейт_s4_выдуманные_идентификаторы_не_попад
         vec!["тоже.нет".into()],
     );
 
-    let settings = s.to_settings();
+    let settings = s.to_settings_из(Settings::default());
     assert!(!settings.capabilities.contains_key("выдуманное.нет"));
     assert!(!settings.capabilities.contains_key("тоже.нет"));
     assert!(settings.capabilities.contains_key("chat.local"));
@@ -346,7 +346,7 @@ fn гейт_s4_включённая_кнопка_действительно_ра
     s.step = Step::Tools;
     s.set_tools(vec!["files.write".into()], vec![]);
 
-    let mut settings = s.to_settings();
+    let mut settings = s.to_settings_из(Settings::default());
     settings.executor = Executor::Live;
 
     assert!(
@@ -365,7 +365,7 @@ fn гейт_s4_неотмеченное_действие_запрещено() {
     s.step = Step::Tools;
     s.set_tools(vec![], vec!["files.write".into()]);
 
-    let mut settings = s.to_settings();
+    let mut settings = s.to_settings_из(Settings::default());
     settings.executor = Executor::Live;
 
     assert!(!settings.allows("files.write").allowed);
