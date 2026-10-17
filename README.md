@@ -53,7 +53,7 @@ npx tauri build --release
 
 `llama.cpp` binaries are not in the repository — they are several hundred megabytes per architecture. The app looks for them next to the executable and in `data/bin`.
 
-Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (285 unit) · Gates run against live hardware and are started separately, see [Testing](#testing).
+Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (302 unit, plus 2 marked `#[ignore]` because they need a real microphone or speakers) · Gates run against live hardware and are started separately, see [Testing](#testing).
 
 ## How it decides what it may do
 
@@ -126,6 +126,13 @@ Gates check the live machine — a real model, a real Chrome window, a real file
 | `s8_gate` | Window reading, launching and control on a live desktop |
 | `uia_gate` | UI Automation tree and button press on a real Chrome |
 | `vision_gate` | Image reading with a separate vision model |
+
+Two ordinary tests need a live machine too, so they are marked `#[ignore]`: recording from a real microphone, and speech on real speakers. Run them by name:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --lib запись_с_настоящего_микрофона -- --ignored
+cargo test --manifest-path src-tauri/Cargo.toml --lib голос_звучит_на_устройстве -- --ignored
+```
 
 ## Contributing
 
