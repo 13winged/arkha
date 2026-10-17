@@ -197,12 +197,21 @@ mod tests {
     use super::*;
 
     /// Запрет по имени и по пути — обе проверки нужны.
+    ///
+    /// Здесь запрет взят из настоящих настроек по умолчанию, а не
+    /// придуман для теста. Проверка идёт именно по имени файла, и
+    /// пока в запрете стоял идентификатор Tauri вместо `arkha.exe`,
+    /// такой тест был зелёным, а защита не работала.
     #[test]
     fn запрет_ловится_по_имени_и_пути() {
-        let запреты = vec!["local.secretary.app".to_string()];
-        assert!(запрещено(&запреты, "local.secretary.app", None).is_some());
-        assert!(запрещено(&запреты, "LOCAL.SECRETARY.APP", None).is_some());
-        assert!(запрещено(&запреты, "secretary", Some(Path::new("C:/x/local.secretary.app.exe"))).is_some());
+        let запреты = crate::permissions::Settings::default().deny_apps;
+        assert!(запрещено(&запреты, "arkha.exe", None).is_some());
+        assert!(запрещено(&запреты, "ARKHA.EXE", None).is_some());
+        assert!(
+            запрещено(&запреты, "arkha", Some(Path::new("C:/Program Files/ArkHa/arkha.exe")))
+                .is_some(),
+            "секретарь не должен проходить по своему пути"
+        );
         assert!(запрещено(&запреты, "notepad", None).is_none());
     }
 

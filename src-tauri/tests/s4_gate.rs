@@ -9,9 +9,9 @@
 
 use arkha_lib::onboarding::{Step, State};
 use arkha_lib::onboarding_commands::{
-    check_applicable, onboarding_folders, preview_of, say_to, view_of,
+    check_applicable, onboarding_folders, preview_из, say_to, view_of,
 };
-use arkha_lib::permissions::{ApprovalMode, Executor};
+use arkha_lib::permissions::{ApprovalMode, Executor, Settings};
 use arkha_lib::profile::{detect_and_persist, Tier};
 
 fn tier() -> Tier {
@@ -248,18 +248,24 @@ fn гейт_s4_подсказки_папок_не_содержат_файлов(
 }
 
 /// Предпросмотр не должен ничего применять и не должен пугать,
-/// пока режим безопасный.
-#[test]
-fn гейт_s4_предпросмотр_безопасен() {
-    let mut s = State::start();
-    s.step = Step::Summary;
-    s.collected.enable = vec!["chat.local".into()];
+    /// пока режим безопасный.
+    ///
+    /// Предпросмотр строится на настройках по умолчанию, а не на
+    /// настоящем файле человека. Гейт звал `preview_of`, который
+    /// читает `%APPDATA%`, и стоило один раз выбрать «выполнять»,
+    /// проверка падала: не знакомство ломало режим, а тест смотрел
+    /// на настройки машины вместо своих.
+    #[test]
+    fn гейт_s4_предпросмотр_безопасен() {
+        let mut s = State::start();
+        s.step = Step::Summary;
+        s.collected.enable = vec!["chat.local".into()];
 
-    let p = preview_of(&s);
-    assert_eq!(p.settings.executor.value, "dry-run");
+        let p = preview_из(&s, Settings::default());
+        assert_eq!(p.settings.executor.value, "dry-run");
     assert!(p.settings.warning.is_none(), "в безопасном режиме пугать нечем");
     assert!(
-        p.settings.deny_apps.contains(&"local.secretary.app".to_string()),
+        p.settings.deny_apps.contains(&"arkha.exe".to_string()),
         "секретарь обязан остаться в запрете после знакомства"
     );
 }

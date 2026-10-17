@@ -241,6 +241,6 @@ mod tests {
         let s = Settings::load().expect("настройки должны читаться");
         let v = view(&s);
         assert!(!v.deny_apps.is_empty());
-        assert!(v.deny_apps.contains(&"local.secretary.app".to_string()));
+        assert!(v.deny_apps.contains(&"arkha.exe".to_string()));
     }
 }
