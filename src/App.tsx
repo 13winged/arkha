@@ -1887,10 +1887,10 @@ function App() {
 
   if (!model) {
     return (
-      <main className="app">
+      <main className="app glitch-on">
         <header className="app-header">
           <div className="brand">
-            <span className="brand-mark">ARKHA</span>
+            <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
             <span className="app-subtitle">{t("локальный секретарь")}</span>
           </div>
         </header>
@@ -1903,10 +1903,10 @@ function App() {
   }
 
   return (
-    <main className="app">
+    <main className="app glitch-on">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">ARKHA</span>
+          <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
           <span className="app-subtitle">{t("локальный секретарь")}</span>
         </div>
         <nav className="tabs">
