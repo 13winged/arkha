@@ -112,8 +112,127 @@
 }
 
 /* ---------------------------------------------------------------
-   Киберпанк: глитч-анимации (этап 3)
+   Киберпанк: сканлинии (этап 6)
    --------------------------------------------------------------- */
+
+.cp-scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    rgba(0, 255, 65, 0.02) 0%,
+    rgba(0, 255, 65, 0.02) 50%,
+    transparent 50%,
+    transparent 100%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 0;
+  animation: cp-scan 10s linear infinite;
+}
+
+@keyframes cp-scan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100vh; }
+}
+
+/* ---------------------------------------------------------------
+   Киберпанк: цифровой шум на фоне панелей (этап 6)
+   --------------------------------------------------------------- */
+
+.cp-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------
+   Киберпанк: угловые скобки (этап 6)
+   --------------------------------------------------------------- */
+
+.cp-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--cp-neon-green);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cp-corner--tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+.cp-corner--tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+.cp-corner--bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+.cp-corner--br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+/* Углы панели в розовом режиме aggressive */
+.glitch-on.glitch-aggressive .cp-corner {
+  border-color: var(--cp-neon-pink);
+  animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
+}
+
+/* ---------------------------------------------------------------
+   Киберпанк: декоративная рамка-чертеж (этап 6)
+   --------------------------------------------------------------- */
+
+.cp-draft-frame {
+  position: relative;
+  padding: 16px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg-2);
+}
+
+.cp-draft-frame::before,
+.cp-draft-frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cp-draft-frame::before {
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border: 1px solid var(--cp-neon-green);
+  opacity: 0.3;
+}
+
+.cp-draft-frame::after {
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 1px solid var(--cp-neon-pink);
+  opacity: 0.15;
+}
+
+/* Глитч усиливает рамку */
+.glitch-on .cp-draft-frame::before {
+  border-color: var(--cp-neon-pink);
+  animation: cp-shake 2s infinite linear alternate-reverse;
+}
+
+/* ---------------------------------------------------------------
+   Киберпанк: анимация шума (случайное мерцание сканлиний)
+   --------------------------------------------------------------- */
+
+.glitch-on .cp-scanlines {
+  animation: cp-scan 6s linear infinite, cp-scan-flicker 0.15s infinite alternate;
+}
+
+@keyframes cp-scan-flicker {
+  0%, 100% { opacity: 0.02; }
+  50% { opacity: 0.06; }
+}
 
 .cp-glitch {
   position: relative;

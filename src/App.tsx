@@ -1933,6 +1933,12 @@ function App() {
   if (!model) {
     return (
       <main className={главныйКласс}>
+        <div className="cp-scanlines" />
+        <div className="cp-noise" />
+        <div className="cp-corner cp-corner--tl" />
+        <div className="cp-corner cp-corner--tr" />
+        <div className="cp-corner cp-corner--bl" />
+        <div className="cp-corner cp-corner--br" />
         <header className="app-header">
           <div className="brand">
             <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
@@ -1949,6 +1955,12 @@ function App() {
 
   return (
     <main className={главныйКласс}>
+      <div className="cp-scanlines" />
+      <div className="cp-noise" />
+      <div className="cp-corner cp-corner--tl" />
+      <div className="cp-corner cp-corner--tr" />
+      <div className="cp-corner cp-corner--bl" />
+      <div className="cp-corner cp-corner--br" />
       <header className="app-header">
         <div className="brand">
           <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
@@ -1997,7 +2009,7 @@ function App() {
         <VoiceToggle />
       </div>
 
-      <section className="app-body">
+      <section className="app-body cp-draft-frame">
         {error && <p className="error">Не удалось определить профиль: {error}</p>}
         {tab === "model" && <ModelBar model={model} onChange={setModel} />}
         {tab === "agent" && <Agent />}
