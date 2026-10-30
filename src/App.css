@@ -41,6 +41,8 @@
  * подпрыгивать по ширине. Моноширинные цифры держат позицию.
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@700&display=swap');
+
 :root {
   /* Основа. Не чёрная: чистый чёрный на OLED даёт banding, а на
      обычном экране — грязь в градиентах. На тон темнее прежнего,
@@ -79,6 +81,34 @@
      как движение, а не как переключение. */
   --ход: 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
   --поворот: 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ------------------------------------------------------------------
+     Cyberpunk-палитра — этап 1 редизайна. Сохраняются старые
+     переменные для совместимости; новые элементы берут --cp-*.
+     Цвета: неоново-зелёный, неоново-розовый, красный, черный, белый.
+     ------------------------------------------------------------------ */
+  --cp-bg: #000000;
+  --cp-bg-2: #0a0a0a;
+  --cp-text: #ffffff;
+  --cp-text-dim: #b3b3b3;
+  --cp-muted: #666666;
+
+  --cp-neon-green: #00ff41;
+  --cp-neon-pink: #ff00ff;
+  --cp-neon-red: #ff0000;
+
+  --cp-line: rgba(0, 255, 65, 0.12);
+  --cp-line-2: rgba(255, 0, 255, 0.12);
+  --cp-panel: rgba(0, 255, 65, 0.04);
+  --cp-panel-2: rgba(255, 0, 255, 0.02);
+
+  /* Глитч-параметры: управляются классом .glitch-on на корне.
+     intensity — сила сдвига в пикселях, dur — длительность кадра. */
+  --cp-glitch-dur: 0.25s;
+  --cp-glitch-intensity: 3px;
+
+  --cp-font-mono: 'Share Tech Mono', ui-monospace, monospace;
+  --cp-font-display: 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ---------------------------------------------------------------
@@ -93,8 +123,8 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--cp-bg, var(--bg));
+  color: var(--cp-text, var(--text));
   font-family: "Segoe UI", system-ui, sans-serif;
   /* Кегль задаётся переменной: вкладка настроек меняет его одним
      присваиванием, и весь интерфейс едет за ним без перезагрузки. */
@@ -135,8 +165,8 @@ body {
   align-items: center;
   gap: 18px;
   padding: 12px 18px 10px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent);
+  border-bottom: 1px solid var(--cp-line, var(--line));
+  background: linear-gradient(180deg, rgba(0, 255, 65, 0.03), transparent);
 }
 
 /* Марка. Золото только здесь и на активной вкладке — два места на
@@ -150,11 +180,27 @@ body {
 }
 
 .brand-mark {
-  font-size: calc(var(--кегль, 14px) * 1.071);
+  font-family: var(--cp-font-display);
+  font-size: calc(var(--кегль, 14px) * 1.143);
   font-weight: 700;
-  letter-spacing: 0.3em;
-  color: var(--gold-lit);
-  text-indent: 0.3em;
+  letter-spacing: 0.45em;
+  color: var(--cp-neon-green);
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.9), 0 0 24px rgba(0, 255, 65, 0.4);
+  text-indent: 0.45em;
+}
+
+.brand-mark::before {
+  content: "«";
+  color: var(--cp-neon-pink);
+  margin-right: 6px;
+  text-shadow: none;
+}
+
+.brand-mark::after {
+  content: "»";
+  color: var(--cp-neon-pink);
+  margin-left: 6px;
+  text-shadow: none;
 }
 
 .app-subtitle {
@@ -314,21 +360,25 @@ body {
    --------------------------------------------------------------- */
 
 h2 {
-  margin: 0 0 12px;
-  font-size: calc(var(--кегль, 14px) * 0.857);
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  margin: 0 0 14px;
+  font-family: var(--cp-font-display);
+  font-size: calc(var(--кегль, 14px) * 0.929);
+  font-weight: 700;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--cp-neon-green);
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.6), 0 0 14px rgba(0, 255, 65, 0.3);
 }
 
 h3 {
   margin: 0 0 10px;
-  font-size: calc(var(--кегль, 14px) * 0.786);
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.857);
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--cp-neon-pink);
+  text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
 }
 
 .muted {
