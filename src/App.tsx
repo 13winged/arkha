@@ -1601,6 +1601,11 @@ type AudioDevices = {
   выбор: AudioChoice | null;
 };
 
+/** Тема оформления: режим глитча. */
+type AudioTheme = {
+  глитч: string | null;
+};
+
 /** Выбор устройств звука.
  *
  * Отдельный список на каждое направление, потому что у человека их
@@ -1611,7 +1616,13 @@ type AudioDevices = {
  * ищет его глазами в списке, который Windows отдаёт в случайном
  * порядке.
  */
-function AudioSettings() {
+function AudioSettings({
+  глитч,
+  установитьГлитч,
+}: {
+  глитч: string | null;
+  установитьГлитч: (режим: string) => void;
+}) {
   const [data, setData] = useState<AudioDevices | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -1635,21 +1646,13 @@ function AudioSettings() {
       });
       перечитать();
     } catch (e) {
-      // Ошибка показывается текстом и остаётся на экране: молча
-      // сбросить выбор к умолчанию хуже, чем сказать, что не
-      // вышло. Человек ушёл с неверным выбором и не узнает об этом.
       setNote(String(e));
     } finally {
       setBusy(false);
     }
   }
 
-  /** Один список выбора.
-   *
-   * Метка передаётся параметром, а не зашита: списка два, и
-   * зашитая надпись «Микрофон» на списке вывода была бы ошибкой,
-   * которую заметил бы человек, а не компилятор.
-   */
+  /** Один список выбора. */
   function список(
     устройства: AudioDevice[],
     выбранное: string,
@@ -1679,6 +1682,33 @@ function AudioSettings() {
     );
   }
 
+  /** Переключатель режима глитча: три кнопки, активная подсвечена. */
+  function переключательГлитча(текущий: string | null) {
+    const режимы: Array<[string, string]> = [
+      ["none", t("Выкл")],
+      ["subtle", t("Тонко")],
+      ["aggressive", t("Агрессивно")],
+    ];
+    return (
+      <div className="glitch-toggle">
+        <label className="audio-label">{t("Глитч-эффекты")}</label>
+        <div className="glitch-buttons">
+          {режимы.map(([значение, метка]) => (
+            <button
+              key={значение}
+              type="button"
+              className={`glitch-btn${текущий === значение ? " glitch-btn-active" : ""}`}
+              disabled={busy}
+              onClick={() => установитьГлитч(значение)}
+            >
+              {метка}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!data) return <section className="panel"><h2>{t("Звук")}</h2><p className="muted">{t("устройства звука: …")}</p></section>;
 
   const микрофон = data.выбор?.микрофон ?? "";
@@ -1691,6 +1721,8 @@ function AudioSettings() {
 
       {список(data.микрофоны, микрофон, "mic", t("Микрофон"), (id) => сохранить(id, вывод))}
       {список(data.выводы, вывод, "out", t("Вывод"), (id) => сохранить(микрофон, id))}
+
+      {переключательГлитча(глитч ?? "none")}
 
       {data.микрофоны.length === 0 && (
         <p className="error">{t("В системе нет ни одного микрофона. Запись работать не будет.")}</p>
@@ -1861,6 +1893,7 @@ function App() {
   // модульную переменную, и React об этом не знает. Подписка шлёт
   // событие, подписчик меняет состояние, дерево перерисовывается.
   const [, перерисовать] = useState(0);
+  const [глитчРежим, setГлитчРежим] = useState<string | null>(null);
 
   useEffect(() => {
     восстановитьЯзык();
@@ -1868,6 +1901,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    invoke<AudioTheme>("voice_theme_settings").then((т) => setГлитчРежим(т.глитч ?? null)).catch(() => undefined);
     invoke<ProfileView>("get_profile").then(setProfile).catch((e) => setError(String(e)));
     invoke<ModelStatus>("model_status").then(setModel).catch(() => undefined);
 
@@ -1885,9 +1919,20 @@ function App() {
     return () => clearInterval(опрос);
   }, []);
 
+  async function установитьГлитч(режим: string) {
+    try {
+      const следующий = await invoke<AudioTheme>("voice_theme_set", { глитч: режим });
+      setГлитчРежим(следующий.глитч ?? null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  const главныйКласс = `app glitch-on${глитчРежим && глитчРежим !== "none" ? ` glitch-${глитчРежим}` : ""}`;
+
   if (!model) {
     return (
-      <main className="app glitch-on">
+      <main className={главныйКласс}>
         <header className="app-header">
           <div className="brand">
             <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
@@ -1903,7 +1948,7 @@ function App() {
   }
 
   return (
-    <main className="app glitch-on">
+    <main className={главныйКласс}>
       <header className="app-header">
         <div className="brand">
           <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
@@ -1968,7 +2013,7 @@ function App() {
         {tab === "settings" && profile && (
           <>
             <Settings profile={profile} onChange={setProfile} />
-            <AudioSettings />
+            <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
           </>
         )}
         {tab === "prefs" && <РазмерШрифта />}

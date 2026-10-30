@@ -192,6 +192,49 @@
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
+/* Переключатель глитча в настройках звука. */
+.glitch-toggle {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cp-line, var(--line));
+}
+
+.glitch-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.glitch-btn {
+  appearance: none;
+  background: var(--cp-bg-2, var(--bg-2));
+  border: 1px solid var(--cp-line, var(--line));
+  color: var(--cp-text, var(--text));
+  font: inherit;
+  font-size: calc(var(--кегль, 14px) * 0.714);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color var(--ход), color var(--ход);
+}
+
+.glitch-btn:hover {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+}
+
+.glitch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glitch-btn-active {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+}
+
 /* Режимы интенсивности через класс на корне (.glitch-on.glitch-subtle и т.д.) */
 .glitch-on.glitch-subtle {
   --cp-glitch-dur: 5s;

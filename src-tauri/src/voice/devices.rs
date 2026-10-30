@@ -106,6 +106,48 @@ pub fn выбранный_вывод() -> Option<String> {
     настройки().вывод
 }
 
+/// /// Тема оформления: глитч-эффекты и прочее визуальное.
+/// Хранятся отдельно от звука — это предпочтения интерфейса,
+/// а не выбор оборудования.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Тема {
+    /// Режим глитча: `none`, `subtle` или `aggressive`.
+    /// `None` — отключено, работает как раньше.
+    #[serde(default)]
+    pub глитч: Option<String>,
+}
+
+/// Куда лежат настройки темы: `%APPDATA%\ArkHa\theme.json`.
+pub fn путь_темы() -> PathBuf {
+    crate::profile::config_dir().join("theme.json")
+}
+
+/// Прочитать выбор темы. Отсутствие файла — не ошибка.
+pub fn тема() -> Тема {
+    let Ok(текст) = std::fs::read_to_string(путь_темы()) else {
+        return Тема::default();
+    };
+    serde_json::from_str(&текст).unwrap_or_default()
+}
+
+/// Сохранить выбор темы.
+pub fn сохранить_тему(тема: &Тема) -> Result<(), String> {
+    let путь = путь_темы();
+    if let Some(родитель) = путь.parent() {
+        std::fs::create_dir_all(родитель)
+            .map_err(|e| format!("папка настроек темы не создалась: {e}"))?;
+    }
+    let текст = serde_json::to_string_pretty(тема)
+        .map_err(|e| format!("настройки темы не записались: {e}"))?;
+    std::fs::write(&путь, текст)
+        .map_err(|e| format!("настройки темы не записались {}: {e}", путь.display()))
+}
+
+/// Какой режим глитча выбран.
+pub fn выбранный_глитч() -> Option<String> {
+    тема().глитч
+}
+
 /// Перечислить микрофоны.
 pub fn микрофоны() -> Result<Vec<Устройство>, String> {
     перечислить(super::record::ЗАХВАТ)

@@ -208,6 +208,12 @@ const EN: Record<string, string> = {
   "загрузка…": "downloading…",
   "голос включён": "voice on",
 
+  // Тема оформления и глитч-эффекты
+  "Глитч-эффекты": "Glitch effects",
+  "Выкл": "Off",
+  "Тонко": "Subtle",
+  "Агрессивно": "Aggressive",
+
   // Выбор устройств звука
   "Звук": "Sound",
   "устройства звука: …": "sound devices: …",

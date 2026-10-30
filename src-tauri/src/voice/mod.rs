@@ -380,6 +380,32 @@ pub fn voice_audio_set(микрофон: Option<String>, вывод: Option<Stri
     Ok(выбор)
 }
 
+/// Команда: какая тема оформления выбрана.
+#[tauri::command]
+pub fn voice_theme_settings() -> devices::Тема {
+    devices::тема()
+}
+
+/// Команда: сохранить режим глитча.
+/// Допустимые значения: `none`, `subtle`, `aggressive`. Любое другое
+/// значение считается неверным и отвергается с текстом, чтобы
+/// интерфейс не отправил в CSS мусор.
+#[tauri::command]
+pub fn voice_theme_set(глитч: Option<String>) -> Result<devices::Тема, ГолосОшибка> {
+    let тема = devices::Тема { глитч };
+
+    if let Some(режим) = &тема.глитч {
+        if !matches!(режим.as_str(), "none" | "subtle" | "aggressive") {
+            return Err(ошибка(format!(
+                "неизвестный режим глитча «{режим}»: допустимы none, subtle, aggressive"
+            )));
+        }
+    }
+
+    devices::сохранить_тему(&тема).map_err(ошибка)?;
+    Ok(тема)
+}
+
 /// Каким микрофоном писать: тот, что выбрал человек.
 ///
 /// Микрофон — настройка человека, и молча взять другой значило бы

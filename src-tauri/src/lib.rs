@@ -55,6 +55,8 @@ pub fn run() {
             voice::voice_devices,
             voice::voice_audio_settings,
             voice::voice_audio_set,
+            voice::voice_theme_settings,
+            voice::voice_theme_set,
             chat::start_model,
             chat::stop_model,
             chat::model_status,
