@@ -173,7 +173,7 @@
 .cp-corner--br { bottom: 0; right: 0; border-left: none; border-top: none; }
 
 /* Углы панели в розовом режиме aggressive */
-.glitch-on.glitch-aggressive .cp-corner {
+.glitch-aggressive .cp-corner {
   border-color: var(--cp-neon-pink);
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
@@ -216,7 +216,7 @@
 }
 
 /* Глитч усиливает рамку */
-.glitch-on .cp-draft-frame::before {
+.glitch-aggressive .cp-draft-frame::before {
   border-color: var(--cp-neon-pink);
   animation: cp-shake 2s infinite linear alternate-reverse;
 }
@@ -225,7 +225,9 @@
    Киберпанк: анимация шума (случайное мерцание сканлиний)
    --------------------------------------------------------------- */
 
-.glitch-on .cp-scanlines {
+/* Анимация шума (случайное мерцание сканлиний) — только в режиме глитча */
+.glitch-subtle .cp-scanlines,
+.glitch-aggressive .cp-scanlines {
   animation: cp-scan 6s linear infinite, cp-scan-flicker 0.15s infinite alternate;
 }
 
@@ -239,8 +241,9 @@
   display: inline-block;
 }
 
-/* Тряска основного текста — работает на любом элементе с .cp-glitch */
-.glitch-on .cp-glitch {
+/* Тряска основного текста — работает когда выбран режим глитча */
+.glitch-subtle .cp-glitch,
+.glitch-aggressive .cp-glitch {
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
@@ -259,8 +262,10 @@
 
 /* RGB-split копии текста через псевдоэлементы.
    Требуют атрибута data-glitch-text на элементе. */
-.glitch-on .cp-glitch::before,
-.glitch-on .cp-glitch::after {
+.glitch-subtle .cp-glitch::before,
+.glitch-subtle .cp-glitch::after,
+.glitch-aggressive .cp-glitch::before,
+.glitch-aggressive .cp-glitch::after {
   content: attr(data-glitch-text);
   position: absolute;
   top: 0;
@@ -272,7 +277,8 @@
   z-index: -1;
 }
 
-.glitch-on .cp-glitch::before {
+.glitch-subtle .cp-glitch::before,
+.glitch-aggressive .cp-glitch::before {
   color: var(--cp-neon-red);
   left: var(--cp-glitch-intensity);
   text-shadow: 1px 0 var(--cp-neon-pink);
@@ -280,7 +286,8 @@
   animation: cp-glitch-red var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
-.glitch-on .cp-glitch::after {
+.glitch-subtle .cp-glitch::after,
+.glitch-aggressive .cp-glitch::after {
   color: var(--cp-neon-pink);
   left: calc(var(--cp-glitch-intensity) * -1);
   text-shadow: -1px 0 var(--cp-neon-green);
@@ -306,8 +313,10 @@
 }
 
 /* Заголовки тоже трясутся, без правки каждого в App.tsx */
-.glitch-on h2,
-.glitch-on h3 {
+.glitch-subtle h2,
+.glitch-aggressive h2,
+.glitch-subtle h3,
+.glitch-aggressive h3 {
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
@@ -354,18 +363,18 @@
   box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
-/* Режимы интенсивности через класс на корне (.glitch-on.glitch-subtle и т.д.) */
-.glitch-on.glitch-subtle {
+/* Режимы интенсивности — класс прямо на корне (.glitch-subtle или .glitch-aggressive) */
+.glitch-subtle {
   --cp-glitch-dur: 5s;
   --cp-glitch-intensity: 1px;
 }
 
-.glitch-on.glitch-aggressive {
+.glitch-aggressive {
   --cp-glitch-dur: 0.2s;
   --cp-glitch-intensity: 5px;
 }
 
-/* Режим по умолчанию, если корень просто .glitch-on без уточнения */
+/* Режим по умолчанию — анимации отключены */
 .glitch-on:not(.glitch-subtle):not(.glitch-aggressive) {
   --cp-glitch-dur: 1.5s;
   --cp-glitch-intensity: 3px;
@@ -743,13 +752,15 @@ h3 {
 }
 
 /* При активном глитче уголки панели мигают розовым. */
-.glitch-on .panel::before,
-.glitch-on .panel::after {
+.glitch-subtle .panel::before,
+.glitch-subtle .panel::after,
+.glitch-aggressive .panel::before,
+.glitch-aggressive .panel::after {
   border-color: var(--cp-neon-pink);
 }
 
-.glitch-on.glitch-aggressive .panel::before,
-.glitch-on.glitch-aggressive .panel::after {
+.glitch-aggressive .panel::before,
+.glitch-aggressive .panel::after {
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 

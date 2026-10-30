@@ -1932,9 +1932,8 @@ function App() {
 
   if (!model) {
     return (
-      <main className={главныйКласс}>
+      <main className={главныйКласс.replace(" glitch-on", "")}>
         <div className="cp-scanlines" />
-        <div className="cp-noise" />
         <div className="cp-corner cp-corner--tl" />
         <div className="cp-corner cp-corner--tr" />
         <div className="cp-corner cp-corner--bl" />
@@ -1954,9 +1953,8 @@ function App() {
   }
 
   return (
-    <main className={главныйКласс}>
+    <main className={главныйКласс.replace(" glitch-on", "")}>
       <div className="cp-scanlines" />
-      <div className="cp-noise" />
       <div className="cp-corner cp-corner--tl" />
       <div className="cp-corner cp-corner--tr" />
       <div className="cp-corner cp-corner--bl" />
