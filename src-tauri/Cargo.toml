@@ -4,8 +4,6 @@ version = "0.1.1"
 description = "Локальный ИИ-секретарь для Windows"
 authors = ["ArkHa"]
 edition = "2024"
-# Все зависимости проверяются по лицензии до добавления.
-# Список и результаты проверки: docs/09-лицензии.md
 license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -24,40 +22,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-# Лицензия MIT OR Apache-2.0, проверено в S0.
-# docs/09-лицензии.md, раздел «UI Automation из Rust».
-windows = { version = "0.62", features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Dxgi",
-    "Win32_Graphics_Direct3D",
-    "Win32_System_SystemInformation",
-    "Win32_System_Threading",
-    # S8: чтение окон, фокус, ввод с клавиатуры и мыши.
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_System_Com",
-    "Win32_System_LibraryLoader",
-    # S8: дерево доступности. Нужно для приложений, которые рисуют
-    # интерфейс сами: Chrome, Telegram, VS Code. У них нет дочерних
-    # окон Win32, поэтому поиск по EnumChildWindows их не находит, а
-    # UI Automation отдаёт их элементы. Нажатие идёт через
-    # InvokePattern, то есть без перехвата фокуса и без координат.
-    "Win32_UI_Accessibility",
-    # Запись с микрофона по нажатию клавиши (push-to-talk, решение
-    # владельца). WASAPI: перечисление устройств, клиент и разбор
-    # смешанного формата. `Win32_Devices_FunctionDiscovery` нужен
-    # ради `EDataFlow` — «захват» против «воспроизведения».
-    "Win32_Media_Audio",
-    "Win32_Devices_FunctionDiscovery",
-    # Выбор устройств звука человеком. `PKEY_Device_FriendlyName`
-    # лежит в `Win32_Devices_FunctionDiscovery` и уже включён, но
-    # тип хранилища свойств приходит из
-    # `Win32_UI_Shell_PropertiesSystem`, а без него не собирается.
-    # Без читаемого имени выбор устройства в настройках
-    # превратился бы в список вида `{0.0.1.00000000}.{ccc66bc4-…}`.
-    "Win32_UI_Shell_PropertiesSystem",
-] }
 
 # Лицензии проверены в S2, см. docs/09-лицензии.md.
 # В reqwest 0.13 фичи переименованы: rustls вместо rustls-tls,
@@ -78,19 +42,18 @@ sha2 = "0.11"
 # MIT, snakers4/silero-vad. candle — MIT OR Apache-2.0 (проверено
 # по манифесту и LICENSE в репозитории huggingface/candle 14.10.2026,
 # docs/09-лицензии.md, раздел «VAD»).
-#
 # Почему ONNX, а не Silero через PyTorch: приложение должно
 # собираться в один установщик без Python на машине пользователя.
 candle-onnx = { version = "0.11", default-features = false }
 
 # Тензоры и устройства. Прямая зависимость, а не через candle-onnx:
-# `Tensor` нужен нам в коде, и объявлять чужой транзитивный крейт
-# своей прямой зависимостью нельзя — версия обязана совпадать.
+# Tensor нужен нам в коде, и объявлять чужой транзитивный крейт
+# своей прямой зависимостью нельзя — версия обядина совпадать.
 candle-core = { version = "0.11", default-features = false }
 
-# Разбор ONNX-файла. `prost` — то, чем сам candle-onnx читает
-# `ModelProto`, и его версия обязана совпадать с той, на которой
-# собран candle-onnx: 0.11 тянет prost ^0.14. Лицензия Apache-2.0.
+# Разбор ONNX-файла. prost — тем, чем сам candle-onnx читает
+# ModelProto, и его версия обязана совпадать с той, на которой
+# собран candle-onnx: 0.11 тянетprost ^0.14. Лицензия Apache-2.0.
 prost = "0.14"
 
 # Распаковка движка с картой: приложение само разбирает архив
@@ -100,16 +63,40 @@ prost = "0.14"
 # контрольной сборки известно, что candle в установщик не попадает.
 zip = "8"
 
-# Гейту нужен `HWND`, а его тип определён в крейте `windows`.
+# Гейту нужен HWND, а его тип определён в крейте windows.
 # Дублировать его ради теста нельзя: два разных определения одного
 # дескриптора не совпадут, и компилятор об этом не предупредит.
-# Тот же крейт, те же лицензии — см. docs/09-лицензии.md.
+# Тот же крейк, те же лицензии — см. docs/09-лицензии.md.
+# Windows-only krest: moved to platform-specific section
 
 rubato = "5.0.1"
 rayon = "1.12.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 audioadapter-buffers = "5"
+
+# Platform-specific dependencies
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Direct3D",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Accessibility",
+    "Win32_Media_Audio",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_UI_Shell_PropertiesSystem",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = "0.15"
+libc = "0.2"
+x11 = "2.21"
+
 [dev-dependencies]
 criterion = "0.8.2"
-windows = { version = "0.62", features = ["Win32_Foundation"] }

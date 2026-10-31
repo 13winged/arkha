@@ -19,6 +19,8 @@ pub mod devices;
 pub mod hotkey;
 pub mod play;
 pub mod record;
+pub mod record_linux;
+pub mod hotkey_linux;
 pub mod vad;
 
 use std::path::{Path, PathBuf};
