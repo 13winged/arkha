@@ -24,9 +24,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use rubato::{Fft, FixedSync, Resampler};
-use audioadapter_buffers::owned::InterleavedOwned;
-
 /// Частота, которую ждут распознавание и синтез. Всё приводится к
 /// ней: моно, 16 кГц, f32.
 pub const ЧАСТОТА: u32 = 16_000;
@@ -639,20 +636,20 @@ pub fn пересчитать_из(образцы: &[f32], из: u32, в: u32) -
     if из == в || образцы.is_empty() {
         return образцы.to_vec();
     }
-
-    // rubato: sinc-интерполяция с антиалиасингом вместо линейной.
-    // Линейная интерполяция складывает верхний спектр обратно в
-    // голос, что даёт шум и ложные срабатывания VAD. rubato считает
-    // через окно синуса, что чисто отделяет полосы.
-    let выходная_длина = (образцы.len() as f64 * в as f64 / из as f64).round() as usize;
-    let mut ресемплер = Fft::<f32>::new(из, в, образцы.len(), 1, FixedSync::Output)
-        .expect("ресемплер: неверные параметры");
-    let mut вход = InterleavedOwned::new(vec![образцы.to_vec()], 1);
-    let mut выход = InterleavedOwned::new(vec![vec![0.0f32; выходная_длина]], 1);
-    ресемплер
-        .process_into_buffer(&mut вход, &mut выход, None)
-        .expect("ресемплер: обработка не удалась");
-    выход.into_iter().next().unwrap_or_default()
+    // Линейный ресемплер (простой, без внешних зависимостей)
+    let шаг = из as f64 / в as f64;
+    let сколько = ((образцы.len() as f64) / шаг).round() as usize;
+    let последний = образцы.len() - 1;
+    let mut выход = Vec::with_capacity(сколько);
+    for n in 0..сколько {
+        let позиция = n as f64 * шаг;
+        let целая = (позиция.floor() as usize).min(последний);
+        let дробная = (позиция - целая as f64) as f32;
+        let левый = образцы[целая];
+        let правый = образцы[(целая + 1).min(последний)];
+        выход.push(левый + (правый - левый) * дробная);
+    }
+    выход
 }
 
 /// Записать образцы в несжатый WAV: 16 бит, один канал, 16 кГц.

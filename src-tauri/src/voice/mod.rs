@@ -28,8 +28,9 @@ use std::process::Child;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
+use rayon::prelude::ParallelSlice;
 use serde::Serialize;
-use tracing::{debug, instrument};
+use tracing::{debug};
 
 /// Ошибка голоса. Отдельный тип, чтобы интерфейс отличал «не
 /// получилось» от «получилось, но человек этого ещё не разрешал».
@@ -61,6 +62,7 @@ pub struct ГолосСостояние {
 }
 
 /// Общее состояние голоса на всё приложение.
+#[derive(Debug)]
 pub struct Голос {
     /// Поднятый сервер распознавания, если он есть.
     процесс: Mutex<Option<Child>>,
@@ -447,7 +449,7 @@ fn разобрать_запись(г: &Голос, звук: Vec<f32>) -> Resul
     // взято с замера тишины комнаты на этой машине.
     // Считаем параллельно по окнам: rayon разбивает буфер на части
     // и считает сумму квадратов в каждом потоке отдельно.
-    use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+    use rayon::iter::ParallelIterator;
     let сумма: f64 = звук
         .par_chunks(4096)
         .map(|часть| часть.iter().map(|с| (*с as f64) * (*с as f64)).sum::<f64>())
