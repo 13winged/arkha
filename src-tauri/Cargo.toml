@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "arkha"
 version = "0.1.1"
 description = "Локальный ИИ-секретарь для Windows"
@@ -104,5 +104,12 @@ zip = "8"
 # Дублировать его ради теста нельзя: два разных определения одного
 # дескриптора не совпадут, и компилятор об этом не предупредит.
 # Тот же крейт, те же лицензии — см. docs/09-лицензии.md.
+
+rubato = "5.0.1"
+rayon = "1.12.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+audioadapter-buffers = "5"
 [dev-dependencies]
+criterion = "0.8.2"
 windows = { version = "0.62", features = ["Win32_Foundation"] }

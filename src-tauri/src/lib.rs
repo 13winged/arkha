@@ -28,6 +28,13 @@ pub mod voice;
 // S1: профиль. S2: модель и чат. S3: возможности и разрешения.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Трейсинг для диагностики задержек в цепочке запись → VAD → STT → LLM → TTS.
+    // Пишет в stderr; уровень берется из переменной ARKHA_LOG (по умолчанию info).
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+    tracing::info!("аркха: запуск");
+
     // Плагин открытия ссылок здесь стоял и был мёртвым: он
     // регистрировался, но интерфейс его ни разу не вызывал, то есть
     // функции «открыть ссылку в браузере» в приложении не было, а

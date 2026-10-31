@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
 use serde::Serialize;
+use tracing::{debug, instrument};
 
 /// Ошибка голоса. Отдельный тип, чтобы интерфейс отличал «не
 /// получилось» от «получилось, но человек этого ещё не разрешал».
@@ -142,6 +143,7 @@ impl Default for Голос {
 
 /// Команда: что с голосом.
 #[tauri::command]
+#[tracing::instrument(skip(г))]
 pub fn voice_status(г: tauri::State<'_, Голос>) -> ГолосСостояние {
     г.состояние()
 }
@@ -150,14 +152,18 @@ pub fn voice_status(г: tauri::State<'_, Голос>) -> ГолосСостоя�
 ///
 /// Голос включается по нажатию человека, и это единственный вход.
 #[tauri::command]
+#[tracing::instrument(skip(г))]
 pub fn voice_enable(г: tauri::State<'_, Голос>) -> Result<ГолосСостояние, ГолосОшибка> {
+    debug!("голос: включить");
     stt::включить(&г)?;
     Ok(г.состояние())
 }
 
 /// Команда: выключить голос и освободить место.
 #[tauri::command]
+#[tracing::instrument(skip(г))]
 pub fn voice_disable(г: tauri::State<'_, Голос>) -> ГолосСостояние {
+    debug!("голос: выключить");
     stt::выключить(&г);
     г.состояние()
 }
@@ -177,7 +183,9 @@ pub struct Сказано {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(г, текст), fields(текст_длина = текст.len()))]
 pub fn voice_say(г: tauri::State<'_, Голос>, текст: String) -> Result<Сказано, ГолосОшибка> {
+    debug!("голос: синтез, {} символов", текст.len());
     let (путь, размер) = tts::синтез(&г, &текст)?;
 
     // Голос играется сразу, на устройстве, которое назвал
@@ -198,7 +206,9 @@ pub fn voice_say(г: tauri::State<'_, Голос>, текст: String) -> Result
 
 /// Команда: распознать записанный звук.
 #[tauri::command]
+#[tracing::instrument(skip(г), fields(путь = путь.as_str()))]
 pub fn voice_hear(г: tauri::State<'_, Голос>, путь: String) -> Result<String, ГолосОшибка> {
+    debug!("голос: распознать {}", путь);
     stt::распознать(&г, Path::new(&путь))
 }
 
@@ -226,13 +236,17 @@ pub struct Диктовка {
 /// человек говорит в другое окно. Эта команда нужна для проверки
 /// вручную и для интерфейса, который сам хочет управлять записью.
 #[tauri::command]
+#[tracing::instrument]
 pub fn voice_record_start() -> Result<(), ГолосОшибка> {
+    debug!("запись: старт по клавише");
     record::начать(микрофон_из_настроек()).map_err(ошибка)
 }
 
 /// Команда: остановить запись, распознать и вернуть текст.
 #[tauri::command]
+#[tracing::instrument]
 pub fn voice_record_stop(г: tauri::State<'_, Голос>) -> Result<Диктовка, ГолосОшибка> {
+    debug!("запись: стоп и распознать");
     let звук = record::остановить().map_err(ошибка)?;
     разобрать_запись(&г, звук)
 }
@@ -429,7 +443,13 @@ fn разобрать_запись(г: &Голос, звук: Vec<f32>) -> Resul
     // Был ли вообще звук. Порог низкий и осознанный: тишина комнаты
     // даёт среднеквадратное около 0.00005, а речь — единицы. Число
     // взято с замера тишины комнаты на этой машине.
-    let сумма: f64 = звук.iter().map(|с| (*с as f64) * (*с as f64)).sum();
+    // Считаем параллельно по окнам: rayon разбивает буфер на части
+    // и считает сумму квадратов в каждом потоке отдельно.
+    use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+    let сумма: f64 = звук
+        .par_chunks(4096)
+        .map(|часть| часть.iter().map(|с| (*с as f64) * (*с as f64)).sum::<f64>())
+        .sum();
     let среднеквадратное = (сумма / звук.len() as f64).sqrt();
     let был_звук = среднеквадратное > 0.002;
 
