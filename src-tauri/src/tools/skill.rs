@@ -158,8 +158,10 @@ mod tests {
     fn навык(имя: &str, описание: &str, инструменты: &[&str]) -> Skill {
         Skill {
             name: имя.into(),
+            version: "1.0.0".into(),
             description: описание.into(),
             tools: инструменты.iter().map(|с| с.to_string()).collect(),
+            resources: vec![],
             parameters: json!({"type": "object", "properties": {}, "required": []}),
             steps: "1. Сделай то-то.".into(),
             file: PathBuf::from(format!("{имя}.md")),

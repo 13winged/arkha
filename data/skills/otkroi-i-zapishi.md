@@ -1,7 +1,9 @@
 ---
 name: otkroi-i-zapishi
+version: "1.0.0"
 description: Открывает программу, печатает в неё текст и сохраняет горячими клавишами
 tools: apps.launch, windows.control
+resources: []
 arguments: программа, текст
 ---
 
