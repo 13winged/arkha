@@ -74,6 +74,7 @@ rayon = "1.12.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 audioadapter-buffers = "5"
+thiserror = "2"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -97,6 +98,7 @@ windows = { version = "0.62", features = [
 cpal = "0.15"
 libc = "0.2"
 x11 = "2.21"
+zbus = "4"
 
 [dev-dependencies]
 criterion = "0.8.2"

@@ -35,12 +35,13 @@ use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::System::Com::{
     CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
 };
-use windows::Win32::UI::Accessibility::{
+pub use windows::Win32::UI::Accessibility::{
     CUIAutomation8, IUIAutomation, IUIAutomationElement, IUIAutomationInvokePattern,
-    TreeScope_Descendants, UIA_ButtonControlTypeId, UIA_CheckBoxControlTypeId,
-    UIA_EditControlTypeId, UIA_HyperlinkControlTypeId, UIA_InvokePatternId,
-    UIA_ListItemControlTypeId, UIA_MenuItemControlTypeId, UIA_RadioButtonControlTypeId,
-    UIA_TabItemControlTypeId, UIA_TextControlTypeId,
+    TreeScope_Descendants,
+    UIA_ButtonControlTypeId, UIA_CheckBoxControlTypeId, UIA_EditControlTypeId,
+    UIA_HyperlinkControlTypeId, UIA_InvokePatternId, UIA_ListItemControlTypeId,
+    UIA_MenuItemControlTypeId, UIA_RadioButtonControlTypeId, UIA_TabItemControlTypeId,
+    UIA_TextControlTypeId,
 };
 
 /// Типы элементов, которые имеет смысл нажимать или в которые писать.
@@ -49,7 +50,7 @@ use windows::Win32::UI::Accessibility::{
 /// тысячи узлов, а нажатие нужно в единицах. Пропуск редкого типа
 /// стоит одного отказа «элемент не найден», а не обхода всей
 /// программы на каждый клик.
-const ДЕЙСТВИТЕЛЬНЫЕ_ТИПЫ: &[(i32, &str)] = &[
+pub const ДЕЙСТВИТЕЛЬНЫЕ_ТИПЫ: &[(i32, &str)] = &[
     (UIA_ButtonControlTypeId.0, "кнопка"),
     (UIA_HyperlinkControlTypeId.0, "ссылка"),
     (UIA_MenuItemControlTypeId.0, "пункт меню"),
@@ -96,6 +97,7 @@ impl Drop for Com {
 }
 
 /// Элемент дерева доступности, подходящий под запрос.
+#[derive(Clone)]
 pub struct Элемент {
     /// Надпись — её человек и видит.
     pub текст: String,

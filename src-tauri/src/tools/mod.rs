@@ -31,10 +31,13 @@ use serde_json::Value;
 
 use crate::permissions::{Decision, Settings};
 
+pub mod accessibility;
 pub mod apps;
+pub mod click_ref;
 pub mod control;
 pub mod fs;
 pub mod skill;
+pub mod snapshot;
 pub mod uia;
 pub mod windows;
 #[cfg(test)]
@@ -239,6 +242,9 @@ fn built() -> Vec<Box<dyn Tool>> {
         Box::new(control::Нажать),
         Box::new(control::Кликнуть),
         Box::new(apps::Запустить),
+        // Новые инструменты доступности (S6+): snapshot + click_ref
+        Box::new(snapshot::SnapshotTool),
+        Box::new(click_ref::ClickRef),
     ]
 }
 
