@@ -15,6 +15,7 @@ pub mod memory;
 pub mod model_manager;
 pub mod observability_commands;
 pub mod onboarding;
+pub mod rag_commands;
 pub mod onboarding_commands;
 pub mod permissions;
 pub mod permissions_commands;
@@ -103,6 +104,13 @@ pub fn run() {
             observability_commands::obs_dashboard,
             observability_commands::obs_spans,
             observability_commands::obs_metrics,
+            rag_commands::rag_open_window,
+            rag_commands::rag_add_file,
+            rag_commands::rag_add_text,
+            rag_commands::rag_search,
+            rag_commands::rag_remove,
+            rag_commands::rag_stats,
+            rag_commands::rag_list,
         ]);
 
     app.run(tauri::generate_context!())

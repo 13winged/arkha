@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t, язык, поставитьЯзык, восстановитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
 import Dashboard from "./Dashboard";
+import RagWindow from "./RagWindow";
 import "./App.css";
 
 // Реестр возможностей. Причина недоступности приходит готовой с
@@ -1891,6 +1893,12 @@ function App() {
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("model");
+
+  // Отдельное окно RAG (дообучение корпусом)
+  const isRagWindow = getCurrentWindow().label === "rag";
+  if (isRagWindow) {
+    return <RagWindow />;
+  }
   // Пустое состояние, которое меняется при смене языка: `t()` читает
   // модульную переменную, и React об этом не знает. Подписка шлёт
   // событие, подписчик меняет состояние, дерево перерисовывается.
@@ -2038,6 +2046,7 @@ function App() {
         <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
         <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
         <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
+<span className="hint"><button type="button" onClick={() => invoke("rag_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>📚 RAG</button></span>
       </footer>
     </main>
   );
