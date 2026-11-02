@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::permissions::Settings;
-use super::accessibility::{self, Accessibility, Role};
+use super::accessibility::{self, Role};
 
 use super::{Tool, ToolError, ToolOutput, ToolSpec};
 

@@ -111,6 +111,8 @@ pub fn run() {
             observability_commands::obs_dashboard,
             observability_commands::obs_spans,
             observability_commands::obs_metrics,
+            observability_commands::obs_timeline,
+            observability_commands::obs_budget,
             rag_commands::rag_open_window,
             rag_commands::rag_add_file,
             rag_commands::rag_add_text,

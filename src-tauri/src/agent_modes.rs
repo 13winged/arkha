@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 use crate::permissions::Settings;
-use crate::tools::{Tool, ToolSpec, Registry};
+// use crate::tools::Tool;
 
 /// Режим работы агента.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,17 +107,6 @@ impl AgentMode {
         self.allowed_capability_prefixes()
             .iter()
             .any(|prefix| capability == *prefix || capability.starts_with(prefix))
-    }
-
-    /// Фильтрует список инструментов по режиму.
-    pub fn filter_tools(&self, tools: Vec<Box<dyn Tool>>) -> Vec<Box<dyn Tool>> {
-        tools
-            .into_iter()
-            .filter(|t| {
-                let spec = t.spec(&Settings::default());
-                self.allows_capability(&spec.capability)
-            })
-            .collect()
     }
 
     /// Все режимы для UI.

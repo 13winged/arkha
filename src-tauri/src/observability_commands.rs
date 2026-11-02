@@ -129,6 +129,91 @@ pub fn obs_spans(trace_id: String) -> Result<Vec<SpanView>, String> {
         .collect())
 }
 
+/// Точка временной шкалы использования токенов.
+#[derive(Serialize, Clone)]
+pub struct TimelinePoint {
+    pub label: String,
+    pub tokens: f64,
+    pub traces: usize,
+}
+
+/// Временная шкала использования токенов.
+#[tauri::command]
+pub fn obs_timeline(hours: Option<usize>) -> Result<Vec<TimelinePoint>, String> {
+    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+        .map_err(|e| format!("не удалось открыть базу: {e}"))?;
+
+    let hours = hours.unwrap_or(24);
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT strftime('%Y-%m-%d %H:00', start_time) AS hour,
+                    COUNT(*) AS trace_count,
+                    SUM(COALESCE((SELECT SUM(value) FROM obs_metrics WHERE trace_id = t.trace_id AND name = 'tokens_used'), 0)) AS tokens
+             FROM obs_traces t
+             WHERE start_time >= datetime('now', ?1)
+             GROUP BY hour
+             ORDER BY hour",
+        )
+        .map_err(|e| format!("ошибка SQL: {e}"))?;
+
+    let offset = format!("-{} hours", hours);
+    let rows: Vec<TimelinePoint> = stmt
+        .query_map(rusqlite::params![offset], |row| {
+            Ok(TimelinePoint {
+                label: row.get(0)?,
+                tokens: row.get::<_, Option<f64>>(2)?.unwrap_or(0.0),
+                traces: row.get::<_, i64>(1)?.max(0) as usize,
+            })
+        })
+        .map_err(|e| format!("ошибка запроса: {e}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("ошибка чтения: {e}"))?;
+
+    Ok(rows)
+}
+
+/// Бюджет токенов.
+#[derive(Serialize)]
+pub struct TokenBudget {
+    pub spent: f64,
+    pub limit: f64,
+    pub percent: f64,
+    pub status: String, // "ok", "warning", "critical"
+}
+
+/// Получить бюджет токенов.
+#[tauri::command]
+pub fn obs_budget(limit: Option<f64>) -> Result<TokenBudget, String> {
+    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+        .map_err(|e| format!("не удалось открыть базу: {e}"))?;
+
+    let spent: f64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(value), 0) FROM obs_metrics WHERE name = 'tokens_used'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0.0);
+
+    let limit = limit.unwrap_or(100_000.0);
+    let percent = if limit > 0.0 { (spent / limit) * 100.0 } else { 0.0 };
+    let status = if percent >= 80.0 {
+        "critical"
+    } else if percent >= 50.0 {
+        "warning"
+    } else {
+        "ok"
+    };
+
+    Ok(TokenBudget {
+        spent,
+        limit,
+        percent,
+        status: status.to_string(),
+    })
+}
+
 /// Получить метрики (по имени, если указано).
 #[tauri::command]
 pub fn obs_metrics(name: Option<String>, limit: Option<usize>) -> Result<Vec<MetricView>, String> {
