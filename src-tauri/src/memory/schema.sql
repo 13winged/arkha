@@ -116,3 +116,22 @@ CREATE INDEX IF NOT EXISTS idx_obs_metrics_trace_id ON obs_metrics(trace_id);
 CREATE INDEX IF NOT EXISTS idx_obs_metrics_span_id ON obs_metrics(span_id);
 CREATE INDEX IF NOT EXISTS idx_obs_metrics_name ON obs_metrics(name);
 CREATE INDEX IF NOT EXISTS idx_obs_metrics_timestamp ON obs_metrics(timestamp);
+
+-- ============================================================
+-- Полнотекстовый поиск (FTS5, пользовательский RAG)
+-- ============================================================
+
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    title, content, source, tokenize='unicode61'
+);
+
+CREATE TABLE IF NOT EXISTS memory_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    source TEXT NOT NULL,
+    content TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_documents_source ON memory_documents(source);

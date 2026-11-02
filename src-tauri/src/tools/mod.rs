@@ -39,6 +39,7 @@ pub mod fs;
 pub mod skill;
 pub mod snapshot;
 pub mod uia;
+pub mod web;
 pub mod windows;
 #[cfg(test)]
 pub mod tempdir;
@@ -245,6 +246,9 @@ fn built() -> Vec<Box<dyn Tool>> {
         // Новые инструменты доступности (S6+): snapshot + click_ref
         Box::new(snapshot::SnapshotTool),
         Box::new(click_ref::ClickRef),
+        // Веб-инструменты (многоагентный deep researcher)
+        Box::new(web::FetchPage),
+        Box::new(web::SearchWeb),
     ]
 }
 
