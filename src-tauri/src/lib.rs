@@ -13,6 +13,7 @@ pub mod downloader;
 pub mod engine;
 pub mod memory;
 pub mod model_manager;
+pub mod observability_commands;
 pub mod onboarding;
 pub mod onboarding_commands;
 pub mod permissions;
@@ -99,6 +100,9 @@ pub fn run() {
             onboarding_commands::onboarding_set_modes,
             onboarding_commands::onboarding_preview,
             onboarding_commands::onboarding_apply,
+            observability_commands::obs_dashboard,
+            observability_commands::obs_spans,
+            observability_commands::obs_metrics,
         ]);
 
     app.run(tauri::generate_context!())

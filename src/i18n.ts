@@ -31,6 +31,7 @@ const EN: Record<string, string> = {
   "Знакомство": "Welcome",
   "профиль": "profile",
   "настройки": "settings",
+  "наблюдение": "observation",
   "вкладки": "tabs",
   "всё считается на этой машине, облако выключено":
     "everything is computed on this machine, cloud is off",

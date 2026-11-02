@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { t, язык, поставитьЯзык, восстановитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
+import Dashboard from "./Dashboard";
 import "./App.css";
 
 // Реестр возможностей. Причина недоступности приходит готовой с
@@ -1438,7 +1439,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings" | "prefs";
+type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings" | "prefs" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -1564,6 +1565,7 @@ const ТОН: Record<Tab, "gold" | "blue"> = {
   welcome: "gold",
   settings: "blue",
   prefs: "blue",
+  dashboard: "blue",
 };
 
 /** Состояние голоса, как его отдаёт `voice_status`. */
@@ -1965,7 +1967,7 @@ function App() {
           <span className="app-subtitle">{t("локальный секретарь")}</span>
         </div>
         <nav className="tabs">
-          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs"] as Tab[]).map((вкладка) => (
+          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs", "dashboard"] as Tab[]).map((вкладка) => (
             <button key={вкладка} type="button"
               data-tone={ТОН[вкладка]}
               className={tab === вкладка ? "tab active" : "tab"}
@@ -1979,6 +1981,7 @@ function App() {
                 welcome: "Знакомство",
                 settings: "профиль",
                 prefs: "настройки",
+                dashboard: "наблюдение",
               }[вкладка])}
             </button>
           ))}
@@ -2027,10 +2030,11 @@ function App() {
           </>
         )}
         {tab === "prefs" && <РазмерШрифта />}
+        {tab === "dashboard" && <Dashboard />}
       </section>
 
       <footer className="app-footer">
-        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">8</kbd> вкладки</span>
+        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">9</kbd> вкладки</span>
         <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
         <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
         <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
