@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t, язык, поставитьЯзык, восстановитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
+import AgentSelect from "./AgentSelect";
 import Dashboard from "./Dashboard";
 import RagWindow from "./RagWindow";
 import "./App.css";
@@ -1899,6 +1900,12 @@ function App() {
   if (isRagWindow) {
     return <RagWindow />;
   }
+
+  // Отдельное окно выбора агента
+  const isAgentSelectWindow = getCurrentWindow().label === "agent_select";
+  if (isAgentSelectWindow) {
+    return <AgentSelect />;
+  }
   // Пустое состояние, которое меняется при смене языка: `t()` читает
   // модульную переменную, и React об этом не знает. Подписка шлёт
   // событие, подписчик меняет состояние, дерево перерисовывается.
@@ -2047,6 +2054,7 @@ function App() {
         <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
         <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
 <span className="hint"><button type="button" onClick={() => invoke("rag_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>📚 RAG</button></span>
+<span className="hint"><button type="button" onClick={() => invoke("agent_select_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>🤖 Агент</button></span>
       </footer>
     </main>
   );

@@ -296,9 +296,11 @@ impl Registry {
     /// незнание («у меня такого инструмента нет»). Разница видна
     /// человеку: в первом случае есть что включить.
     pub fn allowed(settings: &Settings) -> Self {
+        let mode = crate::agent_modes::current_mode();
         let tools = built()
             .into_iter()
             .filter(|t| settings.показывать(&t.spec(settings).capability))
+            .filter(|t| mode.allows_capability(&t.spec(settings).capability))
             .collect();
         Self { tools }
     }

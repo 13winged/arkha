@@ -5,6 +5,8 @@
 
 pub mod agent;
 pub mod agent_commands;
+pub mod agent_modes;
+pub mod agent_mode_commands;
 pub mod audit;
 pub mod capabilities;
 pub mod capabilities_commands;
@@ -78,6 +80,11 @@ pub fn run() {
             agent_commands::agent_reload_skills,
             agent_commands::agent_set_executor,
             agent_commands::agent_set_approval,
+            agent_mode_commands::agent_select_open_window,
+            agent_mode_commands::agent_mode_list,
+            agent_mode_commands::agent_mode_set,
+            agent_mode_commands::agent_mode_current,
+            agent_mode_commands::agent_mode_allows,
             chat::stop_generation,
             chat::preflight_model,
             chat::repo_files,
