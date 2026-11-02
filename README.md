@@ -9,7 +9,7 @@
   <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg?longCache=true" alt="License"></a>
 </p>
 
-**ArkHa** is a local AI secretary for Windows. It runs entirely on your own machine — voice, access to your files and windows, documents, memory. No cloud, no telemetry, no account.
+**ArkHa** is a local AI secretary. It runs entirely on your own machine — voice, access to your files and windows, documents, memory. No cloud, no telemetry, no account.
 
 It is built as a Tauri 2 desktop app around `llama.cpp`, and it picks a model that fits your hardware automatically. A machine with 8 GB of RAM and an RTX 3060 gets a different model than one with 64 GB and an RTX 4090.
 
@@ -28,6 +28,11 @@ It is built as a Tauri 2 desktop app around `llama.cpp`, and it picks a model th
 - **A memory strip that tells the truth** — RAM and VRAM read live. If VRAM cannot be measured, it is hidden rather than guessed.
 - **Memory-bar layout** — built after the inventory screen of a game HUD: flat, hairlines, cut corners, and colour used only where it means something.
 - **2 interface languages** — Russian and English, switchable in one click, remembered between runs.
+- **Local graph memory** — entities, relationships and facts stored in SQLite, with search and traversal. No cloud, no embeddings required.
+- **Observability dashboard** — local traces, spans and metrics for every voice, skill and agent operation. Privacy-first: stays on your machine.
+- **MCP-structured skills** — skills declare their version, required tools, resources and arguments. Validated before use.
+- **Accessibility snapshot** — capture a window's UI tree with ref IDs (@e1, @e2, ...). Click by ref, not by pixels.
+- **Cross-platform foundation** — Windows (native) + Linux (Debian-based, X11) via platform-specific adapters. Linux audio (ALSA/PipeWire) and hotkeys (X11) are wired up.
 
 ## Screenshots
 
@@ -53,7 +58,7 @@ npx tauri build --release
 
 `llama.cpp` binaries are not in the repository — they are several hundred megabytes per architecture. The app looks for them next to the executable and in `data/bin`.
 
-Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (302 unit, plus 2 marked `#[ignore]` because they need a real microphone or speakers) · Gates run against live hardware and are started separately, see [Testing](#testing).
+Tests: `cargo test --manifest-path src-tauri/Cargo.toml` (313 unit, plus 2 marked `#[ignore]` because they need a real microphone or speakers) · Gates run against live hardware and are started separately, see [Testing](#testing).
 
 ## How it decides what it may do
 
