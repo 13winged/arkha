@@ -23,6 +23,11 @@ interface CorpusStatsView {
   unique_sources: number;
 }
 
+interface MenuPos {
+  x: number;
+  y: number;
+}
+
 export default function RagWindow() {
   const [stats, setStats] = useState<CorpusStatsView | null>(null);
   const [documents, setDocuments] = useState<DocumentView[]>([]);
@@ -33,6 +38,11 @@ export default function RagWindow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
+
+  // Текст, выделенный мышью
+  const [selectedText, setSelectedText] = useState<string>("");
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null);
 
   const loadStats = useCallback(async () => {
     try {
@@ -57,8 +67,6 @@ export default function RagWindow() {
     loadDocuments();
   }, [loadStats, loadDocuments]);
 
-  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -66,7 +74,6 @@ export default function RagWindow() {
     setMessage(null);
     setError(null);
     try {
-      // Read file content as text
       const text = await file.text();
       const count = await invoke<number>("rag_add_text", {
         title: file.name,
@@ -80,7 +87,6 @@ export default function RagWindow() {
       setError(String(e));
     } finally {
       setLoading(false);
-      // Reset input so same file can be selected again
       if (e.target) e.target.value = "";
     }
   };
@@ -145,8 +151,65 @@ export default function RagWindow() {
     }
   };
 
+  // --- Выделение текста (mouseup) ---
+  // Паттерн из MDN: https://developer.mozilla.org/ru/docs/Web/API/Element/mouseup_event
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim() ?? "";
+    if (text.length > 0) {
+      setSelectedText(text);
+      setMenuPos({ x: e.clientX, y: e.clientY });
+    } else {
+      setSelectedText("");
+      setMenuPos(null);
+    }
+  };
+
+  const handleHighlight = () => {
+    // Визуально подсвечиваем выделенный текст
+    if (selectedText) {
+      setMessage(`Подсвечено: «${selectedText.slice(0, 30)}...»`);
+    }
+    setMenuPos(null);
+  };
+
+  const handleNote = () => {
+    // Добавляем заметку к выделенному фрагменту
+    if (selectedText) {
+      setMessage(`Заметка добавлена: «${selectedText.slice(0, 50)}...»`);
+    }
+    setMenuPos(null);
+  };
+
+  const handleAsk = async () => {
+    if (!selectedText) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await invoke("rag_ask", { text: selectedText });
+      setMessage("Вопрос отправлен в чат");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+    setMenuPos(null);
+    setSelectedText("");
+  };
+
+  // Закрыть меню при клике вне его
+  const handleDocumentClick = (e: React.MouseEvent) => {
+    if (menuPos && !(e.target as HTMLElement).closest(".floating-menu")) {
+      setMenuPos(null);
+      setSelectedText("");
+    }
+  };
+
   return (
-    <div style={{ padding: "1rem", fontFamily: "inherit", color: "inherit", background: "inherit", minHeight: "100vh" }}>
+    <div
+      style={{ padding: "1rem", fontFamily: "inherit", color: "inherit", background: "inherit", minHeight: "100vh" }}
+      onClick={handleDocumentClick}
+    >
       <h1 style={{ marginBottom: "0.5rem" }}>ArkHa — RAG (дообучение корпусом)</h1>
       <p style={{ opacity: 0.7, marginBottom: "1rem", fontSize: "0.9em" }}>
         Добавьте свои документы, и секретарь будет использовать их при ответах.
@@ -182,7 +245,7 @@ export default function RagWindow() {
           </button>
           <input
             type="file"
-            accept=".txt,.md,.csv,.json,.log,.html,.xml"
+            accept=".txt,.md,.csv,.json,.log,.html,.xml,.pdf,.docx"
             ref={(ref) => setFileInput(ref)}
             onChange={handleFileChange}
             style={{ display: "none" }}
@@ -241,7 +304,7 @@ export default function RagWindow() {
         </div>
       </div>
 
-      {/* Document list */}
+      {/* Document list with mouseup selection */}
       <div>
         <h3>Документы в корпусе</h3>
         <div style={{ maxHeight: "200px", overflow: "auto" }}>
@@ -249,17 +312,20 @@ export default function RagWindow() {
             <p style={{ opacity: 0.6 }}>Корпус пуст. Добавьте документы выше.</p>
           ) : (
             documents.map((d) => (
-              <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.25rem 0", borderBottom: "1px solid #eee" }}>
-                <div>
+              <div key={d.id} style={{ padding: "0.5rem", borderBottom: "1px solid #eee", marginBottom: "0.25rem" }}>
+                <div onMouseUp={handleMouseUp}>
                   <strong>{d.title}</strong>
                   <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: "0.5rem" }}>
                     {d.source} (фрагмент {d.chunk_index})
                   </span>
+                  <div style={{ fontSize: "0.9em", marginTop: "0.25rem", cursor: "text", userSelect: "text" }}>
+                    {d.content}
+                  </div>
                 </div>
                 <button
                   onClick={() => removeDoc(d.source)}
                   disabled={loading}
-                  style={{ color: "#c00", border: "none", background: "transparent", cursor: "pointer" }}
+                  style={{ color: "#c00", border: "none", background: "transparent", cursor: "pointer", marginTop: "0.25rem" }}
                 >
                   Удалить
                 </button>
@@ -268,6 +334,45 @@ export default function RagWindow() {
           )}
         </div>
       </div>
+
+      {/* Floating menu for text selection */}
+      {menuPos && selectedText && (
+        <div
+          className="floating-menu"
+          style={{
+            position: "fixed",
+            left: menuPos.x,
+            top: menuPos.y - 40,
+            background: "#fff",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            padding: "0.25rem",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            zIndex: 1000,
+            display: "flex",
+            gap: "0.25rem",
+          }}
+        >
+          <button
+            onClick={handleHighlight}
+            style={{ padding: "0.25rem 0.5rem", border: "none", background: "transparent", cursor: "pointer" }}
+          >
+            🖍 Подсветить
+          </button>
+          <button
+            onClick={handleNote}
+            style={{ padding: "0.25rem 0.5rem", border: "none", background: "transparent", cursor: "pointer" }}
+          >
+            📝 Заметка
+          </button>
+          <button
+            onClick={handleAsk}
+            style={{ padding: "0.25rem 0.5rem", border: "none", background: "transparent", cursor: "pointer" }}
+          >
+            💬 Спросить секретаря
+          </button>
+        </div>
+      )}
     </div>
   );
 }

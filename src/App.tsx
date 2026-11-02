@@ -1906,6 +1906,18 @@ function App() {
   if (isAgentSelectWindow) {
     return <AgentSelect />;
   }
+  // Слушатель события rag:ask — текст из RAG-окна для чата
+  useEffect(() => {
+    const unlisten = listen("rag:ask", (event) => {
+      const text = event.payload as string;
+      // Добавляем текст в сообщение чата (открываем вкладку чат)
+      setTab("chat");
+      // Отправляем сообщение
+      invoke("chat", { messages: [{ role: "user", content: `Объясни: ${text}` }] }).catch(() => {});
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   // Пустое состояние, которое меняется при смене языка: `t()` читает
   // модульную переменную, и React об этом не знает. Подписка шлёт
   // событие, подписчик меняет состояние, дерево перерисовывается.
