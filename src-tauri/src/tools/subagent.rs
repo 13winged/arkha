@@ -44,7 +44,7 @@ impl Tool for RunSubagent {
         }
     }
 
-    fn call(&self, args: &Value, _s: &Settings) -> Result<ToolOutput, ToolError> {
+    fn call(&self, args: &Value, s: &Settings) -> Result<ToolOutput, ToolError> {
         let Some(task) = args.get("task").and_then(|v| v.as_str()) else {
             return Err(ToolError::BadArgs("нет поля task".into()));
         };
