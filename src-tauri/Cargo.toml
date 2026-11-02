@@ -76,6 +76,9 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 audioadapter-buffers = "5"
 thiserror = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
+sysinfo = "0.32"
+lopdf = "0.34"
+docx-rs = "0.4"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]

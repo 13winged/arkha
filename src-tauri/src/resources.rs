@@ -137,6 +137,39 @@ fn видеопамять() -> (Option<u64>, Option<u64>) {
     (Some(числа[0]), Some(числа[1]))
 }
 
+/// Снимок загрузки CPU.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CpuLoad {
+    /// Загрузка CPU в процентах (0-100).
+    pub load_percent: u32,
+    /// Количество логических ядер.
+    pub logical_cores: u16,
+}
+
+/// Прочитать загрузку CPU через sysinfo.
+pub fn cpu_load() -> CpuLoad {
+    use sysinfo::System;
+    let mut system = System::new_all();
+    system.refresh_cpu_usage();
+    let load = if system.cpus().is_empty() {
+        0.0
+    } else {
+        system.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / system.cpus().len() as f32
+    };
+    let cores = system.cpus().len() as u16;
+    CpuLoad {
+        load_percent: (load as u32).min(100),
+        logical_cores: if cores > 0 { cores } else { 1 },
+    }
+}
+
+/// Команда для интерфейса.
+#[tauri::command]
+pub fn cpu_load_сейчас() -> CpuLoad {
+    cpu_load()
+}
+
 /// Команда для интерфейса.
 #[tauri::command]
 pub fn память_сейчас() -> Память {

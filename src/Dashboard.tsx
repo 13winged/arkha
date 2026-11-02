@@ -38,6 +38,11 @@ interface TokenBudget {
   status: string;
 }
 
+interface CpuLoad {
+  load_percent: number;
+  logical_cores: number;
+}
+
 interface DashboardSummary {
   total_traces: number;
   total_spans: number;
@@ -54,7 +59,7 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState<MetricView[]>([]);
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [budget, setBudget] = useState<TokenBudget | null>(null);
-  // CPU monitoring removed (GetSystemTimes not available)
+  const [cpu, setCpu] = useState<CpuLoad | null>(null);
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,18 +114,29 @@ export default function Dashboard() {
     }
   }, []);
 
+  const loadCpu = useCallback(async () => {
+    try {
+      const data = await invoke<CpuLoad>("cpu_load_сейчас");
+      setCpu(data);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboard();
     loadMetrics();
     loadTimeline();
     loadBudget();
-  }, [loadDashboard, loadMetrics, loadTimeline, loadBudget]);
+    loadCpu();
+  }, [loadDashboard, loadMetrics, loadTimeline, loadBudget, loadCpu]);
 
   const refresh = () => {
     loadDashboard();
     loadMetrics();
     loadTimeline();
     loadBudget();
+    loadCpu();
   };
 
   if (loading && !summary) {
@@ -192,7 +208,13 @@ export default function Dashboard() {
           <strong>Токены</strong>
           <div style={{ fontSize: "2em" }}>{summary?.total_tokens ?? 0}</div>
         </div>
-        // CPU monitoring removed
+        <div className="panel" style={{ flex: "1", minWidth: "120px" }}>
+          <strong>CPU</strong>
+          <div style={{ fontSize: "2em" }}>
+            {cpu ? `${cpu.load_percent}%` : "—"}
+          </div>
+          {cpu && <div style={{ fontSize: "0.8em", opacity: 0.7 }}>{cpu.logical_cores} ядер</div>}
+        </div>
       </div>
 
       {/* Budget card */}

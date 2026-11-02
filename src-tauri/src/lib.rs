@@ -53,6 +53,8 @@ pub fn run() {
             profile_commands::set_profile_tier,
             profile_commands::set_context,
             resources::память_сейчас,
+            resources::cpu_load_сейчас,
+            resources::cpu_load_сейчас,
             voice::voice_status,
             voice::voice_enable,
             voice::voice_disable,
@@ -120,6 +122,7 @@ pub fn run() {
             rag_commands::rag_remove,
             rag_commands::rag_stats,
             rag_commands::rag_list,
+            rag_commands::rag_ask,
         ]);
 
     app.run(tauri::generate_context!())
