@@ -38,6 +38,7 @@ pub mod control;
 pub mod fs;
 pub mod skill;
 pub mod snapshot;
+pub mod subagent;
 pub mod uia;
 pub mod web;
 pub mod windows;
@@ -249,6 +250,8 @@ fn built() -> Vec<Box<dyn Tool>> {
         // Веб-инструменты (многоагентный deep researcher)
         Box::new(web::FetchPage),
         Box::new(web::SearchWeb),
+        // Субагенты (только в Build mode)
+        Box::new(subagent::RunSubagent),
     ]
 }
 

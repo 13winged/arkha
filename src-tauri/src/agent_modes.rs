@@ -66,6 +66,7 @@ impl AgentMode {
                 "voice.stt",
                 "voice.tts",
                 "chat.local",
+                "skill.execute",
             ],
             AgentMode::Build => &[
                 "files.read",
@@ -76,6 +77,7 @@ impl AgentMode {
                 "web.fetch",
                 "web.search",
                 "skill.execute",
+                "subagent.run",
                 "memory.recall",
                 "memory.search",
                 "memory.write",
@@ -95,6 +97,7 @@ impl AgentMode {
                 "memory.recall",
                 "memory.search",
                 "chat.local",
+                "skill.execute",
             ],
         }
     }
@@ -211,7 +214,7 @@ mod tests {
         assert!(!AgentMode::Plan.allows_capability("files.write"));
         assert!(!AgentMode::Plan.allows_capability("apps.launch"));
         assert!(!AgentMode::Plan.allows_capability("windows.control"));
-        assert!(!AgentMode::Plan.allows_capability("skill.execute"));
+        // skill.execute теперь разрешён в Plan mode (навыки включены)
     }
 
     #[test]

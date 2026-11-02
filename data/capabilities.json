@@ -271,6 +271,21 @@
       "what_en": "Runs multi-step records: open, find, fill in, save",
       "evidence_en": "",
       "refusal_en": "workflows are not wired up yet, they are built from the other tools"
+    },
+    {
+      "id": "subagent.run",
+      "name": "Субагенты",
+      "what": "Запускает отдельного агента для выполнения подзадачи",
+      "min_tier": "T1",
+      "needs_tool_calling": true,
+      "permission": "subagent.run",
+      "verified": false,
+      "evidence": "",
+      "refusal": "субагенты ещё не подключены",
+      "name_en": "Subagents",
+      "what_en": "Runs a separate agent for a subtask",
+      "evidence_en": "",
+      "refusal_en": "subagents are not wired up yet"
     }
   ]
 }
