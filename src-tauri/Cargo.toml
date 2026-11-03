@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "arkha"
 version = "0.1.1"
 description = "Локальный ИИ-секретарь для Windows"

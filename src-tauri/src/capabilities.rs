@@ -216,6 +216,7 @@ impl Registry {
         }
         paths.push(PathBuf::from("data").join("capabilities.json"));
         paths.push(PathBuf::from("../data/capabilities.json"));
+        paths.push(PathBuf::from("../../data/capabilities.json"));
         paths
     }
 

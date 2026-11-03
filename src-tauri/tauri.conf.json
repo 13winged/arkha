@@ -35,7 +35,9 @@
     ],
     "resources": {
       "resources/bin/llama": "bin/llama",
-      "resources/bin/LICENSE-llama.cpp": "bin/LICENSE-llama.cpp"
+      "resources/bin/LICENSE-llama.cpp": "bin/LICENSE-llama.cpp",
+      "../data/capabilities.json": "data/capabilities.json",
+      "../data/recipes.json": "data/recipes.json"
     }
   }
 }

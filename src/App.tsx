@@ -868,7 +868,7 @@ function Settings({ profile, onChange }: {
 // Чат (S2)
 // ---------------------------------------------------------------------------
 
-function Chat({ model, agentMode }: { model: ModelStatus; agentMode?: "plan" | "think" | "build" }) {
+function Chat({ model }: { model: ModelStatus }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -966,17 +966,6 @@ function Chat({ model, agentMode }: { model: ModelStatus; agentMode?: "plan" | "
       {notice && <p className="muted notice">{notice}</p>}
 
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-        <select
-          className="agent-mode-select composer-agent-select"
-          value={agentMode ?? "build"}
-          onChange={() => {/* agent mode managed by parent */}}
-          disabled={!model.running || busy}
-          title={t("Режим агента")}
-        >
-          <option value="plan">{t("plan")}</option>
-          <option value="think">{t("think")}</option>
-          <option value="build">{t("build")}</option>
-        </select>
         <input
           className="app-input"
           value={input}
@@ -1173,9 +1162,35 @@ function Downloader({ model }: { model: ModelStatus }) {
       .catch(() => undefined);
   }, []);
 
+  // Rust присылает Progress с полем `state` (looking/downloading/verifying/done),
+  // а интерфейс ждёт DownloadState с полем kind (meta/busy/verifying/done).
+  // Преобразуем, иначе ProgressBar никогда не покажется.
+  function из_progress(p: Record<string, unknown>): DownloadState {
+    const стейт = (p as { state?: string }).state;
+    const чис = (v: unknown) => (typeof v === "number" ? v : 0);
+    const стр = (v: unknown) => (typeof v === "string" ? v : "");
+    switch (стейт) {
+      case "downloading":
+        return {
+          kind: "busy",
+          downloaded: чис(p.downloaded),
+          total: чис(p.total),
+          mib: чис(p.mib_per_s),
+        };
+      case "looking":
+        return { kind: "meta" };
+      case "verifying":
+        return { kind: "verifying", size: чис(p.size) };
+      case "done":
+        return { kind: "done", path: стр(p.path) };
+      default:
+        return { kind: "idle" };
+    }
+  }
+
   useEffect(() => {
-    const un = listen<DownloadState>("download:progress", (e) => {
-      setState(e.payload as DownloadState);
+    const un = listen<Record<string, unknown>>("download:progress", (e) => {
+      setState(из_progress(e.payload));
     });
     return () => { un.then((f) => f()); };
   }, []);
@@ -1906,6 +1921,8 @@ function App() {
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("model");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
 
   // Отдельное окно RAG (дообучение корпусом)
   const isRagWindow = getCurrentWindow().label === "rag";
@@ -1973,28 +1990,11 @@ function App() {
 
   if (!model) {
     return (
-      <main className={главныйКласс.replace(" glitch-on", "")}>
-        <div className="cp-scanlines" />
-        <div className="cp-corner cp-corner--tl" />
-        <div className="cp-corner cp-corner--tr" />
-        <div className="cp-corner cp-corner--bl" />
-        <div className="cp-corner cp-corner--br" />
-        <header className="app-header">
-          <div className="brand">
-            <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
-            <span className="app-subtitle">{t("локальный секретарь")}</span>
-          </div>
-        </header>
-        <div className="res-strip">
-          <span className="res"><span className="res-label">{t("статус")}</span><span className="res-val">{t("загрузка…")}</span></span>
-        </div>
-        <section className="app-body"><p className="app-hint">{t("Поднимаем интерфейс…")}</p></section>
+      <main style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", width: "100%", background: "var(--cp-bg, #000)" }}>
+        <p style={{ color: "var(--cp-neon-green, #00ff41)", fontSize: "1.5rem", fontFamily: "var(--cp-font-mono, monospace)" }}>{t("Поднимаем интерфейс…")}</p>
       </main>
     );
   }
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
 
   return (
     <main className={главныйКласс.replace(" glitch-on", "")}>
@@ -2108,7 +2108,7 @@ function App() {
           {error && <p className="error">Не удалось определить профиль: {error}</p>}
           {tab === "model" && <ModelBar model={model} onChange={setModel} />}
           {tab === "agent" && <Agent />}
-          {tab === "chat" && <Chat model={model} agentMode={agentMode} />}
+          {tab === "chat" && <Chat model={model} />}
           {tab === "download" && (
             <>
               <EnginePanel />

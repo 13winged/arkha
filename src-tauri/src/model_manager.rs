@@ -215,6 +215,7 @@ impl Catalog {
         }
         paths.push(PathBuf::from("data").join("recipes.json"));
         paths.push(PathBuf::from("../data/recipes.json"));
+        paths.push(PathBuf::from("../../data/recipes.json"));
         paths
     }
 
