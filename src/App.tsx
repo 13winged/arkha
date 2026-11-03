@@ -868,7 +868,7 @@ function Settings({ profile, onChange }: {
 // Чат (S2)
 // ---------------------------------------------------------------------------
 
-function Chat({ model }: { model: ModelStatus }) {
+function Chat({ model, agentMode }: { model: ModelStatus; agentMode?: "plan" | "think" | "build" }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -966,6 +966,17 @@ function Chat({ model }: { model: ModelStatus }) {
       {notice && <p className="muted notice">{notice}</p>}
 
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        <select
+          className="agent-mode-select composer-agent-select"
+          value={agentMode ?? "build"}
+          onChange={() => {/* agent mode managed by parent */}}
+          disabled={!model.running || busy}
+          title={t("Режим агента")}
+        >
+          <option value="plan">{t("plan")}</option>
+          <option value="think">{t("think")}</option>
+          <option value="build">{t("build")}</option>
+        </select>
         <input
           className="app-input"
           value={input}
@@ -1416,6 +1427,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
                 {!model.verified && <span className="muted">{t("· рецепт не замерян")}</span>}
               </dd>
             </div>
+            <div><dt>{t("Рассуждение")}</dt><dd>t=0.3 · top-p=0.9 · max=1024</dd></div>
           </dl>
 
           <div className="context-row">
@@ -1981,6 +1993,9 @@ function App() {
     );
   }
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
+
   return (
     <main className={главныйКласс.replace(" glitch-on", "")}>
       <div className="cp-scanlines" />
@@ -1988,18 +2003,23 @@ function App() {
       <div className="cp-corner cp-corner--tr" />
       <div className="cp-corner cp-corner--bl" />
       <div className="cp-corner cp-corner--br" />
-      <header className="app-header">
-        <div className="brand">
+
+      {/* Левая панель (sidebar) */}
+      <aside className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-brand">
           <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
-          <span className="app-subtitle">{t("локальный секретарь")}</span>
+          {!sidebarCollapsed && <span className="app-subtitle">{t("локальный секретарь")}</span>}
         </div>
-        <nav className="tabs">
+        <button type="button" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+          {sidebarCollapsed ? "»" : "«"}
+        </button>
+        <nav className="sidebar-nav">
           {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs", "dashboard"] as Tab[]).map((вкладка) => (
             <button key={вкладка} type="button"
               data-tone={ТОН[вкладка]}
-              className={tab === вкладка ? "tab active" : "tab"}
-              onClick={() => setTab(вкладка)}>
-              {t({
+              className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
+              onClick={() => setTab(вкладка)}
+              title={t({
                 model: "модель",
                 agent: "секретарь",
                 chat: "чат",
@@ -2010,64 +2030,112 @@ function App() {
                 prefs: "настройки",
                 dashboard: "наблюдение",
               }[вкладка])}
+            >
+              <span className="sidebar-icon">{{
+                model: " ",
+                agent: " ",
+                chat: " ",
+                download: " ",
+                capabilities: " ",
+                welcome: " ",
+                settings: " ",
+                prefs: " ",
+                dashboard: " ",
+              }[вкладка]}</span>
+              {!sidebarCollapsed && <span className="sidebar-label">{t({
+                model: "модель",
+                agent: "секретарь",
+                chat: "чат",
+                download: "загрузка",
+                capabilities: "возможности",
+                welcome: "Знакомство",
+                settings: "профиль",
+                prefs: "настройки",
+                dashboard: "наблюдение",
+              }[вкладка])}</span>}
             </button>
           ))}
         </nav>
-        <ЯзыкКнопка />
-      </header>
+        <div className="sidebar-agent-select">
+          {!sidebarCollapsed && <span className="sidebar-label">{t("Режим агента")}</span>}
+          <select
+            className="agent-mode-select"
+            value={agentMode}
+            onChange={(e) => setAgentMode(e.target.value as "plan" | "think" | "build")}
+            title={t("Режим агента")}
+          >
+            <option value="plan">{t("plan")}</option>
+            <option value="think">{t("think")}</option>
+            <option value="build">{t("build")}</option>
+          </select>
+        </div>
+        <div className="sidebar-footer">
+          {!sidebarCollapsed && <ЯзыкКнопка />}
+          <MemoryBar />
+        </div>
+      </aside>
 
-      <div className="res-strip">
-        <span className="res">
-          <span className="res-label">{t("профиль")}</span>
-          <span className="res-val gold">{profile ? profile.effective : "…"}</span>
-        </span>
-        <span className="res">
-          <span className="res-label">{t("модель")}</span>
-          <span className={`res-val ${model.running ? "ok" : "muted"}`}>
-            {model.running ? (model.recipe ?? t("запущена")) : t("не запущена")}
-          </span>
-        </span>
-        {model.running && model.tok_s !== null && model.tok_s !== undefined && (
-          <span className="res">
-            <span className="res-label">{t("скорость")}</span>
-            <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
-          </span>
-        )}
-        <MemoryBar />
-        <VoiceToggle />
+      {/* Основной контент */}
+      <div className="app-main">
+        <header className="app-header">
+          <div className="brand">
+            <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
+            <span className="app-subtitle">{t("локальный секретарь")}</span>
+          </div>
+          <div className="res-strip">
+            <span className="res">
+              <span className="res-label">{t("профиль")}</span>
+              <span className="res-val gold">{profile ? profile.effective : "…"}</span>
+            </span>
+            <span className="res">
+              <span className="res-label">{t("модель")}</span>
+              <span className={`res-val ${model.running ? "ok" : "muted"}`}>
+                {model.running ? (model.recipe ?? t("запущена")) : t("не запущена")}
+              </span>
+            </span>
+            {model.running && model.tok_s !== null && model.tok_s !== undefined && (
+              <span className="res">
+                <span className="res-label">{t("скорость")}</span>
+                <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
+              </span>
+            )}
+            <MemoryBar />
+            <VoiceToggle />
+          </div>
+        </header>
+
+        <section className="app-body cp-draft-frame">
+          {error && <p className="error">Не удалось определить профиль: {error}</p>}
+          {tab === "model" && <ModelBar model={model} onChange={setModel} />}
+          {tab === "agent" && <Agent />}
+          {tab === "chat" && <Chat model={model} agentMode={agentMode} />}
+          {tab === "download" && (
+            <>
+              <EnginePanel />
+              <Downloader model={model} />
+            </>
+          )}
+          {tab === "capabilities" && <Capabilities />}
+          {tab === "welcome" && <Welcome />}
+          {tab === "settings" && profile && (
+            <>
+              <Settings profile={profile} onChange={setProfile} />
+              <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
+            </>
+          )}
+          {tab === "prefs" && <РазмерШрифта />}
+          {tab === "dashboard" && <Dashboard />}
+        </section>
+
+        <footer className="app-footer">
+          <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">9</kbd> вкладки</span>
+          <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
+          <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
+          <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
+          <span className="hint"><button type="button" onClick={() => invoke("rag_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>📚 RAG</button></span>
+          <span className="hint"><button type="button" onClick={() => invoke("agent_select_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>🤖 Агент</button></span>
+        </footer>
       </div>
-
-      <section className="app-body cp-draft-frame">
-        {error && <p className="error">Не удалось определить профиль: {error}</p>}
-        {tab === "model" && <ModelBar model={model} onChange={setModel} />}
-        {tab === "agent" && <Agent />}
-        {tab === "chat" && <Chat model={model} />}
-        {tab === "download" && (
-          <>
-            <EnginePanel />
-            <Downloader model={model} />
-          </>
-        )}
-        {tab === "capabilities" && <Capabilities />}
-        {tab === "welcome" && <Welcome />}
-        {tab === "settings" && profile && (
-          <>
-            <Settings profile={profile} onChange={setProfile} />
-            <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
-          </>
-        )}
-        {tab === "prefs" && <РазмерШрифта />}
-        {tab === "dashboard" && <Dashboard />}
-      </section>
-
-      <footer className="app-footer">
-        <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">9</kbd> вкладки</span>
-        <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
-        <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
-        <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
-<span className="hint"><button type="button" onClick={() => invoke("rag_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>📚 RAG</button></span>
-<span className="hint"><button type="button" onClick={() => invoke("agent_select_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>🤖 Агент</button></span>
-      </footer>
     </main>
   );
 }
