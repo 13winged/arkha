@@ -310,10 +310,11 @@ fn сводка_считается_по_файлу() {
     eprintln!("sha256(arkha) = {got}");
 
     // Эталон посчитан независимо, средствами Windows, не нашим кодом:
-    // certutil и Get-FileHash дали одно и то же значение.
+    // Get-FileHash по файлу ровно из пяти байт b"arkha" (без перевода
+    // строки) даёт это значение.
     assert_eq!(
         got,
-        "b5e26e99969ba821499d0c99e3eed1ad113b724b31d9fb1c208288c760141d22"
+        "388fc68e82a6df96b830e8c1bc377ed7ead04fc3c6b56c58dc4f43cb10d92098"
     );
 
     let _ = std::fs::remove_dir_all(&dir);

@@ -28,6 +28,7 @@ pub mod skills;
 pub mod state;
 pub mod tools;
 pub mod voice;
+pub mod webview_orphans;
 
 // S1: профиль. S2: модель и чат. S3: возможности и разрешения.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,6 +39,11 @@ pub fn run() {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
     tracing::info!("аркха: запуск");
+
+    // Хвосты от прошлых запусков: обработчики сбоев WebView2, чьи окна уже
+    // закрыты. Убираем до создания первого окна, иначе они копятся.
+    webview_orphans::reap_orphans();
+    webview_orphans::start_sweeper();
 
     // Плагин открытия ссылок здесь стоял и был мёртвым: он
     // регистрировался, но интерфейс его ни разу не вызывал, то есть
