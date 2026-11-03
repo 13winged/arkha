@@ -83,6 +83,7 @@ interface Реплика {
 // нельзя, иначе в интерфейсе появится вызов, которого не видно.
 const НАЗВАНИЯ: Record<string, string> = {
   "fs.read": "чтение файла",
+  "fs.open": "открытие файла",
   "fs.list": "просмотр папки",
   "skill.run": "навык",
   "windows.list": "список окон",
@@ -98,7 +99,7 @@ function название(инструмент: string): string {
   return НАЗВАНИЯ[инструмент] ?? инструмент;
 }
 
-export default function Agent() {
+export default function Agent({ hidden = false }: { hidden?: boolean }) {
   const [вопрос, setВопрос] = useState("");
   const [реплики, setРеплики] = useState<Реплика[]>([]);
   const [крутится, setКрутится] = useState(false);
@@ -119,8 +120,8 @@ export default function Agent() {
   }, []);
 
   useEffect(() => {
-    низ.current?.scrollIntoView({ behavior: "smooth" });
-  }, [реплики, крутится]);
+    if (!hidden) низ.current?.scrollIntoView({ behavior: "smooth" });
+  }, [реплики, крутится, hidden]);
 
   useEffect(() => {
     const unlisten: Array<() => void> = [];
@@ -221,7 +222,8 @@ export default function Agent() {
   }
 
   return (
-    <div className="panel">
+    <div className="panel agent-panel" style={hidden ? { display: "none" } : undefined}>
+      <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // SECRETARY ] ---- TOOL TRACE ---- [ LIVE ]</div>
       <h2>Секретарь</h2>
 
       {инструменты && (
@@ -416,6 +418,7 @@ export default function Agent() {
             }
           }}
         />
+        <span className="agent-input-hint" aria-hidden="true">Спроси секретаря / Enter</span>
         {крутится ? (
           <button type="button" onClick={остановить}>
             остановить

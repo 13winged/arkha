@@ -871,6 +871,23 @@ pub fn server_args(recipe: &Recipe, model: &Path, port: u16) -> Vec<String> {
     ]
 }
 
+/// Прячет консольное окно дочернего процесса.
+///
+/// llama-server — консольная программа: без флага Windows открывает для
+/// неё отдельное чёрное окно, которое висит поверх интерфейса всё время
+/// работы модели. CREATE_NO_WINDOW (0x0800_0000) создаёт процесс без
+/// консоли, но stdout/stderr остаются рабочими — лог по-прежнему
+/// читается через пайпы.
+#[cfg(windows)]
+fn hide_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_cmd: &mut Command) {}
+
 /// Запускает сайдкар и ждёт готовности реальным запросом.
 ///
 /// Готовность проверяется не фактом старта процесса и не ответом на
@@ -918,6 +935,7 @@ pub fn start(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    hide_console(&mut cmd);
 
     let mut child = cmd
         .spawn()

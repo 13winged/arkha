@@ -227,6 +227,7 @@ pub struct Registry {
 fn built() -> Vec<Box<dyn Tool>> {
     vec![
         Box::new(fs::ReadFile),
+        Box::new(fs::OpenFile),
         Box::new(fs::ListDir),
         // Навыки не всегда есть: если папки нет, инструмент не
         // добавляется, иначе модель увидит «запустить навык» при

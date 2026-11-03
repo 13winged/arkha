@@ -53,8 +53,9 @@ export default function AgentSelect() {
   };
 
   return (
-    <div style={{ padding: "1.5rem", fontFamily: "inherit", color: "inherit", background: "inherit", minHeight: "100vh" }}>
-      <h1 style={{ marginBottom: "0.5rem" }}>Выбор режима агента</h1>
+    <div className="cyber-window agent-select-window" style={{ padding: "1.5rem", fontFamily: "inherit", color: "inherit", background: "inherit", minHeight: "100vh" }}>
+      <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // AGENT CORE ] ---- MODE SELECT ---- [ SECURE ]</div>
+      <h1 className="cyber-window-title" style={{ marginBottom: "0.5rem" }}>Выбор режима агента</h1>
       <p style={{ opacity: 0.7, marginBottom: "1.5rem", fontSize: "0.9em" }}>
         Режим определяет, какие инструменты доступны секретарю. Выберите режим в зависимости
         от задачи: планирование, выполнение или рассуждение.

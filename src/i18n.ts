@@ -32,6 +32,8 @@ const EN: Record<string, string> = {
   "профиль": "profile",
   "настройки": "settings",
   "наблюдение": "observation",
+  "свернуть панель": "collapse panel",
+  "развернуть панель": "expand panel",
   "вкладки": "tabs",
   "всё считается на этой машине, облако выключено":
     "everything is computed on this machine, cloud is off",
@@ -56,6 +58,7 @@ const EN: Record<string, string> = {
   "Размещение": "Placement",
   "Устройство": "Device",
   "скорость": "speed",
+  "Рассуждение": "reasoning",
   "не измерена": "not measured",
   "· рецепт не замерян": " · recipe was never benchmarked",
   "не запущена": "not running",

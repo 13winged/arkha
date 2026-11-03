@@ -14,6 +14,7 @@
 
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use super::{ensure_allowed, Tool, ToolError, ToolOutput, ToolResult, ToolSpec};
 use crate::permissions::Settings;
@@ -276,6 +277,76 @@ impl Tool for ReadFile {
         };
 
         Ok(ToolOutput::read(text, summary))
+    }
+}
+
+/// Открыть файл штатным приложением Windows.
+///
+/// Это отдельный инструмент от `fs.read`: PDF, DOCX и изображения нельзя
+/// честно передать модели как UTF-8, но их можно открыть назначенной Windows
+/// программой. Путь проходит ту же проверку разрешённых папок, а действие
+/// требует разрешения на запуск приложений.
+pub struct OpenFile;
+
+impl Tool for OpenFile {
+    fn spec(&self, settings: &Settings) -> ToolSpec {
+        ToolSpec {
+            id: "fs.open".into(),
+            // Открытие относится к уже разрешённому файловому корпусу:
+            // если чтение файлов выключено, модель не должна видеть ни
+            // один инструмент с префиксом fs.*. Само действие остаётся
+            // side_effecting и потому проходит обычное подтверждение.
+            capability: "files.read".into(),
+            name: "Открыть файл".into(),
+            description: format!(
+                "Открыть существующий файл штатной программой Windows по полному пути. \
+                 Подходит для PDF, DOCX, изображений и других форматов. \
+                 Путь должен находиться в разрешённой папке. {}",
+                super::папки_словами(settings)
+            ),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Полный путь к файлу" }
+                },
+                "required": ["path"]
+            }),
+            side_effecting: true,
+        }
+    }
+
+    fn call(&self, args: &Value, settings: &Settings) -> ToolResult {
+        ensure_allowed(settings, "files.read")?;
+        let raw = arg_str(args, "path")?;
+        let path = resolve_inside(&raw, settings)?;
+        if !path.is_file() {
+            return Err(ToolError::Missing(raw));
+        }
+
+        #[cfg(windows)]
+        let result = {
+            use std::os::windows::process::CommandExt;
+            let mut command = Command::new("cmd");
+            command
+                .args(["/C", "start", "", &path.to_string_lossy()])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .creation_flags(0x0800_0000)
+                .spawn()
+        };
+
+        #[cfg(not(windows))]
+        let result = Command::new("xdg-open").arg(&path).spawn();
+
+        result
+            .map(|_| {
+                ToolOutput::changed(
+                    format!("открыт файл: {}", path.display()),
+                    format!("открыт файл {}", path.display()),
+                )
+            })
+            .map_err(|e| ToolError::Refused(format!("не удалось открыть {}: {e}", path.display())))
     }
 }
 

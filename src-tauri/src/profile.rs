@@ -414,12 +414,17 @@ fn detect_dxgi() -> (Hardware, bool) {
 /// отдаёт 0. Это единственное место в приложении, где запускается
 /// внешний процесс, и модель к нему доступа не имеет.
 fn detect_nvidia_smi(hw: &mut Hardware) -> bool {
-    let out = std::process::Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=name,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
+    let mut command = std::process::Command::new("nvidia-smi");
+    command.args([
+        "--query-gpu=name,memory.total",
+        "--format=csv,noheader,nounits",
+    ]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let out = command.output();
 
     let Ok(out) = out else { return false };
     if !out.status.success() {

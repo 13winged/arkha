@@ -207,10 +207,12 @@ export default function RagWindow() {
 
   return (
     <div
+      className="cyber-window rag-window"
       style={{ padding: "1rem", fontFamily: "inherit", color: "inherit", background: "inherit", minHeight: "100vh" }}
       onClick={handleDocumentClick}
     >
-      <h1 style={{ marginBottom: "0.5rem" }}>ArkHa — RAG (дообучение корпусом)</h1>
+      <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // LOCAL CORPUS ] ---- 0xRAG ---- [ ONLINE ]</div>
+      <h1 className="cyber-window-title" style={{ marginBottom: "0.5rem" }}>ArkHa — RAG <span>// дообучение корпусом</span></h1>
       <p style={{ opacity: 0.7, marginBottom: "1rem", fontSize: "0.9em" }}>
         Добавьте свои документы, и секретарь будет использовать их при ответах.
         Это «дообучение» без изменения весов модели — секретарь ищет релевантные
@@ -337,7 +339,7 @@ export default function RagWindow() {
 
       {/* Floating menu for text selection */}
       {menuPos && selectedText && (
-        <div
+      <div
           className="floating-menu"
           style={{
             position: "fixed",

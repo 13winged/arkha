@@ -111,12 +111,17 @@ fn оперативная() -> (u64, u64) {
 /// единственное место, где разрешено звать внешний процесс, и
 /// единственное место, где может ничего не получиться.
 fn видеопамять() -> (Option<u64>, Option<u64>) {
-    let вывод = std::process::Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=memory.used,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
+    let mut command = std::process::Command::new("nvidia-smi");
+    command.args([
+        "--query-gpu=memory.used,memory.total",
+        "--format=csv,noheader,nounits",
+    ]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let вывод = command.output();
     // Нет `nvidia-smi` в PATH или он не ответил — это не ошибка
     // программы, а отсутствие NVIDIA. Отвечаем «неизвестно».
     let вывод = match вывод {

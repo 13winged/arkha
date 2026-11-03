@@ -868,7 +868,7 @@ function Settings({ profile, onChange }: {
 // Чат (S2)
 // ---------------------------------------------------------------------------
 
-function Chat({ model }: { model: ModelStatus }) {
+function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -912,8 +912,12 @@ function Chat({ model }: { model: ModelStatus }) {
   }, []);
 
   useEffect(() => {
+    // Пока вкладка скрыта, прокрутка бессмысленна; при возврате
+    // прокручиваем к последней реплике — иначе человек видит
+    // начало переписки вместо её конца.
+    if (hidden) return;
     bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, hidden]);
 
   const send = useCallback(async () => {
     const text = input.trim();
@@ -946,7 +950,9 @@ function Chat({ model }: { model: ModelStatus }) {
   }, [busy, input, messages, model.running]);
 
   return (
-    <section className="chat">
+    <section className="chat chat-panel" style={hidden ? { display: "none" } : undefined}>
+      <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // MODEL CHAT ] ---- CONTEXT LINK ---- [ ONLINE ]</div>
+      <h2>Чат с моделью</h2>
       <div className="messages">
         {messages.length === 0 && (
           <p className="muted">
@@ -1413,7 +1419,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
   }
 
   return (
-    <section className="panel">
+    <section className="panel model-panel">
       <h2>{t("Модель")}</h2>
 
       {!model.running ? (
@@ -1469,7 +1475,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "model" | "download" | "capabilities" | "welcome" | "settings" | "prefs" | "dashboard";
+type Tab = "chat" | "agent" | "download" | "capabilities" | "welcome" | "settings" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -1575,6 +1581,19 @@ function РазмерШрифта() {
   );
 }
 
+function ModelDock({ model, onChange }: { model: ModelStatus; onChange: (next: ModelStatus) => void }) {
+  return (
+    <aside className="model-dock" aria-label="Состояние модели">
+      <div className="model-dock-kicker">// MODEL.NODE // STATIC LINK</div>
+      <ModelBar model={model} onChange={onChange} />
+      <div className="model-dock-voice">
+        <div className="model-dock-kicker">// AUDIO.SUBSYSTEM</div>
+        <VoiceToggle />
+      </div>
+    </aside>
+  );
+}
+
 /**
  * Цвет смысла раздела.
  *
@@ -1587,14 +1606,12 @@ function РазмерШрифта() {
  * зрением, и человек узнаёт раздел раньше, чем прочитает его.
  */
 const ТОН: Record<Tab, "gold" | "blue"> = {
-  model: "gold",
   agent: "gold",
   chat: "blue",
   download: "gold",
   capabilities: "blue",
   welcome: "gold",
   settings: "blue",
-  prefs: "blue",
   dashboard: "blue",
 };
 
@@ -1920,7 +1937,7 @@ function App() {
   const [profile, setProfile] = useState<ProfileView | null>(null);
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("model");
+  const [tab, setTab] = useState<Tab>("chat");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
 
@@ -1956,6 +1973,16 @@ function App() {
   useEffect(() => {
     восстановитьЯзык();
     return следить(() => перерисовать((n) => n + 1));
+  }, []);
+
+  // Размер шрифта — глобальная настройка, поэтому применять его нужно
+  // при старте приложения, а не только после открытия вкладки настроек.
+  useEffect(() => {
+    const сохранён = Number(localStorage.getItem("arkha-font-size"));
+    const кегль = РАЗМЕРЫ_ШРИФТА.includes(сохранён as (typeof РАЗМЕРЫ_ШРИФТА)[number])
+      ? сохранён
+      : 14;
+    document.documentElement.style.setProperty("--кегль", `${кегль}px`);
   }, []);
 
   useEffect(() => {
@@ -2006,82 +2033,84 @@ function App() {
 
       {/* Левая панель (sidebar) */}
       <aside className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <div className="sidebar-brand">
-          <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
-          {!sidebarCollapsed && <span className="app-subtitle">{t("локальный секретарь")}</span>}
+        <div className="sidebar-head">
+          {!sidebarCollapsed && (
+            <div className="sidebar-brand">
+              <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
+              <span className="app-subtitle">{t("локальный секретарь")}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? t("развернуть панель") : t("свернуть панель")}
+            aria-expanded={!sidebarCollapsed}
+          >
+            {sidebarCollapsed ? "»" : "«"}
+          </button>
         </div>
-        <button type="button" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
-          {sidebarCollapsed ? "»" : "«"}
-        </button>
         <nav className="sidebar-nav">
-          {(["model", "agent", "chat", "download", "capabilities", "welcome", "settings", "prefs", "dashboard"] as Tab[]).map((вкладка) => (
+          {(["agent", "chat", "download", "capabilities", "welcome", "settings", "dashboard"] as Tab[]).map((вкладка) => (
             <button key={вкладка} type="button"
               data-tone={ТОН[вкладка]}
               className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
               onClick={() => setTab(вкладка)}
               title={t({
-                model: "модель",
                 agent: "секретарь",
                 chat: "чат",
                 download: "загрузка",
                 capabilities: "возможности",
                 welcome: "Знакомство",
                 settings: "профиль",
-                prefs: "настройки",
                 dashboard: "наблюдение",
               }[вкладка])}
             >
-              <span className="sidebar-icon">{{
-                model: " ",
-                agent: " ",
-                chat: " ",
-                download: " ",
-                capabilities: " ",
-                welcome: " ",
-                settings: " ",
-                prefs: " ",
-                dashboard: " ",
+              <span className="sidebar-icon" aria-hidden="true">{{
+                agent: "◈",
+                chat: "▤",
+                download: "↓",
+                capabilities: "✦",
+                welcome: "★",
+                settings: "◉",
+                dashboard: "▥",
               }[вкладка]}</span>
               {!sidebarCollapsed && <span className="sidebar-label">{t({
-                model: "модель",
                 agent: "секретарь",
                 chat: "чат",
                 download: "загрузка",
                 capabilities: "возможности",
                 welcome: "Знакомство",
                 settings: "профиль",
-                prefs: "настройки",
                 dashboard: "наблюдение",
               }[вкладка])}</span>}
             </button>
           ))}
         </nav>
-        <div className="sidebar-agent-select">
-          {!sidebarCollapsed && <span className="sidebar-label">{t("Режим агента")}</span>}
-          <select
-            className="agent-mode-select"
-            value={agentMode}
-            onChange={(e) => setAgentMode(e.target.value as "plan" | "think" | "build")}
-            title={t("Режим агента")}
-          >
-            <option value="plan">{t("plan")}</option>
-            <option value="think">{t("think")}</option>
-            <option value="build">{t("build")}</option>
-          </select>
-        </div>
+        {!sidebarCollapsed && (
+          <div className="sidebar-agent-select">
+            <span className="sidebar-label">{t("Режим агента")}</span>
+            <select
+              className="agent-mode-select"
+              value={agentMode}
+              onChange={(e) => setAgentMode(e.target.value as "plan" | "think" | "build")}
+              title={t("Режим агента")}
+            >
+              <option value="plan">{t("plan")}</option>
+              <option value="think">{t("think")}</option>
+              <option value="build">{t("build")}</option>
+            </select>
+          </div>
+        )}
         <div className="sidebar-footer">
           {!sidebarCollapsed && <ЯзыкКнопка />}
-          <MemoryBar />
+          {!sidebarCollapsed && <MemoryBar />}
         </div>
       </aside>
 
       {/* Основной контент */}
       <div className="app-main">
         <header className="app-header">
-          <div className="brand">
-            <span className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</span>
-            <span className="app-subtitle">{t("локальный секретарь")}</span>
-          </div>
           <div className="res-strip">
             <span className="res">
               <span className="res-label">{t("профиль")}</span>
@@ -2100,15 +2129,19 @@ function App() {
               </span>
             )}
             <MemoryBar />
-            <VoiceToggle />
           </div>
         </header>
 
-        <section className="app-body cp-draft-frame">
-          {error && <p className="error">Не удалось определить профиль: {error}</p>}
-          {tab === "model" && <ModelBar model={model} onChange={setModel} />}
-          {tab === "agent" && <Agent />}
-          {tab === "chat" && <Chat model={model} />}
+        <div className="app-workspace">
+          <section className="app-body cp-draft-frame">
+            {error && <p className="error">Не удалось определить профиль: {error}</p>}
+          {/* Агент остаётся смонтированным, иначе его история и контекст
+              исчезают при переходе на другую вкладку. */}
+          <Agent hidden={tab !== "agent"} />
+          {/* Чат не размонтируется: иначе история переписки пропадала
+              бы при каждом переходе на другую вкладку. Скрываем его
+              через display, состояние остаётся живым. */}
+          <Chat model={model} hidden={tab !== "chat"} />
           {tab === "download" && (
             <>
               <EnginePanel />
@@ -2117,18 +2150,20 @@ function App() {
           )}
           {tab === "capabilities" && <Capabilities />}
           {tab === "welcome" && <Welcome />}
-          {tab === "settings" && profile && (
-            <>
-              <Settings profile={profile} onChange={setProfile} />
-              <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
-            </>
-          )}
-          {tab === "prefs" && <РазмерШрифта />}
-          {tab === "dashboard" && <Dashboard />}
-        </section>
+            {tab === "settings" && profile && (
+              <>
+                <Settings profile={profile} onChange={setProfile} />
+                <РазмерШрифта />
+                <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
+              </>
+            )}
+            {tab === "dashboard" && <Dashboard />}
+          </section>
+          <ModelDock model={model} onChange={setModel} />
+        </div>
 
         <footer className="app-footer">
-          <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">9</kbd> вкладки</span>
+           <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">8</kbd> вкладок</span>
           <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
           <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
           <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>

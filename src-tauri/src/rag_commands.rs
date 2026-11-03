@@ -39,7 +39,7 @@ pub struct CorpusStatsView {
 
 /// Открыть окно RAG (дообучения корпусом).
 #[tauri::command]
-pub fn rag_open_window(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn rag_open_window(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
 
     if let Some(window) = app.get_webview_window("rag") {
@@ -51,7 +51,10 @@ pub fn rag_open_window(app: tauri::AppHandle) -> Result<(), String> {
     let _window = tauri::WebviewWindowBuilder::new(
         &app,
         "rag",
-        tauri::WebviewUrl::App("rag.html".into()),
+        // Vite собирает единый entry point — index.html. Раньше здесь
+        // указывался rag.html, которого в dist не было, поэтому WebView2
+        // показывал пустое белое окно.
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title("ArkHa — RAG (дообучение корпусом)")
     .inner_size(720.0, 560.0)

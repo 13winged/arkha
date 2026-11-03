@@ -448,12 +448,36 @@ body {
   width: 60px;
 }
 
+.sidebar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--cp-line);
+  margin-bottom: 4px;
+}
+
+.app-sidebar.collapsed .sidebar-head {
+  align-items: center;
+}
+
 .sidebar-brand {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 8px;
-  margin-bottom: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 2px 8px 0;
+  min-width: 0;
+}
+
+.sidebar-brand .brand-mark {
+  font-size: calc(var(--кегль, 14px) * 1.0);
+  white-space: nowrap;
+}
+
+.sidebar-brand .app-subtitle {
+  white-space: nowrap;
+  font-size: calc(var(--кегль, 14px) * 0.643);
 }
 
 .sidebar-toggle {
@@ -467,7 +491,10 @@ body {
   padding: 4px 8px;
   cursor: pointer;
   align-self: flex-end;
-  margin-bottom: 8px;
+}
+
+.app-sidebar.collapsed .sidebar-toggle {
+  align-self: center;
 }
 
 .sidebar-toggle:hover {
@@ -515,8 +542,22 @@ body {
 
 .sidebar-icon {
   flex-shrink: 0;
-  width: 16px;
+  width: 18px;
   text-align: center;
+  font-size: calc(var(--кегль, 14px) * 0.929);
+}
+
+.app-sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.app-sidebar.collapsed .sidebar-icon {
+  width: auto;
+}
+
+.app-sidebar.collapsed .sidebar-footer {
+  display: none;
 }
 
 .sidebar-label {
@@ -573,26 +614,21 @@ body {
   overflow: hidden;
 }
 
+.app-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-header {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 12px 18px 10px;
-  border-bottom: 1px solid var(--cp-line, var(--line));
-  background: linear-gradient(180deg, rgba(0, 255, 65, 0.03), transparent);
   flex-shrink: 0;
 }
 
-/* Марка. Золото только здесь и на активной вкладке — два места на
-   весь экран. Акцента, которого нет, видно за секунду; акцента,
-   которого везде, не видно вообще. */
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
+/* Марка живёт в левой панели — в шапке её нет: два логотипа на
+   экране спорили друг с другом. */
 .brand-mark {
   font-family: var(--cp-font-display);
   font-size: calc(var(--кегль, 14px) * 1.143);
@@ -703,6 +739,7 @@ body {
 .res-strip {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
   padding: 7px 18px;
   border-bottom: 1px solid var(--cp-line);
@@ -710,7 +747,8 @@ body {
   font-family: var(--cp-font-mono);
   font-size: calc(var(--кегль, 14px) * 0.786);
   font-weight: 700;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .res {
@@ -746,6 +784,7 @@ body {
   padding: 20px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 
 .app-footer {
@@ -2098,4 +2137,597 @@ kbd.cap,
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(178, 141, 32, 0.45);
   background-clip: content-box;
+}
+
+/* ---------------------------------------------------------------
+   Единая киберпанк-оболочка дополнительных окон
+   --------------------------------------------------------------- */
+.cyber-window {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--cp-text);
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 0, 255, 0.09), transparent 28%),
+    linear-gradient(135deg, rgba(0, 255, 65, 0.025), transparent 38%),
+    var(--cp-bg);
+  font-family: var(--cp-font-mono);
+}
+
+.cyber-window::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(rgba(0, 255, 65, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, #000, transparent 92%);
+}
+
+.cyber-window::after {
+  content: "// SYSTEM.UI :: NO CLOUD :: LOCAL ONLY";
+  position: fixed;
+  right: 18px;
+  bottom: 10px;
+  color: rgba(0, 255, 65, 0.45);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  pointer-events: none;
+}
+
+.cyber-window > * { position: relative; z-index: 1; }
+
+.cyber-window-topline {
+  margin: -0.4rem 0 1rem;
+  padding: 0 0 0.45rem;
+  border-bottom: 1px solid var(--cp-line);
+  color: var(--cp-neon-pink);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(255, 0, 255, 0.7);
+}
+
+.cyber-window-title {
+  color: var(--cp-neon-green) !important;
+  font-family: var(--cp-font-display) !important;
+  font-size: clamp(1.45rem, 4vw, 2.1rem) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.65);
+}
+
+.cyber-window-title span { color: var(--cp-muted); font-family: var(--cp-font-mono); font-size: 0.55em; }
+.cyber-window p { color: var(--cp-text-dim); }
+.cyber-window h3 {
+  margin-top: 1.25rem;
+  color: var(--cp-neon-pink);
+  font-family: var(--cp-font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rag-window [style*="border: 1px solid #ccc"] {
+  border: 1px solid var(--cp-line) !important;
+  border-radius: 0 !important;
+  background: rgba(0, 255, 65, 0.035) !important;
+  box-shadow: inset 3px 0 0 rgba(255, 0, 255, 0.35);
+}
+
+.rag-window input[type="text"], .rag-window textarea {
+  box-sizing: border-box;
+  border: 1px solid var(--cp-line-2) !important;
+  border-radius: 0 !important;
+  outline: none;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: var(--cp-text) !important;
+  font: inherit;
+}
+
+.rag-window input[type="text"]:focus, .rag-window textarea:focus {
+  border-color: var(--cp-neon-green) !important;
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.18);
+}
+
+.rag-window input::placeholder, .rag-window textarea::placeholder { color: var(--cp-muted); }
+
+.cyber-window button {
+  border: 1px solid var(--cp-neon-green) !important;
+  border-radius: 0 !important;
+  background: rgba(0, 255, 65, 0.06) !important;
+  color: var(--cp-neon-green) !important;
+  font: inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background var(--ход), box-shadow var(--ход), color var(--ход);
+}
+
+.cyber-window button:hover:not(:disabled) {
+  background: rgba(0, 255, 65, 0.16) !important;
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.24);
+}
+
+.cyber-window button:disabled {
+  border-color: var(--cp-line) !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: var(--cp-muted) !important;
+}
+
+.agent-select-window button {
+  position: relative;
+  min-height: 88px;
+  border-color: var(--cp-line-2) !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+  box-shadow: inset 4px 0 0 rgba(255, 0, 255, 0.35);
+}
+
+.agent-select-window button:hover:not(:disabled) {
+  border-color: var(--cp-neon-pink) !important;
+  box-shadow: inset 4px 0 0 var(--cp-neon-pink), 0 0 18px rgba(255, 0, 255, 0.18);
+}
+
+.agent-select-window button:disabled {
+  border-color: var(--cp-neon-green) !important;
+  box-shadow: inset 4px 0 0 var(--cp-neon-green), 0 0 18px rgba(0, 255, 65, 0.12);
+}
+
+.floating-menu {
+  border: 1px solid var(--cp-neon-pink) !important;
+  border-radius: 0 !important;
+  background: #09000a !important;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.3) !important;
+}
+
+.floating-menu button {
+  min-height: 0;
+  padding: 0.25rem 0.5rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--cp-neon-pink) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cyber-window *, .cyber-window *::before, .cyber-window *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Финальный слой общей темы ArkHa
+
+   Не привязан к конкретной вкладке: модель, чат, загрузка,
+   возможности, настройки, dashboard и onboarding используют один
+   визуальный протокол — терминальный текст, угловые срезы,
+   зелёный OK и розовый signal.
+   --------------------------------------------------------------- */
+.app {
+  background:
+    radial-gradient(ellipse at 78% -10%, rgba(255, 0, 255, 0.07), transparent 34%),
+    radial-gradient(ellipse at 16% 110%, rgba(0, 255, 65, 0.045), transparent 42%),
+    var(--cp-bg);
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(0, 255, 65, 0.035), transparent 22%),
+    var(--cp-bg-2);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.32);
+}
+
+.app-sidebar::after {
+  content: "SYS // LOCAL NODE";
+  position: absolute;
+  left: 10px;
+  bottom: 4px;
+  color: rgba(0, 255, 65, 0.24);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  writing-mode: vertical-rl;
+  pointer-events: none;
+}
+
+.app-header {
+  position: relative;
+  background: linear-gradient(180deg, rgba(0, 255, 65, 0.045), transparent);
+  border-bottom: 1px solid var(--cp-line);
+}
+
+.app-header::before {
+  content: "[ ARKHA.OS ]  //  LOCAL INTELLIGENCE CONSOLE  //  0x00";
+  position: absolute;
+  left: 18px;
+  top: 2px;
+  color: rgba(255, 0, 255, 0.34);
+  font: 9px var(--cp-font-mono);
+  letter-spacing: 0.16em;
+  pointer-events: none;
+}
+
+.res-strip {
+  padding-top: 16px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.15), rgba(0, 255, 65, 0.035));
+}
+
+.app-body {
+  position: relative;
+  background-image: linear-gradient(rgba(0, 255, 65, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.018) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.app-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0 49.8%, rgba(255, 0, 255, 0.035) 50%, transparent 50.2%);
+  opacity: 0.28;
+}
+
+.panel,
+.card,
+.tier,
+.onb-preview,
+.onb-log,
+.log,
+.agent-log,
+.messages {
+  background: linear-gradient(135deg, rgba(0, 255, 65, 0.035), transparent 34%), var(--cp-bg-2);
+  border-color: var(--cp-line-2);
+}
+
+.panel:hover,
+.card:hover,
+.tier:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.1), inset 0 0 18px rgba(0, 0, 0, 0.55);
+}
+
+.chat-panel,
+.agent-panel {
+  max-width: none;
+  min-height: calc(100vh - 250px);
+}
+
+.chat-panel .messages,
+.agent-panel .agent-log {
+  min-height: calc(100vh - 470px);
+  max-height: none;
+}
+
+.agent-panel .agent-log {
+  padding: 16px;
+  font-size: calc(var(--кегль, 14px) * 0.9);
+  line-height: 1.65;
+  border-color: var(--cp-line-2);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.65);
+}
+
+.agent-panel .onb-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--cp-line-2);
+  background: rgba(0, 255, 65, 0.025);
+}
+
+.agent-panel .onb-input input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-color: var(--cp-line);
+  background: var(--cp-bg-2) !important;
+  color: var(--cp-text) !important;
+}
+
+.agent-input-hint {
+  position: absolute;
+  left: 22px;
+  top: -0.65em;
+  padding: 0 6px;
+  color: var(--cp-neon-pink);
+  background: var(--cp-bg);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.agent-panel .agent-line {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-left: 2px solid var(--cp-line);
+}
+
+.agent-panel .agent-secretary {
+  border-left-color: var(--cp-neon-green);
+  background: rgba(0, 255, 65, 0.035);
+}
+
+.agent-panel .agent-я {
+  border-left-color: var(--cp-neon-pink);
+  background: rgba(255, 0, 255, 0.035);
+}
+
+.agent-panel .agent-инструмент {
+  border-left-color: var(--cp-blue, #2e82d4);
+  color: var(--cp-text-dim);
+}
+
+.chat-panel .messages {
+  padding: 16px;
+  margin-bottom: 18px;
+  border: 1px solid var(--cp-line-2);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.65);
+}
+
+.chat-panel {
+  margin-top: 0;
+  transform: translateY(-8px);
+}
+
+.model-panel {
+  width: min(720px, 100%);
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.model-panel h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.model-dock {
+  position: relative;
+  flex: 0 0 248px;
+  width: 248px;
+  overflow-y: auto;
+  padding: 18px 14px;
+  border-left: 1px solid var(--cp-line-2);
+  background:
+    linear-gradient(180deg, rgba(0, 255, 65, 0.055), transparent 28%),
+    var(--cp-bg-2);
+  box-shadow: -10px 0 28px rgba(0, 0, 0, 0.28);
+}
+
+.model-dock .model-panel {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.model-dock .model-panel h2 {
+  margin-top: 5px;
+}
+
+.model-dock .model-panel .facts {
+  grid-template-columns: 1fr;
+}
+
+.model-dock .model-panel .context-row {
+  display: block;
+}
+
+.model-dock .model-panel .context-row .chip {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.model-dock .model-panel .log {
+  max-height: 180px;
+}
+
+.model-dock::before,
+.model-dock::after {
+  content: "";
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--cp-neon-pink);
+  pointer-events: none;
+}
+
+.model-dock::before {
+  top: 0;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.model-dock::after {
+  right: 0;
+  bottom: 0;
+  border-left: 0;
+  border-top: 0;
+}
+
+.model-dock-kicker {
+  color: var(--cp-neon-pink);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.model-dock h2 {
+  margin: 5px 0 14px;
+  font-size: 1rem;
+}
+
+.model-dock-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--cp-line);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+
+.model-dock-status.online {
+  color: var(--cp-neon-green);
+  border-color: rgba(0, 255, 65, 0.45);
+}
+
+.model-dock-status.offline {
+  color: var(--cp-muted);
+}
+
+.status-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+
+.model-dock-facts {
+  margin: 16px 0;
+}
+
+.model-dock-facts div {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cp-line);
+}
+
+.model-dock-facts dt {
+  color: var(--cp-muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+}
+
+.model-dock-facts dd {
+  margin: 3px 0 0;
+  color: var(--cp-text);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.model-dock-action {
+  width: 100%;
+  padding: 10px 8px !important;
+}
+
+.model-dock-voice {
+  margin-top: 26px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-line-2);
+}
+
+.model-dock-voice .voice {
+  display: block;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .model-dock {
+    flex-basis: 210px;
+    width: 210px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-workspace {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .app-body {
+    overflow: visible;
+  }
+
+  .model-dock {
+    width: auto;
+    border-top: 1px solid var(--cp-line-2);
+    border-left: 0;
+  }
+}
+
+.panel h2,
+.panel h3,
+.sector-head {
+  text-shadow: 0 0 9px rgba(0, 255, 65, 0.28);
+}
+
+button,
+select,
+input,
+textarea {
+  font-family: var(--cp-font-mono);
+}
+
+select {
+  appearance: none;
+  background-color: var(--cp-bg-2);
+  background-image: linear-gradient(45deg, transparent 50%, var(--cp-neon-green) 50%),
+    linear-gradient(135deg, var(--cp-neon-green) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--cp-neon-green) !important;
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.2);
+}
+
+details {
+  border: 1px solid var(--cp-line);
+  background: rgba(0, 255, 65, 0.025);
+  padding: 8px 10px;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--cp-neon-green);
+  font-family: var(--cp-font-mono);
+  letter-spacing: 0.08em;
+}
+
+details[open] summary {
+  margin-bottom: 8px;
+  color: var(--cp-neon-pink);
+}
+
+.app-footer {
+  background: linear-gradient(90deg, rgba(0, 255, 65, 0.035), var(--cp-bg-2));
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.app-footer .hint {
+  letter-spacing: 0.1em;
+}
+
+@media (max-width: 800px) {
+  .app-header::before,
+  .app-sidebar::after {
+    display: none;
+  }
+
+  .res-strip {
+    gap: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+    overflow-x: auto;
+  }
 }

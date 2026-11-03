@@ -38,8 +38,8 @@ pub fn включить(г: &Голос) -> Result<(), String> {
     let модель = г.модель("Qwen3-ASR-0.6B-Q8_0.gguf")?;
     let проектор = г.модель("mmproj-Qwen3-ASR-0.6B-Q8_0.gguf")?;
 
-    let mut ребёнок = Command::new(&exe)
-        .args([
+    let mut command = Command::new(&exe);
+    command.args([
             "-m",
             &модель.to_string_lossy(),
             "--mmproj",
@@ -58,8 +58,8 @@ pub fn включить(г: &Голос) -> Result<(), String> {
             "1",
             "-t",
             "6",
-        ])
-        .current_dir(exe.parent().unwrap_or(std::path::Path::new(".")))
+        ]);
+    command.current_dir(exe.parent().unwrap_or(std::path::Path::new(".")))
         .env(
             "PATH",
             crate::model_manager::prepend_path(
@@ -68,8 +68,13 @@ pub fn включить(г: &Голос) -> Result<(), String> {
         )
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut ребёнок = command.spawn()
         .map_err(|e| format!("не удалось запустить распознавание: {e}"))?;
 
     let край = Instant::now() + ОЖИДАНИЕ;

@@ -25,7 +25,7 @@ pub struct AgentSelectView {
 
 /// Открыть окно выбора агента.
 #[tauri::command]
-pub fn agent_select_open_window(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn agent_select_open_window(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
 
     if let Some(window) = app.get_webview_window("agent_select") {
