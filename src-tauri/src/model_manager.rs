@@ -898,7 +898,8 @@ pub fn start(
     model: &Path,
     port: u16,
 ) -> Result<Sidecar, String> {
-    let exe = llama_server_exe();
+    let runtime = crate::runtime::active_runtime_paths()?;
+    let exe = runtime.executable;
     if !exe.exists() {
         let searched = bin_search_paths()
             .iter()
@@ -926,12 +927,21 @@ pub fn start(
     let log = LogBuffer::new(2_000);
     let args = server_args(recipe, model, port);
 
-    // cudart лежит рядом с бинарником и должен быть в PATH.
-    let cudart = bin_dir().join("cudart");
+    let path = runtime
+        .path_dirs
+        .iter()
+        .rev()
+        .fold(std::env::var("PATH").unwrap_or_default(), |path, directory| {
+            if path.is_empty() {
+                directory.display().to_string()
+            } else {
+                format!("{};{path}", directory.display())
+            }
+        });
     let mut cmd = Command::new(&exe);
     cmd.args(&args)
-        .current_dir(bin_dir())
-        .env("PATH", prepend_path(&cudart))
+        .current_dir(&runtime.root)
+        .env("PATH", path)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

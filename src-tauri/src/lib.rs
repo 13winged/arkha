@@ -24,6 +24,8 @@ pub mod permissions_commands;
 pub mod profile;
 pub mod profile_commands;
 pub mod resources;
+pub mod runtime;
+pub mod settings;
 pub mod skills;
 pub mod state;
 pub mod tools;
@@ -76,6 +78,16 @@ pub fn run() {
             voice::voice_audio_set,
             voice::voice_theme_settings,
             voice::voice_theme_set,
+            settings::settings_get,
+            settings::settings_save,
+            settings::settings_migrate_legacy,
+            settings::settings_reset,
+            runtime::runtime_list,
+            runtime::runtime_set_active,
+            runtime::runtime_check,
+            runtime::runtime_delete,
+            runtime::runtime_reveal,
+            runtime::runtime_install,
             chat::start_model,
             chat::stop_model,
             chat::model_status,

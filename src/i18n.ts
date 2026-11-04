@@ -161,6 +161,22 @@ const EN: Record<string, string> = {
   // движка модель не запустится, и человек должен видеть это раньше,
   // чем список моделей.
   "Движок": "Engine",
+  "Runtime": "Runtime",
+  "Установленные движки и версии": "Installed engines and versions",
+  "Обновить": "Refresh",
+  "Проверяем runtime…": "Checking runtime…",
+  "Установленных runtime пока нет": "No runtime packages installed yet",
+  "активен": "active",
+  "Сделать активным": "Make active",
+  "Удалить этот runtime?": "Delete this runtime?",
+  "Открыть папку": "Open folder",
+  "Удалить": "Delete",
+  "Установить runtime из ZIP": "Install runtime from ZIP",
+  "Нужны HTTPS-ссылка, SHA-256 и manifest-параметры пакета.": "HTTPS URL, SHA-256 and package manifest fields are required.",
+  "Backend": "Backend",
+  "Требуется CUDA": "Requires CUDA",
+  "Установка…": "Installing…",
+  "Установить и проверить": "Install and verify",
   "Движок найден. Работает на процессоре.":
     "Engine found. Running on the processor.",
   "Движок не найден ни рядом с программой, ни в папке проекта. Модель не запустится.":
@@ -260,10 +276,15 @@ export function язык(): Lang {
 }
 
 export function поставитьЯзык(новый: Lang) {
+  применитьЯзык(новый);
+  localStorage.setItem("arkha-lang", новый);
+}
+
+/** Применить язык без записи в legacy localStorage. */
+export function применитьЯзык(новый: Lang) {
   if (новый === текущий) return;
   текущий = новый;
   document.documentElement.lang = новый;
-  localStorage.setItem("arkha-lang", новый);
   for (const с of слушатели) с();
 }
 

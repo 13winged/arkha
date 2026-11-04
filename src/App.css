@@ -912,6 +912,147 @@ h3 {
   margin-top: 0;
 }
 
+.runtime-panel-heading,
+.runtime-card-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.runtime-panel-heading h2 {
+  margin-bottom: 4px;
+}
+
+.runtime-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.runtime-card {
+  padding: 12px 14px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg-2);
+  border-radius: 4px;
+}
+
+.runtime-card-main strong {
+  display: block;
+  color: var(--cp-text);
+}
+
+.runtime-meta,
+.runtime-path,
+.runtime-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--cp-muted);
+  font-size: 0.82em;
+}
+
+.runtime-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--cp-font-mono);
+}
+
+.runtime-note {
+  color: var(--cp-gold);
+}
+
+.runtime-error {
+  margin-top: 4px;
+  color: var(--cp-neon-red);
+  font-size: 0.82em;
+}
+
+.runtime-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.runtime-actions .danger {
+  color: var(--cp-neon-red);
+}
+
+.runtime-status {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.72em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.runtime-status.ok {
+  color: var(--cp-neon-green);
+}
+
+.runtime-status.bad {
+  color: var(--cp-neon-red);
+}
+
+.runtime-activate {
+  margin-top: 10px;
+}
+
+.runtime-install {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-line);
+}
+
+.runtime-install summary {
+  cursor: pointer;
+  color: var(--cp-neon-green);
+  font-weight: 700;
+}
+
+.runtime-install-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.runtime-install-grid label {
+  display: grid;
+  gap: 4px;
+  color: var(--cp-muted);
+  font-size: 0.82em;
+}
+
+.runtime-install-grid input,
+.runtime-install-grid select {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+}
+
+.runtime-install-grid .runtime-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  align-self: end;
+}
+
+.runtime-install-grid .runtime-checkbox input {
+  min-width: auto;
+}
+
+@media (max-width: 700px) {
+  .runtime-install-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Каркасные уголки панели — киберпанк-эстетика, уголки как на
    детальном чертеже. */
 .panel::before,

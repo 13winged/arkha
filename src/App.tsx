@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { t, язык, поставитьЯзык, восстановитьЯзык, следить } from "./i18n";
+import { t, язык, поставитьЯзык, применитьЯзык, восстановитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
 import AgentSelect from "./AgentSelect";
 import Dashboard from "./Dashboard";
@@ -1033,6 +1033,41 @@ interface EngineState {
   gpuName: string;
 }
 
+interface RuntimePackage {
+  id: string;
+  name: string;
+  engine: string;
+  backend: string;
+  version: string;
+  path: string;
+  executable: string | null;
+  installed: boolean;
+  active: boolean;
+  compatible: boolean;
+  status: string;
+  notes: string[];
+  managed: boolean;
+}
+
+interface RuntimeCompatibility {
+  runtimeId: string;
+  compatible: boolean;
+  errors: string[];
+  warnings: string[];
+  checkedFiles: string[];
+}
+
+interface RuntimeManifest {
+  id: string;
+  name: string;
+  engine: string;
+  backend: string;
+  version: string;
+  executable: string | null;
+  required_files: string[];
+  requires_cuda: boolean;
+}
+
 type EngineProgress =
   | { state: "ищем"; assets: string[] }
   | {
@@ -1146,6 +1181,198 @@ function EnginePanel() {
           ))}
         </p>
       )}
+    </section>
+  );
+}
+
+function RuntimePanel() {
+  const [packages, setPackages] = useState<RuntimePackage[] | null>(null);
+  const [compatibility, setCompatibility] = useState<RuntimeCompatibility[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const [install, setInstall] = useState({
+    url: "",
+    sha256: "",
+    id: "",
+    name: "",
+    engine: "llama.cpp",
+    backend: "cuda",
+    version: "",
+    executable: "llama/llama-server.exe",
+    requiredFiles: "",
+    requiresCuda: false,
+  });
+
+  const refresh = () => {
+    invoke<RuntimePackage[]>("runtime_list")
+      .then((result) => {
+        setPackages(result);
+        void invoke<RuntimeCompatibility[]>("runtime_check").then(setCompatibility).catch(() => undefined);
+        setError(null);
+      })
+      .catch((reason) => setError(String(reason)));
+  };
+
+  const activate = async (id: string) => {
+    try {
+      const result = await invoke<RuntimePackage[]>("runtime_set_active", { id });
+      setPackages(result);
+      setError(null);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm(t("Удалить этот runtime?"))) return;
+    try {
+      setPackages(await invoke<RuntimePackage[]>("runtime_delete", { id }));
+      setCompatibility(await invoke<RuntimeCompatibility[]>("runtime_check"));
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  const installRuntime = async () => {
+    setInstalling(true);
+    setError(null);
+    try {
+      const manifest: RuntimeManifest = {
+        id: install.id,
+        name: install.name,
+        engine: install.engine,
+        backend: install.backend,
+        version: install.version,
+        executable: install.executable || null,
+        required_files: install.requiredFiles
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+        requires_cuda: install.requiresCuda,
+      };
+      await invoke<RuntimePackage[]>("runtime_install", {
+        url: install.url,
+        sha256: install.sha256,
+        manifest,
+      });
+      setInstall((current) => ({ ...current, url: "", sha256: "" }));
+      refresh();
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  return (
+    <section className="panel runtime-panel">
+      <div className="runtime-panel-heading">
+        <div>
+          <h2>{t("Runtime")}</h2>
+          <p className="muted">{t("Установленные движки и версии")}</p>
+        </div>
+        <button type="button" className="chip" onClick={refresh}>
+          {t("Обновить")}
+        </button>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+      {!packages && !error && <p className="muted">{t("Проверяем runtime…")}</p>}
+      {packages && packages.length === 0 && (
+        <p className="muted">{t("Установленных runtime пока нет")}</p>
+      )}
+      <div className="runtime-list">
+        {packages?.map((runtime) => (
+          <article className="runtime-card" key={runtime.id}>
+            <div className="runtime-card-main">
+              <div>
+                <strong>{runtime.name}</strong>
+                <span className="runtime-meta">
+                  {runtime.engine} · {runtime.backend} · {runtime.version}
+                </span>
+              </div>
+              <span className={`runtime-status ${runtime.compatible ? "ok" : "bad"}`}>
+                {runtime.active ? t("активен") : runtime.status}
+              </span>
+            </div>
+            <div className="runtime-path" title={runtime.path}>{runtime.path}</div>
+            {runtime.notes.map((note) => (
+              <div className="runtime-note" key={note}>{note}</div>
+            ))}
+            {compatibility.find((report) => report.runtimeId === runtime.id)?.errors.map((error) => (
+              <div className="runtime-error" key={error}>{error}</div>
+            ))}
+            <div className="runtime-actions">
+              {runtime.managed && (
+                <>
+                  <button type="button" className="chip" onClick={() => void invoke("runtime_reveal", { id: runtime.id })}>
+                    {t("Открыть папку")}
+                  </button>
+                  {!runtime.active && (
+                    <button type="button" className="chip danger" onClick={() => void remove(runtime.id)}>
+                      {t("Удалить")}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            {runtime.installed && runtime.compatible && !runtime.active && (
+              <button type="button" className="chip runtime-activate" onClick={() => void activate(runtime.id)}>
+                {t("Сделать активным")}
+              </button>
+            )}
+          </article>
+        ))}
+      </div>
+
+      <details className="runtime-install">
+        <summary>{t("Установить runtime из ZIP")}</summary>
+        <p className="muted">{t("Нужны HTTPS-ссылка, SHA-256 и manifest-параметры пакета.")}</p>
+        <div className="runtime-install-grid">
+          {([[
+            "url", "HTTPS URL"
+          ], [
+            "sha256", "SHA-256"
+          ], [
+            "id", "ID"
+          ], [
+            "name", "Название"
+          ], [
+            "version", "Версия"
+          ], [
+            "executable", "Executable внутри ZIP"
+          ], [
+            "requiredFiles", "Обязательные файлы через запятую"
+          ]] as const).map(([field, label]) => (
+            <label key={field}>
+              <span>{label}</span>
+              <input
+                value={install[field]}
+                onChange={(event) => setInstall((current) => ({ ...current, [field]: event.target.value }))}
+              />
+            </label>
+          ))}
+          <label>
+            <span>{t("Backend")}</span>
+            <select value={install.backend} onChange={(event) => setInstall((current) => ({ ...current, backend: event.target.value }))}>
+              <option value="cpu">CPU</option>
+              <option value="cuda">CUDA</option>
+              <option value="vulkan">Vulkan</option>
+            </select>
+          </label>
+          <label className="runtime-checkbox">
+            <input type="checkbox" checked={install.requiresCuda} onChange={(event) => setInstall((current) => ({ ...current, requiresCuda: event.target.checked }))} />
+            <span>{t("Требуется CUDA")}</span>
+          </label>
+        </div>
+        <button type="button" onClick={() => void installRuntime()} disabled={installing}>
+          {installing ? t("Установка…") : t("Установить и проверить")}
+        </button>
+      </details>
     </section>
   );
 }
@@ -1528,17 +1755,32 @@ const УРОВНИ = [
   },
 ];
 
-function РазмерШрифта() {
-  const [кегль, setКегль] = useState<number>(() => {
-    const сохранён = Number(localStorage.getItem("arkha-font-size"));
-    return РАЗМЕРЫ_ШРИФТА.includes(сохранён as (typeof РАЗМЕРЫ_ШРИФТА)[number])
-      ? сохранён
-      : 14;
-  });
+interface VoiceSettings {
+  enabled: boolean;
+  auto_load: boolean;
+  tts_enabled: boolean;
+  language: string;
+  voice: string | null;
+  speed: number;
+}
+
+interface AppSettings {
+  schema_version: number;
+  language: "ru" | "en";
+  font_size: number;
+  active_model: string | null;
+  active_runtime: string | null;
+  voice: VoiceSettings;
+  enabled_skills: string[];
+  enabled_tools: string[];
+  agent_mode: "plan" | "think" | "build";
+  fallback_policy: string;
+}
+
+function РазмерШрифта({ кегль, onChange }: { кегль: number; onChange: (value: number) => void }) {
 
   useEffect(() => {
     document.documentElement.style.setProperty("--кегль", `${кегль}px`);
-    localStorage.setItem("arkha-font-size", String(кегль));
   }, [кегль]);
 
   const шаг = РАЗМЕРЫ_ШРИФТА.indexOf(кегль as (typeof РАЗМЕРЫ_ШРИФТА)[number]);
@@ -1559,7 +1801,7 @@ function РазмерШрифта() {
             type="button"
             aria-label={t("мельче")}
             disabled={шаг <= 0}
-            onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг - 1] ?? кегль)}
+            onClick={() => onChange(РАЗМЕРЫ_ШРИФТА[шаг - 1] ?? кегль)}
           >
             A−
           </button>
@@ -1568,7 +1810,7 @@ function РазмерШрифта() {
             type="button"
             aria-label={t("крупнее")}
             disabled={шаг >= РАЗМЕРЫ_ШРИФТА.length - 1}
-            onClick={() => setКегль(РАЗМЕРЫ_ШРИФТА[шаг + 1] ?? кегль)}
+            onClick={() => onChange(РАЗМЕРЫ_ШРИФТА[шаг + 1] ?? кегль)}
           >
             A+
           </button>
@@ -1918,7 +2160,7 @@ function MemoryBar() {
  * читается как «уже русский». Так человек не гадает, что нажатие
  * сделает.
  */
-function ЯзыкКнопка() {
+function ЯзыкКнопка({ onChange }: { onChange?: (language: "ru" | "en") => void }) {
   const текущийЯзык = язык();
   return (
     <button
@@ -1926,7 +2168,11 @@ function ЯзыкКнопка() {
       className="lang"
       title={текущийЯзык === "ru" ? "Switch to English" : "Переключить на русский"}
       aria-label={текущийЯзык === "ru" ? "Switch to English" : "Переключить на русский"}
-      onClick={() => поставитьЯзык(текущийЯзык === "ru" ? "en" : "ru")}
+      onClick={() => {
+        const новый = текущийЯзык === "ru" ? "en" : "ru";
+        поставитьЯзык(новый);
+        onChange?.(новый);
+      }}
     >
       {текущийЯзык === "ru" ? "EN" : "RU"}
     </button>
@@ -1940,6 +2186,8 @@ function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [fontSize, setFontSize] = useState(14);
 
   // Отдельное окно RAG (дообучение корпусом)
   const isRagWindow = getCurrentWindow().label === "rag";
@@ -1971,19 +2219,46 @@ function App() {
   const [глитчРежим, setГлитчРежим] = useState<string | null>(null);
 
   useEffect(() => {
-    восстановитьЯзык();
+    const legacyFont = Number(localStorage.getItem("arkha-font-size"));
+    const legacyFontSize = РАЗМЕРЫ_ШРИФТА.includes(legacyFont as (typeof РАЗМЕРЫ_ШРИФТА)[number])
+      ? legacyFont
+      : null;
+    const legacyLanguage = localStorage.getItem("arkha-lang");
+    const language = legacyLanguage === "ru" || legacyLanguage === "en" ? legacyLanguage : null;
+
+    invoke<AppSettings>("settings_migrate_legacy", {
+      language,
+      font_size: legacyFontSize,
+    })
+      .then((loaded) => {
+        setSettings(loaded);
+        setFontSize(loaded.font_size);
+        setAgentMode(loaded.agent_mode);
+        применитьЯзык(loaded.language);
+        document.documentElement.style.setProperty("--кегль", `${loaded.font_size}px`);
+      })
+      .catch(() => {
+        восстановитьЯзык();
+        if (legacyFontSize !== null) {
+          setFontSize(legacyFontSize);
+          document.documentElement.style.setProperty("--кегль", `${legacyFontSize}px`);
+        }
+      });
+
     return следить(() => перерисовать((n) => n + 1));
   }, []);
 
-  // Размер шрифта — глобальная настройка, поэтому применять его нужно
-  // при старте приложения, а не только после открытия вкладки настроек.
-  useEffect(() => {
-    const сохранён = Number(localStorage.getItem("arkha-font-size"));
-    const кегль = РАЗМЕРЫ_ШРИФТА.includes(сохранён as (typeof РАЗМЕРЫ_ШРИФТА)[number])
-      ? сохранён
-      : 14;
-    document.documentElement.style.setProperty("--кегль", `${кегль}px`);
-  }, []);
+  async function saveSettings(next: AppSettings) {
+    try {
+      const saved = await invoke<AppSettings>("settings_save", { settings: next });
+      setSettings(saved);
+      setFontSize(saved.font_size);
+      setAgentMode(saved.agent_mode);
+      применитьЯзык(saved.language);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   useEffect(() => {
     invoke<AudioTheme>("voice_theme_settings").then((т) => setГлитчРежим(т.глитч ?? null)).catch(() => undefined);
@@ -2103,7 +2378,11 @@ function App() {
           </div>
         )}
         <div className="sidebar-footer">
-          {!sidebarCollapsed && <ЯзыкКнопка />}
+          {!sidebarCollapsed && <ЯзыкКнопка onChange={(language) => {
+            if (settings) {
+              void saveSettings({ ...settings, language, voice: { ...settings.voice, language } });
+            }
+          }} />}
           {!sidebarCollapsed && <MemoryBar />}
         </div>
       </aside>
@@ -2145,6 +2424,7 @@ function App() {
           {tab === "download" && (
             <>
               <EnginePanel />
+              <RuntimePanel />
               <Downloader model={model} />
             </>
           )}
@@ -2153,7 +2433,13 @@ function App() {
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
-                <РазмерШрифта />
+                <РазмерШрифта
+                  кегль={fontSize}
+                  onChange={(value) => {
+                    setFontSize(value);
+                    if (settings) void saveSettings({ ...settings, font_size: value });
+                  }}
+                />
                 <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
               </>
             )}

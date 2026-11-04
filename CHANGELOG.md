@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0] - 2026-11-04
+
+### Added
+
+- Persistent SQLite application settings with legacy browser-setting migration.
+- Runtime Manager with installed runtime registry and active runtime selection.
+- Runtime compatibility checks for executables, required files and CUDA.
+- Managed runtime packages with reveal and safe deletion controls.
+- HTTPS runtime ZIP installer with SHA-256 verification and atomic installation.
+- Manifest-based runtime metadata for CPU, CUDA and Vulkan backends.
+- Launcher integration with the selected runtime executable and library paths.
+
+### Verification
+
+- 331 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- TypeScript, Vite and Tauri production builds pass.
+
 ## [1.0.0] - 2026-11-03
 
 ### Added
