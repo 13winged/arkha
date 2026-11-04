@@ -177,6 +177,11 @@ const EN: Record<string, string> = {
   "Требуется CUDA": "Requires CUDA",
   "Установка…": "Installing…",
   "Установить и проверить": "Install and verify",
+  "Навыки": "Skills",
+  "Процедуры, доступные агенту": "Procedures available to the agent",
+  "Проверяем навыки…": "Checking skills…",
+  "включён": "enabled",
+  "выключен": "disabled",
   "Движок найден. Работает на процессоре.":
     "Engine found. Running on the processor.",
   "Движок не найден ни рядом с программой, ни в папке проекта. Модель не запустится.":

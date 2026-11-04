@@ -266,6 +266,9 @@ pub fn навыки() -> skill::Хранилище {
     ХРАНИЛИЩЕ
         .get_or_init(|| {
             let н = crate::skills::Набор::из_папки(&crate::skills::папка_данных());
+            let н = crate::settings::settings_get()
+                .map(|settings| н.только_включённые(&settings.enabled_skills))
+                .unwrap_or(н);
             std::sync::Arc::new(std::sync::RwLock::new(н))
         })
         .clone()
@@ -278,6 +281,9 @@ pub fn навыки() -> skill::Хранилище {
 /// изменить то, что агент собирается сделать, без спроса.
 pub fn перечитать_навыки() -> Result<Vec<String>, String> {
     let н = crate::skills::Набор::из_папки(&crate::skills::папка_данных());
+    let н = crate::settings::settings_get()
+        .map(|settings| н.только_включённые(&settings.enabled_skills))
+        .unwrap_or(н);
     let сводка = н.сводка();
     let сломанные: Vec<String> = н.сломанные.iter().map(|о| о.to_string()).collect();
     *навыки()

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0-alpha] - 2026-11-04
+
+### Added
+
+- Manifest-aware Skills Registry for legacy and directory-based skills.
+- Skills list, enable and disable commands with persistent settings.
+- Skills management panel in the settings screen.
+- Enabled skills are filtered before entering the agent tool registry.
+- Skill metadata includes source, version, tools and permissions.
+
+### Verification
+
+- Full Rust library tests and TypeScript/production build pass.
+
 ## [1.1.0] - 2026-11-04
 
 ### Added

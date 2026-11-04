@@ -1053,6 +1053,44 @@ h3 {
   }
 }
 
+.skills-registry-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.skill-registry-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg-2);
+}
+
+.skill-registry-card p {
+  margin: 5px 0;
+}
+
+.skill-registry-card small {
+  color: var(--cp-gold);
+}
+
+.skill-toggle {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--cp-line);
+  background: transparent;
+  color: var(--cp-muted);
+  cursor: pointer;
+}
+
+.skill-toggle.enabled {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+}
+
 /* Каркасные уголки панели — киберпанк-эстетика, уголки как на
    детальном чертеже. */
 .panel::before,

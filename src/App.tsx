@@ -1068,6 +1068,19 @@ interface RuntimeManifest {
   requires_cuda: boolean;
 }
 
+interface SkillRegistryItem {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  source: string;
+  path: string;
+  tools: string[];
+  permissions: string[];
+  enabled: boolean;
+  manifest: boolean;
+}
+
 type EngineProgress =
   | { state: "ищем"; assets: string[] }
   | {
@@ -1373,6 +1386,58 @@ function RuntimePanel() {
           {installing ? t("Установка…") : t("Установить и проверить")}
         </button>
       </details>
+    </section>
+  );
+}
+
+function SkillsPanel() {
+  const [skills, setSkills] = useState<SkillRegistryItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = () => {
+    invoke<SkillRegistryItem[]>("skills_list")
+      .then(setSkills)
+      .catch((reason) => setError(String(reason)));
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const toggle = async (skill: SkillRegistryItem) => {
+    try {
+      const next = await invoke<SkillRegistryItem[]>(skill.enabled ? "skills_disable" : "skills_enable", { id: skill.id });
+      setSkills(next);
+      setError(null);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  return (
+    <section className="panel skills-panel">
+      <div className="runtime-panel-heading">
+        <div>
+          <h2>{t("Навыки")}</h2>
+          <p className="muted">{t("Процедуры, доступные агенту")}</p>
+        </div>
+        <button type="button" className="chip" onClick={refresh}>{t("Обновить")}</button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {!skills && !error && <p className="muted">{t("Проверяем навыки…")}</p>}
+      <div className="skills-registry-list">
+        {skills?.map((skill) => (
+          <article className="skill-registry-card" key={skill.id}>
+            <div>
+              <strong>{skill.name}</strong>
+              <span className="runtime-meta">{skill.version} · {skill.source}</span>
+              <p className="muted">{skill.description}</p>
+              {skill.permissions.length > 0 && <small>{skill.permissions.join(", ")}</small>}
+            </div>
+            <button type="button" className={`skill-toggle ${skill.enabled ? "enabled" : ""}`} onClick={() => void toggle(skill)}>
+              {skill.enabled ? t("включён") : t("выключен")}
+            </button>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -2441,6 +2506,7 @@ function App() {
                   }}
                 />
                 <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
+                <SkillsPanel />
               </>
             )}
             {tab === "dashboard" && <Dashboard />}

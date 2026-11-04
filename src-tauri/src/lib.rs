@@ -26,6 +26,7 @@ pub mod profile_commands;
 pub mod resources;
 pub mod runtime;
 pub mod settings;
+pub mod skill_registry;
 pub mod skills;
 pub mod state;
 pub mod tools;
@@ -82,6 +83,9 @@ pub fn run() {
             settings::settings_save,
             settings::settings_migrate_legacy,
             settings::settings_reset,
+            skill_registry::skills_list,
+            skill_registry::skills_enable,
+            skill_registry::skills_disable,
             runtime::runtime_list,
             runtime::runtime_set_active,
             runtime::runtime_check,
