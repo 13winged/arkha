@@ -5,5 +5,6 @@
 
 pub mod approvals;
 pub mod compaction;
+pub mod context_builder;
 pub mod executor;
 pub mod live;

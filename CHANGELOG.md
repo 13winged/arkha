@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0-beta] - 2026-11-04
+
+### Added
+
+- Agent context builder runs before every model turn.
+- Tool-call/tool-result pairs remain intact during context compaction.
+- Agent events: `started`, `context_ready`, `tool_result` and `error`.
+- Expanded agent trace state for UI diagnostics.
+
+### Verification
+
+- 332 Rust tests pass; 3 hardware-dependent tests remain ignored.
+- TypeScript, Vite and Tauri production builds pass.
+
 ## [1.2.0-alpha] - 2026-11-04
 
 ### Added

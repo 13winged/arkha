@@ -30,6 +30,10 @@ use crate::permissions::Settings;
 const EVENT_CALL: &str = "agent:call";
 const EVENT_PENDING: &str = "agent:pending";
 const EVENT_DONE: &str = "agent:done";
+const EVENT_STARTED: &str = "agent:started";
+const EVENT_CONTEXT: &str = "agent:context_ready";
+const EVENT_TOOL_RESULT: &str = "agent:tool_result";
+const EVENT_ERROR: &str = "agent:error";
 
 /// Один вызов инструмента для интерфейса.
 #[derive(Debug, Clone, Serialize)]
@@ -238,10 +242,24 @@ pub fn agent_chat(
         }
     };
 
+    let mut messages = messages;
+    let user = crate::settings::settings_get()?.user;
+    if !user.login.is_empty() || !user.display_name.is_empty() {
+        messages.insert(0, Incoming {
+            role: "system".into(),
+            content: format!(
+                "Локальный профиль пользователя: имя «{}», login «{}». Учитывай его как постоянный контекст. Пароли и секреты недоступны.",
+                if user.display_name.is_empty() { "не указано" } else { &user.display_name },
+                if user.login.is_empty() { "не указано" } else { &user.login },
+            ),
+        });
+    }
     let start: Vec<Message> = messages.into_iter().map(|m| Message { role: m.role, content: m.content, tool_calls: None, tool_call_id: None, name: None }).collect();
     if start.is_empty() {
         return Err("нечего отправлять".into());
     }
+    let _ = app.emit(EVENT_STARTED, StartedEvent { request_id });
+    let tool_count = crate::tools::Registry::allowed(&s).ids().len();
 
     // Отдельный поток: клиент к сайдкару блокирующий, и вызвать его
     // из рантайма tokio нельзя.
@@ -263,6 +281,14 @@ pub fn agent_chat(
             request_id,
             handle,
         };
+        let _ = app.emit(
+            EVENT_CONTEXT,
+            ContextReadyEvent {
+                request_id,
+                messages: start.len(),
+                tools: tool_count,
+            },
+        );
         let mut agent = Agent::со_спросом(&mut model, s, cancel, &mut спрашивающий);
 
         let итог = agent.run(start, request_id);
@@ -281,11 +307,15 @@ pub fn agent_chat(
 fn report(app: &AppHandle, out: &Outcome, агент: &Agent, request_id: u64) {
     for c in &out.calls {
         let _ = app.emit(EVENT_CALL, CallEvent { request_id, call: c.clone() });
+        let _ = app.emit(EVENT_TOOL_RESULT, ToolResultEvent { request_id, call: c.clone() });
     }
     // Событие `agent:pending` отправляет не отчёт, а спрашивающий:
     // он же ждёт ответа. Иначе событие пришлось бы слать из двух
     // мест, и одно из них сработало бы на вызов, который уже
     // разрешён.
+    if out.stop_reason.starts_with("модель не ответила") {
+        let _ = app.emit(EVENT_ERROR, ErrorEvent { request_id, message: out.stop_reason.clone() });
+    }
     // Основание собирается здесь, а не в цикле: интерфейсу нужна
     // готовая строка, и собирать её из вызовов второй раз значит
     // завести второе место, где живёт это правило.
@@ -505,4 +535,28 @@ mod tests {
         assert!(msg.tool_call_id.is_none());
         assert!(msg.tool_calls.is_none());
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolResultEvent {
+    pub request_id: u64,
+    pub call: CallRecord,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorEvent {
+    pub request_id: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StartedEvent {
+    pub request_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ContextReadyEvent {
+    pub request_id: u64,
+    pub messages: usize,
+    pub tools: usize,
 }

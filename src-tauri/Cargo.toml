@@ -1,6 +1,6 @@
 [package]
 name = "arkha"
-version = "1.2.0-alpha"
+version = "1.2.0-beta"
 description = "Локальный ИИ-секретарь для Windows"
 authors = ["ArkHa"]
 edition = "2024"

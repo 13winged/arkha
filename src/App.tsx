@@ -1068,6 +1068,27 @@ interface RuntimeManifest {
   requires_cuda: boolean;
 }
 
+interface LocalModel {
+  name: string;
+  path: string;
+  sizeBytes: number;
+  active: boolean;
+  supported: boolean;
+}
+
+function modelFamily(name: string): string {
+  const stem = name.replace(/\.gguf$/i, "");
+  const quant = stem.search(/(?:IQ\d+_[A-Z0-9_]+|Q\d+(?:_[A-Z0-9_]+)?|BF16|FP16|FP32|F16|F32)/i);
+  if (quant <= 0) return stem;
+  return stem.slice(0, quant).replace(/[-_.]+$/, "") || stem;
+}
+
+function quantization(name: string): string {
+  const stem = name.replace(/\.gguf$/i, "");
+  const match = stem.match(/(?:IQ\d+_[A-Z0-9_]+|Q\d+(?:_[A-Z0-9_]+)?|BF16|FP16|FP32|F16|F32)/i);
+  return match?.[0] ?? "other";
+}
+
 interface SkillRegistryItem {
   id: string;
   name: string;
@@ -1386,6 +1407,91 @@ function RuntimePanel() {
           {installing ? t("Установка…") : t("Установить и проверить")}
         </button>
       </details>
+    </section>
+  );
+}
+
+function ModelLibrary() {
+  const [models, setModels] = useState<LocalModel[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = () => {
+    invoke<LocalModel[]>("models_list")
+      .then(setModels)
+      .catch((reason) => setError(String(reason)));
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const select = async (name: string) => {
+    try {
+      setModels(await invoke<LocalModel[]>("model_set_active", { name }));
+      setError(null);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  const groups = Array.from(
+    (models ?? []).reduce((result, model) => {
+      const family = modelFamily(model.name);
+      const group = result.get(family) ?? [];
+      group.push(model);
+      result.set(family, group);
+      return result;
+    }, new Map<string, LocalModel[]>()),
+  ).sort(([left], [right]) => left.localeCompare(right));
+
+  return (
+    <section className="panel model-library">
+      <div className="runtime-panel-heading">
+        <div>
+          <h2>{t("Модели")}</h2>
+          <p className="muted">{t("Локальная библиотека GGUF")}</p>
+        </div>
+        <button type="button" className="chip" onClick={refresh}>{t("Обновить")}</button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {!models && !error && <p className="muted">{t("Сканируем папку моделей…")}</p>}
+      {models && models.length === 0 && <p className="muted">{t("GGUF-моделей пока нет")}</p>}
+      <div className="model-library-list">
+        {groups.map(([family, variants]) => {
+          const active = variants.find((model) => model.active) ?? variants[0];
+          return (
+            <article className="model-family-card" key={family}>
+              <div className="model-family-heading">
+                <div>
+                  <strong>{family}</strong>
+                  <span className="runtime-meta">{variants.length} {t("вариантов квантования")}</span>
+                </div>
+                <select
+                  className="model-quant-select"
+                  value={active.name}
+                  onChange={(event) => void select(event.target.value)}
+                >
+                  {variants.map((variant) => (
+                    <option key={variant.name} value={variant.name} disabled={!variant.supported}>
+                      {quantization(variant.name)} · {gib(variant.sizeBytes)}{variant.supported ? "" : ` · ${t("нет рецепта")}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="runtime-path" title={active.path}>{active.path}</div>
+              <div className="model-family-footer">
+                <span className="runtime-meta">{gib(active.sizeBytes)} · {active.supported ? t("рецепт найден") : t("нет рецепта профиля")}</span>
+                <button
+                  type="button"
+                  className={`model-select ${active.active ? "selected" : ""}`}
+                  disabled={active.active || !active.supported}
+                  onClick={() => void select(active.name)}
+                >
+                  {active.active ? t("выбрана") : t("выбрать")}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -1767,7 +1873,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "download" | "capabilities" | "welcome" | "settings" | "dashboard";
+type Tab = "chat" | "agent" | "download" | "capabilities" | "settings" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -1840,6 +1946,36 @@ interface AppSettings {
   enabled_tools: string[];
   agent_mode: "plan" | "think" | "build";
   fallback_policy: string;
+  user: {
+    login: string;
+    display_name: string;
+  };
+}
+
+function LocalUserProfile({ settings, onSave }: { settings: AppSettings | null; onSave: (next: AppSettings) => void }) {
+  const [login, setLogin] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  useEffect(() => {
+    setLogin(settings?.user.login ?? "");
+    setDisplayName(settings?.user.display_name ?? "");
+  }, [settings]);
+
+  if (!settings) return null;
+  const save = () => onSave({ ...settings, user: { login: login.trim(), display_name: displayName.trim() } });
+
+  return (
+    <section className="panel local-user-profile">
+      <h2>{t("Локальный пользователь")}</h2>
+      <p className="muted">{t("Профиль сохраняется локально и используется в новых чатах и запросах агента.")}</p>
+      <div className="local-profile-grid">
+        <label><span>login</span><input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" /></label>
+        <label><span>{t("Имя")}</span><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+      </div>
+      <p className="muted">{t("Пароль появится вместе с локальным входом в будущем и пока не хранится.")}</p>
+      <button type="button" onClick={save}>{t("Сохранить профиль")}</button>
+    </section>
+  );
 }
 
 function РазмерШрифта({ кегль, onChange }: { кегль: number; onChange: (value: number) => void }) {
@@ -1917,7 +2053,6 @@ const ТОН: Record<Tab, "gold" | "blue"> = {
   chat: "blue",
   download: "gold",
   capabilities: "blue",
-  welcome: "gold",
   settings: "blue",
   dashboard: "blue",
 };
@@ -2391,7 +2526,7 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {(["agent", "chat", "download", "capabilities", "welcome", "settings", "dashboard"] as Tab[]).map((вкладка) => (
+          {(["agent", "chat", "download", "settings", "capabilities", "dashboard"] as Tab[]).map((вкладка) => (
             <button key={вкладка} type="button"
               data-tone={ТОН[вкладка]}
               className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
@@ -2401,7 +2536,6 @@ function App() {
                 chat: "чат",
                 download: "загрузка",
                 capabilities: "возможности",
-                welcome: "Знакомство",
                 settings: "профиль",
                 dashboard: "наблюдение",
               }[вкладка])}
@@ -2411,7 +2545,6 @@ function App() {
                 chat: "▤",
                 download: "↓",
                 capabilities: "✦",
-                welcome: "★",
                 settings: "◉",
                 dashboard: "▥",
               }[вкладка]}</span>
@@ -2420,7 +2553,6 @@ function App() {
                 chat: "чат",
                 download: "загрузка",
                 capabilities: "возможности",
-                welcome: "Знакомство",
                 settings: "профиль",
                 dashboard: "наблюдение",
               }[вкладка])}</span>}
@@ -2488,16 +2620,18 @@ function App() {
           <Chat model={model} hidden={tab !== "chat"} />
           {tab === "download" && (
             <>
+              <ModelLibrary />
               <EnginePanel />
               <RuntimePanel />
               <Downloader model={model} />
             </>
           )}
           {tab === "capabilities" && <Capabilities />}
-          {tab === "welcome" && <Welcome />}
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
+                <LocalUserProfile settings={settings} onSave={(next) => void saveSettings(next)} />
+                <Welcome />
                 <РазмерШрифта
                   кегль={fontSize}
                   onChange={(value) => {

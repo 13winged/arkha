@@ -126,6 +126,15 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
   useEffect(() => {
     const unlisten: Array<() => void> = [];
 
+    listen<{ request_id: number }>("agent:started", () => {
+      setКрутится(true);
+      setПричина(null);
+    }).then((f) => unlisten.push(f));
+
+    listen<{ request_id: number; messages: number; tools: number }>("agent:context_ready", (e) => {
+      setПричина(`контекст собран: ${e.payload.messages} сообщений, ${e.payload.tools} инструментов`);
+    }).then((f) => unlisten.push(f));
+
     // Событие приходит после того, как интерфейс уже нарисован.
     // Подписка должна быть готова раньше запроса, иначе первый ответ
     // пропадёт: команда возвращает идентификатор и сразу работает.

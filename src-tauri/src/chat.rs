@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::path::Path;
 // `Manager` нужен ради `AppHandle::state`: работа запуска ушла в
 // отдельный поток и достаёт состояние уже оттуда, а не из параметров
 // команды. Без него состояние не достать вовсе.
@@ -147,7 +148,14 @@ fn старт_на_потоке(app: &AppHandle) -> Result<ModelStatus, String> 
         .map_err(|e| format!("не удалось создать папку моделей: {e}"))?;
 
     let port = 18080;
-    let (started, outcome) = model_manager::start_transactional(tier, &catalog, &models, port)
+    let selected_model = crate::settings::settings_get()?.active_model;
+    let (started, outcome) = model_manager::start_transactional_selected(
+        tier,
+        &catalog,
+        &models,
+        port,
+        selected_model.as_deref(),
+    )
         .map_err(|e| {
             set_error(&status, &e);
             e
@@ -184,6 +192,69 @@ fn старт_на_потоке(app: &AppHandle) -> Result<ModelStatus, String> 
 
     *status.0.lock().expect("model lock poisoned") = Some(s.clone());
     Ok(s)
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalModel {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
+    pub active: bool,
+    pub supported: bool,
+}
+
+#[tauri::command]
+pub fn models_list() -> Result<Vec<LocalModel>, String> {
+    let directory = model_manager::models_dir();
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let settings = crate::settings::settings_get()?;
+    let catalog = model_manager::Catalog::load().ok();
+    let mut models = Vec::new();
+    for entry in std::fs::read_dir(&directory).map_err(|error| error.to_string())?.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") {
+            continue;
+        }
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+        let supported = catalog.as_ref().is_some_and(|catalog| {
+            catalog
+                .for_tier(crate::profile::detect_and_persist().effective())
+                .iter()
+                .any(|recipe| recipe.file == name)
+        });
+        let size_bytes = entry.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+        models.push(LocalModel {
+            active: settings.active_model.as_deref() == Some(name.as_str()),
+            name,
+            path: path.to_string_lossy().to_string(),
+            size_bytes,
+            supported,
+        });
+    }
+    models.sort_by(|left, right| left.name.cmp(&right.name));
+    Ok(models)
+}
+
+#[tauri::command]
+pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
+    if name.contains(['/', '\\', ':']) || name != Path::new(&name).file_name().and_then(|value| value.to_str()).unwrap_or_default() {
+        return Err("недопустимое имя модели".to_string());
+    }
+    let directory = model_manager::models_dir();
+    let path = directory.join(&name);
+    if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") || !path.is_file() {
+        return Err("модель не найдена".to_string());
+    }
+    let catalog = model_manager::Catalog::load()?;
+    let tier = crate::profile::detect_and_persist().effective();
+    if !catalog.for_tier(tier).iter().any(|recipe| recipe.file == name) {
+        return Err("для этой модели нет рецепта текущего профиля".to_string());
+    }
+    let mut settings = crate::settings::settings_get()?;
+    settings.active_model = Some(name);
+    crate::settings::settings_save(settings)?;
+    models_list()
 }
 
 #[tauri::command]
@@ -365,6 +436,16 @@ pub async fn chat(
     request_id: Option<u64>,
 ) -> Result<u64, String> {
     let base = sidecar.base_url()?;
+    let user = crate::settings::settings_get()?.user;
+    let mut messages = messages;
+    if !user.login.is_empty() || !user.display_name.is_empty() {
+        let identity = format!(
+            "Локальный профиль пользователя: имя «{}», login «{}». Используй это как устойчивый контекст пользователя. Пароль и секреты не передаются в модель.",
+            if user.display_name.is_empty() { "не указано" } else { &user.display_name },
+            if user.login.is_empty() { "не указано" } else { &user.login },
+        );
+        messages.insert(0, ChatMessage { role: "system".into(), content: identity });
+    }
     // Номер запроса может прийти из интерфейса, и это не мелочь.
     //
     // Раньше он выдавался здесь и возвращался в конце функции, то

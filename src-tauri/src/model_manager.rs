@@ -1225,8 +1225,26 @@ pub fn start_transactional(
     model_dir: &Path,
     port: u16,
 ) -> Result<(Sidecar, StartOutcome), String> {
+    start_transactional_selected(tier, catalog, model_dir, port, None)
+}
+
+pub fn start_transactional_selected(
+    tier: Tier,
+    catalog: &Catalog,
+    model_dir: &Path,
+    port: u16,
+    selected_model: Option<&str>,
+) -> Result<(Sidecar, StartOutcome), String> {
     let mut ordered: Vec<&Recipe> = catalog.for_tier(tier).iter().collect();
-    ordered.sort_by_key(|r| !r.verified);
+    ordered.sort_by_key(|r| {
+        if selected_model == Some(r.file.as_str()) {
+            0
+        } else if r.verified {
+            1
+        } else {
+            2
+        }
+    });
 
     if ordered.is_empty() {
         return Err(format!("в каталоге нет рецептов для профиля {}", tier.as_str()));

@@ -409,13 +409,18 @@ impl<'a> Agent<'a> {
     pub fn run(&mut self, mut messages: Vec<Message>, request_id: u64) -> Outcome {
         // Сжатие — до первого обращения к модели. Иначе запрос может
         // просто не уйти: контекст конечен, а разговор нет.
-        let сжатие = super::compaction::сжать(messages, self.порог_контекста);
-        self.сжатие_текст = сжатие.причина.clone();
-        messages = сжатие.messages;
+        let prepared = super::context_builder::prepare(messages, self.порог_контекста);
+        self.сжатие_текст = prepared.compression_note.clone();
+        messages = prepared.messages;
 
         let tools = self.registry.as_request_json(&self.settings);
 
         for turn_no in 0..MAX_TURNS {
+            let prepared = super::context_builder::prepare(messages, self.порог_контекста);
+            if !prepared.compression_note.is_empty() {
+                self.сжатие_текст = prepared.compression_note.clone();
+            }
+            messages = prepared.messages;
             // Отмена проверяется ДО обращения к модели: если
             // пользователь нажал «стоп», ждать ещё и его ответ незачем.
             if self.отменено() {

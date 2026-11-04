@@ -112,6 +112,8 @@ pub fn run() {
             chat::stop_generation,
             chat::preflight_model,
             chat::repo_files,
+            chat::models_list,
+            chat::model_set_active,
             chat::search_models,
             chat::download_hosts,
             chat::download_model,

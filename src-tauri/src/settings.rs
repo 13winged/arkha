@@ -18,6 +18,12 @@ pub struct VoiceSettings {
     pub speed: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct UserProfile {
+    pub login: String,
+    pub display_name: String,
+}
+
 impl Default for VoiceSettings {
     fn default() -> Self {
         Self {
@@ -43,6 +49,8 @@ pub struct AppSettings {
     pub enabled_tools: Vec<String>,
     pub agent_mode: String,
     pub fallback_policy: String,
+    #[serde(default)]
+    pub user: UserProfile,
 }
 
 impl Default for AppSettings {
@@ -58,6 +66,7 @@ impl Default for AppSettings {
             enabled_tools: Vec::new(),
             agent_mode: "build".to_string(),
             fallback_policy: "cuda-vulkan-cpu".to_string(),
+            user: UserProfile::default(),
         }
     }
 }
@@ -114,6 +123,8 @@ fn normalize(mut settings: AppSettings) -> AppSettings {
     settings.enabled_skills.dedup();
     settings.enabled_tools.sort();
     settings.enabled_tools.dedup();
+    settings.user.login = settings.user.login.trim().to_string();
+    settings.user.display_name = settings.user.display_name.trim().to_string();
     settings
 }
 
