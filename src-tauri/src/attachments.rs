@@ -17,12 +17,13 @@ pub struct AttachmentView {
 }
 
 fn database() -> Result<rusqlite::Connection, String> {
-    crate::memory::sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    crate::memory::sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|error| error.to_string())
 }
 
-fn root() -> PathBuf {
-    crate::profile::config_dir().join("attachments")
+fn root() -> Result<PathBuf, String> {
+    Ok(crate::user_data::current_roots()?.attachments)
 }
 
 fn safe_name(name: &str) -> String {
@@ -43,13 +44,15 @@ fn safe_name(name: &str) -> String {
 #[tauri::command]
 pub fn attachment_add(name: String, mime: String, data: Vec<u8>) -> Result<AttachmentView, String> {
     const MAX_BYTES: usize = 50 * 1024 * 1024;
+    crate::auth::require_authenticated()?;
     if data.len() > MAX_BYTES {
         return Err("вложение больше лимита 50 МБ".into());
     }
     let mut digest = Sha256::new();
     digest.update(&data);
     let id = digest.finalize().iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-    let directory = root().join(&id);
+    let attachment_root = root()?;
+    let directory = attachment_root.join(&id);
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let filename = safe_name(&name);
     let path = directory.join(&filename);
@@ -89,6 +92,7 @@ pub fn attachment_add(name: String, mime: String, data: Vec<u8>) -> Result<Attac
 }
 
 pub fn context(ids: &[String]) -> Result<Option<String>, String> {
+    crate::auth::require_authenticated()?;
     if ids.is_empty() { return Ok(None); }
     let connection = database()?;
     let mut statement = connection
@@ -113,7 +117,13 @@ pub fn attachments_delete(id: String) -> Result<(), String> {
         .query_row("SELECT path FROM attachments WHERE id = ?1", params![id], |row| row.get(0))
         .optional()
         .map_err(|error| error.to_string())?;
-    if let Some(path) = path { let _ = std::fs::remove_file(path); }
+    if let Some(path) = path {
+        let roots = crate::user_data::current_roots()?;
+        if !crate::user_data::contains_private_path(&roots, std::path::Path::new(&path)) {
+            return Err("путь вложения находится вне профиля пользователя".into());
+        }
+        std::fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
     connection.execute("DELETE FROM attachments WHERE id = ?1", params![id]).map_err(|error| error.to_string())?;
     Ok(())
 }

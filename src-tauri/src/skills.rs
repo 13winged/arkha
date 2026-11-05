@@ -221,12 +221,20 @@ impl Набор {
         let записи: Vec<PathBuf> = записи.flatten().map(|з| з.path()).collect();
         let mut файлы: Vec<PathBuf> = записи
             .iter()
-            .filter(|п| п.extension().map(|р| р == "md").unwrap_or(false))
+            .filter(|п| {
+                п.extension().map(|р| р == "md").unwrap_or(false)
+                    && !путь_другого_профиля(п)
+            })
             .cloned()
             .collect();
         let mut manifest_dirs: Vec<PathBuf> = записи
             .iter()
-            .filter(|п| п.is_dir() && п.join("skill.json").is_file())
+            .filter(|п| {
+                п.is_dir()
+                    && п.join("skill.json").is_file()
+                    && !путь_другого_профиля(п)
+                    && !путь_другого_профиля(&п.join("skill.json"))
+            })
             .cloned()
             .collect();
         файлы.sort();
@@ -394,7 +402,14 @@ fn схема_аргументов(аргументы: &[String]) -> Value {
 /// Рядом с данными, а не в каталоге пользователя: навыки — часть
 /// поставки, и править их должен тот, кто ставил программу.
 pub fn папка() -> PathBuf {
-    crate::profile::config_dir().join("skills")
+    crate::user_data::current_roots()
+        .map(|roots| roots.skills)
+        .unwrap_or_else(|_| PathBuf::new())
+}
+
+fn путь_другого_профиля(path: &Path) -> bool {
+    crate::user_data::current_roots()
+        .is_ok_and(|roots| crate::user_data::is_other_profile_path(&roots, path))
 }
 
 /// Навыки, установленные вместе с программой.
@@ -650,6 +665,12 @@ pub fn разобрать_manifest(directory: &Path) -> Result<Skill, Ошибк
     fn default_entrypoint() -> String { "SKILL.md".to_string() }
 
     let manifest_path = directory.join("skill.json");
+    if путь_другого_профиля(&manifest_path) {
+        return Err(Ошибка {
+            file: путь(&manifest_path),
+            текст: "профили других пользователей ArkHa недоступны".into(),
+        });
+    }
     let text = std::fs::read_to_string(&manifest_path).map_err(|error| Ошибка {
         file: путь(&manifest_path),
         текст: format!("не читается: {error}"),
@@ -664,7 +685,7 @@ pub fn разобрать_manifest(directory: &Path) -> Result<Skill, Ошибк
         .or_else(|| directory.file_name().and_then(|value| value.to_str()).map(str::to_string))
         .ok_or_else(|| Ошибка { file: путь(&manifest_path), текст: "нет id".into() })?;
     let steps_path = directory.join(manifest.entrypoint);
-    if !steps_path.is_file() {
+    if !steps_path.is_file() || путь_другого_профиля(&steps_path) {
         return Err(Ошибка { file: путь(&steps_path), текст: "entrypoint не найден".into() });
     }
     Ok(Skill {

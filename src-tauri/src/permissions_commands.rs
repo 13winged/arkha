@@ -148,6 +148,7 @@ pub fn view_lang(s: &Settings, en: bool) -> SettingsView {
 
 #[tauri::command]
 pub fn permission_settings(lang: Option<String>) -> Result<SettingsView, String> {
+    crate::auth::require_authenticated()?;
     let s = Settings::load()?;
     Ok(view_lang(&s, lang.as_deref() == Some("en")))
 }

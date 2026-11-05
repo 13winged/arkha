@@ -19,7 +19,7 @@
 // о них пользователь должен был сказать сам.
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Как агент должен поступать с действием.
 ///
@@ -182,19 +182,9 @@ impl Decision {
 
 impl Settings {
     pub fn candidate_paths() -> Vec<PathBuf> {
-        let mut paths = vec![crate::profile::config_dir().join("permissions.json")];
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                paths.push(dir.join("data").join("permissions.json"));
-                paths.push(dir.join("permissions.json"));
-            }
-        }
-        if let Ok(dir) = std::env::var("ARKHA_DATA_DIR") {
-            paths.push(Path::new(&dir).join("permissions.json"));
-        }
-        paths.push(PathBuf::from("data").join("permissions.json"));
-        paths.push(PathBuf::from("../data/permissions.json"));
-        paths
+        crate::user_data::current_roots()
+            .map(|roots| vec![roots.permissions])
+            .unwrap_or_default()
     }
 
     pub fn load() -> Result<Self, String> {

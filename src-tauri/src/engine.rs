@@ -383,8 +383,9 @@ fn распаковать(zip: &Path, папка: &Path) -> Result<(), String> {
 
 /// Команда: что с движком.
 #[tauri::command]
-pub fn engine_status() -> Состояние {
-    состояние()
+pub fn engine_status() -> Result<Состояние, String> {
+    crate::auth::require_authenticated()?;
+    Ok(состояние())
 }
 
 /// Команда: докачать движок с картой.
@@ -393,6 +394,7 @@ pub async fn engine_download_cuda(
     app: tauri::AppHandle,
     sidecar: tauri::State<'_, crate::model_manager::SidecarState>,
 ) -> Result<Состояние, String> {
+    crate::auth::require_authenticated()?;
     // Пока модель работает, движок трогать нельзя.
     //
     // Windows не даёт перезаписать запущенный файл: `llama-server.exe`

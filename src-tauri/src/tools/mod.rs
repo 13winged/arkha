@@ -256,22 +256,32 @@ fn built() -> Vec<Box<dyn Tool>> {
     ]
 }
 
-/// Набор навыков, доступный всему приложению.
+/// Return a fresh skill store for the active profile.
 ///
-/// Создаётся один раз и перечитывается по требованию: чтобы замена
-/// папки навыков не требовала перезапуска.
+/// Avoid a process-wide cache: after logout, the next account must never
+/// inherit the previous account's user-installed skills.
 pub fn навыки() -> skill::Хранилище {
-    use std::sync::OnceLock;
-    static ХРАНИЛИЩЕ: OnceLock<skill::Хранилище> = OnceLock::new();
-    ХРАНИЛИЩЕ
-        .get_or_init(|| {
-            let н = crate::skills::Набор::из_папки(&crate::skills::папка_данных());
-            let н = crate::settings::settings_get()
-                .map(|settings| н.только_включённые(&settings.enabled_skills))
-                .unwrap_or(н);
-            std::sync::Arc::new(std::sync::RwLock::new(н))
-        })
-        .clone()
+    let skills = загрузить_навыки();
+    let skills = crate::settings::settings_get()
+        .map(|settings| skills.только_включённые(&settings.enabled_skills))
+        .unwrap_or(skills);
+    std::sync::Arc::new(std::sync::RwLock::new(skills))
+}
+
+fn загрузить_навыки() -> crate::skills::Набор {
+    let mut result = crate::skills::Набор::из_папки(&crate::skills::папка_данных());
+    let user_dir = crate::skills::папка();
+    if !user_dir.as_os_str().is_empty() && user_dir != crate::skills::папка_данных() {
+        let custom = crate::skills::Набор::из_папки(&user_dir);
+        for skill in custom.навыки {
+            if !result.навыки.iter().any(|existing| existing.name.eq_ignore_ascii_case(&skill.name)) {
+                result.навыки.push(skill);
+            }
+        }
+        result.сломанные.extend(custom.сломанные);
+        result.навыки.sort_by(|left, right| left.name.cmp(&right.name));
+    }
+    result
 }
 
 /// Перечитать навыки с диска.
@@ -280,15 +290,12 @@ pub fn навыки() -> skill::Хранилище {
 /// подменить набор инструкций во время работы цикла — значит
 /// изменить то, что агент собирается сделать, без спроса.
 pub fn перечитать_навыки() -> Result<Vec<String>, String> {
-    let н = crate::skills::Набор::из_папки(&crate::skills::папка_данных());
+    let н = загрузить_навыки();
     let н = crate::settings::settings_get()
         .map(|settings| н.только_включённые(&settings.enabled_skills))
         .unwrap_or(н);
     let сводка = н.сводка();
     let сломанные: Vec<String> = н.сломанные.iter().map(|о| о.to_string()).collect();
-    *навыки()
-        .write()
-        .map_err(|_| "список навыков занят")? = н;
     if сломанные.is_empty() {
         Ok(сводка)
     } else {

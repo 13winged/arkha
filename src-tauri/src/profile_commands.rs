@@ -113,14 +113,16 @@ fn tier_note(p: &Profile, tier: Tier) -> TierNote {
 
 /// Определяет железо, сохраняет профиль, отдаёт в интерфейс.
 #[tauri::command]
-pub fn get_profile() -> ProfileView {
-    to_view(&profile::detect_and_persist())
+pub fn get_profile() -> Result<ProfileView, String> {
+    crate::auth::require_authenticated()?;
+    Ok(to_view(&profile::detect_and_persist()))
 }
 
 /// Ручное переопределение. `tier` из UI — строка "T1".."T5".
 /// Пустая строка возвращает автоопределение.
 #[tauri::command]
 pub fn set_profile_tier(tier: Option<String>) -> Result<ProfileView, String> {
+    crate::auth::require_authenticated()?;
     let forced = match tier.as_deref().map(str::trim) {
         None | Some("") => None,
         Some(other) => Some(parse_tier(other).ok_or_else(|| {
@@ -139,6 +141,7 @@ pub fn set_profile_tier(tier: Option<String>) -> Result<ProfileView, String> {
 /// 16K на одном железе — это разница между «работает» и «не работает».
 #[tauri::command]
 pub fn set_context(context: u32) -> Result<ProfileView, String> {
+    crate::auth::require_authenticated()?;
     const MIN: u32 = 4_096;
     const MAX: u32 = 262_144;
 
@@ -146,8 +149,9 @@ pub fn set_context(context: u32) -> Result<ProfileView, String> {
         return Err(format!("контекст {context} вне диапазона {MIN}…{MAX}"));
     }
 
-    let path = profile::config_dir().join("context");
-    std::fs::create_dir_all(profile::config_dir())
+    let roots = crate::user_data::current_roots()?;
+    let path = roots.root.join("context");
+    std::fs::create_dir_all(&roots.root)
         .map_err(|e| format!("не удалось создать папку настроек: {e}"))?;
     std::fs::write(&path, context.to_string())
         .map_err(|e| format!("не удалось сохранить контекст: {e}"))?;
@@ -157,8 +161,9 @@ pub fn set_context(context: u32) -> Result<ProfileView, String> {
 
 /// Контекст с ручным переопределением, если оно есть.
 pub fn effective_context(p: &Profile) -> u32 {
-    std::fs::read_to_string(profile::config_dir().join("context"))
+    crate::user_data::current_roots()
         .ok()
+        .and_then(|roots| std::fs::read_to_string(roots.root.join("context")).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or_else(|| p.model().context)
 }

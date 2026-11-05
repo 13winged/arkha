@@ -123,6 +123,7 @@ impl ModelState {
 /// всё это время.
 #[tauri::command]
 pub async fn start_model(app: AppHandle) -> Result<ModelStatus, String> {
+    crate::auth::require_authenticated()?;
     tauri::async_runtime::spawn_blocking(move || старт_на_потоке(&app))
         .await
         .map_err(|e| format!("поток запуска модели оборвался: {e}"))?
@@ -198,6 +199,7 @@ fn старт_на_потоке(app: &AppHandle) -> Result<ModelStatus, String> 
 
 #[tauri::command]
 pub async fn models_open_window(app: AppHandle) -> Result<(), String> {
+    crate::auth::require_authenticated()?;
     if let Some(window) = app.get_webview_window("models") {
         let _ = window.show();
         let _ = window.set_focus();
@@ -228,6 +230,7 @@ pub struct LocalModel {
 
 #[tauri::command]
 pub fn models_list() -> Result<Vec<LocalModel>, String> {
+    crate::auth::require_authenticated()?;
     let directory = model_manager::models_dir();
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let settings = crate::settings::settings_get()?;
@@ -260,6 +263,7 @@ pub fn models_list() -> Result<Vec<LocalModel>, String> {
 
 #[tauri::command]
 pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
+    crate::auth::require_authenticated()?;
     if name.contains(['/', '\\', ':']) || name != Path::new(&name).file_name().and_then(|value| value.to_str()).unwrap_or_default() {
         return Err("недопустимое имя модели".to_string());
     }
@@ -281,29 +285,17 @@ pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
 
 #[tauri::command]
 pub fn model_delete(name: String, status: State<'_, ModelState>) -> Result<Vec<LocalModel>, String> {
-    if status.get().running {
-        return Err("остановите модель перед удалением файла".to_string());
-    }
-    if name.contains(['/', '\\', ':']) || name != Path::new(&name).file_name().and_then(|value| value.to_str()).unwrap_or_default() {
-        return Err("недопустимое имя модели".to_string());
-    }
-    let path = model_manager::models_dir().join(&name);
-    if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") || !path.is_file() {
-        return Err("модель не найдена".to_string());
-    }
-    std::fs::remove_file(path).map_err(|error| format!("не удалось удалить модель: {error}"))?;
-    let mut settings = crate::settings::settings_get()?;
-    if settings.active_model.as_deref() == Some(name.as_str()) {
-        settings.active_model = None;
-        crate::settings::settings_save(settings)?;
-    }
-    models_list()
+    crate::auth::require_authenticated()?;
+    let _ = (name, status);
+    Err("общие модели доступны только для чтения и не могут быть удалены из профиля".into())
 }
 
 #[tauri::command]
-pub fn stop_model(sidecar: State<'_, SidecarState>, status: State<'_, ModelState>) {
+pub fn stop_model(sidecar: State<'_, SidecarState>, status: State<'_, ModelState>) -> Result<(), String> {
+    crate::auth::require_authenticated()?;
     sidecar.stop();
     *status.0.lock().expect("model lock poisoned") = None;
+    Ok(())
 }
 
 /// Что с моделью сейчас.
@@ -318,7 +310,8 @@ pub fn stop_model(sidecar: State<'_, SidecarState>, status: State<'_, ModelState
 pub fn model_status(
     status: State<'_, ModelState>,
     sidecar: State<'_, SidecarState>,
-) -> ModelStatus {
+) -> Result<ModelStatus, String> {
+    crate::auth::require_authenticated()?;
     // Причина забирается ДО проверки живости. Обратный порядок ничего
     // не даёт: проверка живости убирает мёртвый сайдкар, а причина
     // падения хранилась именно в нём, и на второй запрос её уже
@@ -329,7 +322,7 @@ pub fn model_status(
         // упавшую модель, все равно помеченную как работающая.
         *status.0.lock().expect("model lock poisoned") = None;
         set_error(&status, &почему);
-        return status.get();
+        return Ok(status.get());
     }
 
     if !sidecar.is_running() {
@@ -342,19 +335,20 @@ pub fn model_status(
         // текст исчезал у него перед глазами.
         let прежнее = status.get();
         if прежнее.error.is_some() {
-            return прежнее;
+            return Ok(прежнее);
         }
         *status.0.lock().expect("model lock poisoned") = None;
     }
-    status.get()
+    Ok(status.get())
 }
 
 /// Последние строки лога сайдкара. Пользователь должен видеть, что
 /// происходит: «грузится», «слои на GPU», «ошибка».
 #[tauri::command]
-pub fn model_log(sidecar: State<'_, SidecarState>, lines: Option<usize>) -> Vec<String> {
+pub fn model_log(sidecar: State<'_, SidecarState>, lines: Option<usize>) -> Result<Vec<String>, String> {
+    crate::auth::require_authenticated()?;
     let n = lines.unwrap_or(80);
-    sidecar.with(|s| s.log.tail(n)).unwrap_or_default()
+    Ok(sidecar.with(|s| s.log.tail(n)).unwrap_or_default())
 }
 
 /// Проверка перед запуском: показывает все проблемы разом.
@@ -364,6 +358,7 @@ pub fn model_log(sidecar: State<'_, SidecarState>, lines: Option<usize>) -> Vec<
 /// полный с первого раза.
 #[tauri::command]
 pub fn preflight_model() -> Result<model_manager::Preflight, String> {
+    crate::auth::require_authenticated()?;
     let tier = crate::profile::detect_and_persist().effective();
     let catalog = model_manager::Catalog::load()?;
     let models = model_manager::models_dir();
@@ -375,11 +370,13 @@ pub fn preflight_model() -> Result<model_manager::Preflight, String> {
 /// а не ошибку: человек ещё не начал печатать.
 #[tauri::command]
 pub async fn search_models(query: String) -> Result<Vec<downloader::ModelHit>, String> {
+    crate::auth::require_authenticated()?;
     downloader::search_models(&query).await
 }
 
 #[tauri::command]
 pub async fn repo_files(repo: String) -> Result<Vec<downloader::RemoteFile>, String> {
+    crate::auth::require_authenticated()?;
     Ok(downloader::fetch_repo(&repo).await?.files)
 }
 
@@ -388,6 +385,7 @@ pub async fn repo_files(repo: String) -> Result<Vec<downloader::RemoteFile>, Str
 /// корпоративных сетях именно он заблокирован.
 #[tauri::command]
 pub async fn download_hosts() -> Result<Vec<String>, String> {
+    crate::auth::require_authenticated()?;
     downloader::required_hosts().await
 }
 
@@ -403,6 +401,7 @@ pub async fn download_model(
     file: String,
     repo: Option<String>,
 ) -> Result<String, String> {
+    crate::auth::require_authenticated()?;
     let tier = crate::profile::detect_and_persist().effective();
     let catalog = model_manager::Catalog::load()?;
     let recipe = catalog
@@ -451,15 +450,19 @@ pub async fn download_model(
 }
 
 #[tauri::command]
-pub fn cancel_download() {
+pub fn cancel_download() -> Result<(), String> {
+    crate::auth::require_authenticated()?;
     DOWNLOAD_CANCEL.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 /// Останавливает текущую генерацию. Модель остаётся запущенной,
 /// останавливается только ответ.
 #[tauri::command]
-pub fn stop_generation() {
+pub fn stop_generation() -> Result<(), String> {
+    crate::auth::require_authenticated()?;
     CANCELLED.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +481,7 @@ pub async fn chat(
     max_tokens: Option<u32>,
     request_id: Option<u64>,
 ) -> Result<u64, String> {
+    crate::auth::require_authenticated()?;
     let base = sidecar.base_url()?;
     let user = crate::settings::settings_get()?.user;
     let mut messages = messages;

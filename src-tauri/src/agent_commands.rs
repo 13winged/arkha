@@ -116,9 +116,10 @@ pub struct ToolsReport {
 }
 
 #[tauri::command]
-pub fn agent_tools(settings: State<'_, SettingsState>) -> ToolsReport {
+pub fn agent_tools(settings: State<'_, SettingsState>) -> Result<ToolsReport, String> {
+    crate::auth::require_authenticated()?;
     let s = settings.0.lock().expect("settings lock poisoned");
-    tools_report(&s)
+    Ok(tools_report(&s))
 }
 
 /// Отчёт собирается из настроек, а не из состояния приложения.
@@ -169,6 +170,7 @@ pub fn agent_set_executor(
     settings: State<'_, SettingsState>,
     executor: crate::permissions::Executor,
 ) -> Result<ToolsReport, String> {
+    crate::auth::require_authenticated()?;
     let mut s = settings.0.lock().expect("settings lock poisoned");
     s.executor = executor;
     crate::onboarding::save(&s)?;
@@ -187,6 +189,7 @@ pub fn agent_set_approval(
     mode: crate::permissions::ApprovalMode,
     подтверди: Option<bool>,
 ) -> Result<ToolsReport, String> {
+    crate::auth::require_authenticated()?;
     if mode == crate::permissions::ApprovalMode::Auto && подтверди != Some(true) {
         return Err(
             "Режим «не спрашивать ничего» снимает все подтверждения разом. \
@@ -203,6 +206,7 @@ pub fn agent_set_approval(
 /// Перечитать навыки с диска.
 #[tauri::command]
 pub fn agent_reload_skills() -> Result<Vec<String>, String> {
+    crate::auth::require_authenticated()?;
     crate::tools::перечитать_навыки()
 }
 
@@ -215,8 +219,19 @@ pub struct SettingsState(pub std::sync::Mutex<Settings>);
 
 impl SettingsState {
     pub fn new() -> Self {
-        let s = Settings::load().unwrap_or_else(|_| Settings::default());
-        Self(std::sync::Mutex::new(s))
+        Self(std::sync::Mutex::new(Settings::default()))
+    }
+
+    pub fn reload_for_active_user(&self) -> Result<(), String> {
+        let loaded = Settings::load()?;
+        *self.0.lock().map_err(|_| "settings lock poisoned".to_string())? = loaded;
+        Ok(())
+    }
+
+    pub fn clear_on_logout(&self) {
+        if let Ok(mut state) = self.0.lock() {
+            *state = Settings::default();
+        }
     }
 }
 
@@ -228,6 +243,7 @@ pub fn agent_chat(
     settings: State<'_, SettingsState>,
     messages: Vec<Incoming>,
 ) -> Result<u64, String> {
+    crate::auth::require_authenticated()?;
     let base = sidecar.base_url()?;
     let request_id = chat::next_request_id();
     chat::reset_cancel();
@@ -470,6 +486,7 @@ impl crate::agent::executor::Спрашивающий for ИзИнтерфейс
 /// делать нельзя.
 #[tauri::command]
 pub fn agent_decide(decision: approvals::Решение) -> Result<(), String> {
+    crate::auth::require_authenticated()?;
     let место = ЦИКЛ.lock().expect("цикл lock poisoned");
     let h = место
         .as_ref()
@@ -483,12 +500,14 @@ pub fn agent_decide(decision: approvals::Решение) -> Result<(), String> {
 /// сейчас ждать ответа модели или ответа пользователя, и его надо
 /// прервать на середине, а не после.
 #[tauri::command]
-pub fn stop_agent() {
-    chat::stop_generation();
+pub fn stop_agent() -> Result<(), String> {
+    crate::auth::require_authenticated()?;
+    let _ = chat::stop_generation();
     let место = ЦИКЛ.lock().expect("цикл lock poisoned");
     if let Some(h) = место.as_ref() {
         h.cancel();
     }
+    Ok(())
 }
 
 #[cfg(test)]

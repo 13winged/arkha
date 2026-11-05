@@ -2,11 +2,12 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { t, язык, поставитьЯзык, применитьЯзык, восстановитьЯзык, следить } from "./i18n";
+import { t, язык, применитьЯзык, следить } from "./i18n";
 import Agent from "./Agent";
 import AgentSelect from "./AgentSelect";
 import Dashboard from "./Dashboard";
 import RagWindow from "./RagWindow";
+import LegacyMigrationGate from "./LegacyMigrationGate";
 import "./App.css";
 
 // Реестр возможностей. Причина недоступности приходит готовой с
@@ -1303,16 +1304,6 @@ function RuntimePanel() {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!window.confirm(t("Удалить этот runtime?"))) return;
-    try {
-      setPackages(await invoke<RuntimePackage[]>("runtime_delete", { id }));
-      setCompatibility(await invoke<RuntimeCompatibility[]>("runtime_check"));
-    } catch (reason) {
-      setError(String(reason));
-    }
-  };
-
   const installRuntime = async () => {
     setInstalling(true);
     setError(null);
@@ -1354,6 +1345,7 @@ function RuntimePanel() {
         <div>
           <h2>{t("Runtime")}</h2>
           <p className="muted">{t("Установленные движки и версии")}</p>
+          <p className="muted">{t("Runtime-файлы общие для аккаунтов: установка добавляет версию, существующие версии не удаляются и не перезаписываются.")}</p>
         </div>
         <button type="button" className="chip" onClick={refresh}>
           {t("Обновить")}
@@ -1392,11 +1384,6 @@ function RuntimePanel() {
                   <button type="button" className="chip" onClick={() => void invoke("runtime_reveal", { id: runtime.id })}>
                     {t("Открыть папку")}
                   </button>
-                  {!runtime.active && (
-                    <button type="button" className="chip danger" onClick={() => void remove(runtime.id)}>
-                      {t("Удалить")}
-                    </button>
-                  )}
                 </>
               )}
             </div>
@@ -1478,16 +1465,6 @@ function ModelLibrary() {
     }
   };
 
-  const remove = async (name: string) => {
-    if (!window.confirm(`${t("Удалить модель полностью?")}\n${name}`)) return;
-    try {
-      setModels(await invoke<LocalModel[]>("model_delete", { name }));
-      setError(null);
-    } catch (reason) {
-      setError(String(reason));
-    }
-  };
-
   const groups = Array.from(
     (models ?? []).reduce((result, model) => {
       const family = modelFamily(model.name);
@@ -1542,9 +1519,6 @@ function ModelLibrary() {
                   onClick={() => void select(active.name)}
                 >
                   {active.active ? t("выбрана") : t("выбрать")}
-                </button>
-                <button type="button" className="model-delete" onClick={() => void remove(active.name)}>
-                  {t("Удалить")}
                 </button>
               </div>
             </article>
@@ -2466,7 +2440,7 @@ function ЯзыкКнопка({ onChange }: { onChange?: (language: "ru" | "en")
       aria-label={текущийЯзык === "ru" ? "Switch to English" : "Переключить на русский"}
       onClick={() => {
         const новый = текущийЯзык === "ru" ? "en" : "ru";
-        поставитьЯзык(новый);
+        применитьЯзык(новый);
         onChange?.(новый);
       }}
     >
@@ -2475,7 +2449,95 @@ function ЯзыкКнопка({ onChange }: { onChange?: (language: "ru" | "en")
   );
 }
 
+interface AuthSession {
+  user: { id: string; login: string; displayName: string };
+  token: string;
+  rememberMe: boolean;
+}
+
+function AuthGate({ onAuthenticated }: { onAuthenticated: (session: AuthSession) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [rememberSupported, setRememberSupported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    invoke<boolean>("auth_remember_supported")
+      .then(setRememberSupported)
+      .catch(() => setRememberSupported(false));
+  }, []);
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const session = await invoke<AuthSession>(mode === "login" ? "auth_login" : "auth_register", mode === "login"
+        ? { login, password, rememberMe: remember }
+        : { login, password, displayName });
+      onAuthenticated(session);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="auth-screen">
+      <section className="auth-card">
+        <div className="brand-mark cp-glitch" data-glitch-text="ARKHA">ARKHA</div>
+        <p className="app-subtitle">{t("локальный секретарь")}</p>
+        <h1>{mode === "login" ? t("Вход") : t("Создать пользователя")}</h1>
+        {mode === "register" && <input placeholder={t("Имя")} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />}
+        <input placeholder="login" value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" />
+        <input placeholder={t("Пароль")} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+        {mode === "login" && rememberSupported && <label className="auth-check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> {t("Запомнить меня")}</label>}
+        {error && <p className="error">{error}</p>}
+        <button type="button" disabled={busy} onClick={() => void submit()}>{mode === "login" ? t("Войти") : t("Создать пользователя")}</button>
+        <button type="button" className="link" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}>
+          {mode === "login" ? t("Создать пользователя") : t("Уже есть пользователь")}
+        </button>
+        <button type="button" className="link" onClick={() => invoke<AuthSession>("auth_guest").then(onAuthenticated).catch((reason) => setError(String(reason)))}>
+          {t("Войти как гость")}
+        </button>
+      </section>
+    </main>
+  );
+}
+
 function App() {
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // Remove the old plaintext token left by previous ArkHa versions.
+    localStorage.removeItem("arkha-session-token");
+    invoke<AuthSession>("auth_session")
+      .then(setSession)
+      .catch(() => undefined)
+      .finally(() => setChecking(false));
+  }, []);
+
+  if (checking) return <main className="auth-screen"><p>{t("Проверяем сессию…")}</p></main>;
+  if (!session) return <AuthGate onAuthenticated={setSession} />;
+  return <LegacyMigrationGate guest={session.user.login === "guest"}>
+    <Workspace session={session} onLogout={async () => {
+    try {
+      await invoke("auth_logout", { token: session.token });
+      localStorage.removeItem("arkha-session-token");
+      setSession(null);
+    } catch (reason) {
+      console.error("logout failed", reason);
+    }
+    }} />
+  </LegacyMigrationGate>;
+}
+
+function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const [profile, setProfile] = useState<ProfileView | null>(null);
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -2519,17 +2581,7 @@ function App() {
   const [глитчРежим, setГлитчРежим] = useState<string | null>(null);
 
   useEffect(() => {
-    const legacyFont = Number(localStorage.getItem("arkha-font-size"));
-    const legacyFontSize = РАЗМЕРЫ_ШРИФТА.includes(legacyFont as (typeof РАЗМЕРЫ_ШРИФТА)[number])
-      ? legacyFont
-      : null;
-    const legacyLanguage = localStorage.getItem("arkha-lang");
-    const language = legacyLanguage === "ru" || legacyLanguage === "en" ? legacyLanguage : null;
-
-    invoke<AppSettings>("settings_migrate_legacy", {
-      language,
-      font_size: legacyFontSize,
-    })
+    invoke<AppSettings>("settings_get")
       .then((loaded) => {
         setSettings(loaded);
         setFontSize(loaded.font_size);
@@ -2538,11 +2590,7 @@ function App() {
         document.documentElement.style.setProperty("--кегль", `${loaded.font_size}px`);
       })
       .catch(() => {
-        восстановитьЯзык();
-        if (legacyFontSize !== null) {
-          setFontSize(legacyFontSize);
-          document.documentElement.style.setProperty("--кегль", `${legacyFontSize}px`);
-        }
+        setError(t("Не удалось загрузить настройки профиля"));
       });
 
     return следить(() => перерисовать((n) => n + 1));
@@ -2686,6 +2734,10 @@ function App() {
           </div>
         )}
         <div className="sidebar-footer">
+          {!sidebarCollapsed && <div className="sidebar-user">
+            <span className="sidebar-label">{session.user.displayName}{session.user.login === "guest" ? ` · ${t("гость")}` : ""}</span>
+            <button type="button" className="sidebar-logout" onClick={onLogout}>{t("Выйти")}</button>
+          </div>}
           {!sidebarCollapsed && <ЯзыкКнопка onChange={(language) => {
             if (settings) {
               void saveSettings({ ...settings, language, voice: { ...settings.voice, language } });

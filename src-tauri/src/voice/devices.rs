@@ -69,7 +69,9 @@ pub struct Аудио {
 /// одной машине и тот же выбор на другой, и тащить его в профиль
 /// железа незачем.
 pub fn путь_настроек() -> PathBuf {
-    crate::profile::config_dir().join("audio.json")
+    crate::user_data::current_roots()
+        .map(|roots| roots.root.join("audio.json"))
+        .unwrap_or_default()
 }
 
 /// Прочитать выбор человека.
@@ -119,7 +121,9 @@ pub struct Тема {
 
 /// Куда лежат настройки темы: `%APPDATA%\ArkHa\theme.json`.
 pub fn путь_темы() -> PathBuf {
-    crate::profile::config_dir().join("theme.json")
+    crate::user_data::current_roots()
+        .map(|roots| roots.root.join("theme.json"))
+        .unwrap_or_default()
 }
 
 /// Прочитать выбор темы. Отсутствие файла — не ошибка.

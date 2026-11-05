@@ -47,7 +47,8 @@ pub struct DashboardSummary {
 /// Получить сводку наблюдения для дашборда.
 #[tauri::command]
 pub fn obs_dashboard(limit: Option<usize>) -> Result<DashboardSummary, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     let limit = limit.unwrap_or(20);
@@ -109,7 +110,8 @@ pub fn obs_dashboard(limit: Option<usize>) -> Result<DashboardSummary, String> {
 /// Получить спаны для трейса.
 #[tauri::command]
 pub fn obs_spans(trace_id: String) -> Result<Vec<SpanView>, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     let spans = observability::list_spans_for_trace(&conn, &trace_id)
@@ -140,7 +142,8 @@ pub struct TimelinePoint {
 /// Временная шкала использования токенов.
 #[tauri::command]
 pub fn obs_timeline(hours: Option<usize>) -> Result<Vec<TimelinePoint>, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     let hours = hours.unwrap_or(24);
@@ -185,7 +188,8 @@ pub struct TokenBudget {
 /// Получить бюджет токенов.
 #[tauri::command]
 pub fn obs_budget(limit: Option<f64>) -> Result<TokenBudget, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     let spent: f64 = conn
@@ -217,7 +221,8 @@ pub fn obs_budget(limit: Option<f64>) -> Result<TokenBudget, String> {
 /// Получить метрики (по имени, если указано).
 #[tauri::command]
 pub fn obs_metrics(name: Option<String>, limit: Option<usize>) -> Result<Vec<MetricView>, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     let mut stmt = if let Some(ref n) = name {

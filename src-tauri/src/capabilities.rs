@@ -204,7 +204,9 @@ impl Registry {
     /// `%APPDATA%\ArkHa\capabilities.json`. Порядок тот же, что у
     /// каталога рецептов: иначе один файл находился бы, а второй нет.
     pub fn candidate_paths() -> Vec<PathBuf> {
-        let mut paths = vec![crate::profile::config_dir().join("capabilities.json")];
+        let mut paths = crate::user_data::current_roots()
+            .map(|roots| vec![roots.root.join("capabilities.json")])
+            .unwrap_or_default();
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
                 paths.push(dir.join("data").join("capabilities.json"));

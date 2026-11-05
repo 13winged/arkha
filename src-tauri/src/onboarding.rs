@@ -562,10 +562,10 @@ impl State {
 /// место, где знакомство меняет систему, и оно требует явного
 /// подтверждения.
 pub fn save(settings: &Settings) -> Result<(), String> {
-    let dir = crate::profile::config_dir();
+    let path = crate::user_data::current_roots()?.permissions;
+    let dir = path.parent().ok_or_else(|| "не удалось определить папку профиля".to_string())?.to_path_buf();
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("не удалось создать {}: {e}", dir.display()))?;
-    let path = dir.join("permissions.json");
     let text = serde_json::to_string_pretty(settings)
         .map_err(|e| format!("не удалось подготовить настройки: {e}"))?;
     std::fs::write(&path, text).map_err(|e| format!("не удалось записать {}: {e}", path.display()))

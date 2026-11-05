@@ -1,6 +1,5 @@
-//! Persistent application settings stored in `%APPDATA%\ArkHa\data\secretary.db`.
+//! Persistent application settings stored inside the authenticated user's private root.
 
-use crate::profile::config_dir;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -71,12 +70,13 @@ impl Default for AppSettings {
     }
 }
 
-fn database_path() -> PathBuf {
-    config_dir().join("data").join("secretary.db")
+fn database_path() -> Result<PathBuf, String> {
+    Ok(crate::user_data::current_roots()?.settings_db)
 }
 
 fn open() -> Result<Connection, String> {
-    let path = database_path();
+    crate::auth::require_authenticated()?;
+    let path = database_path()?;
     let parent = path
         .parent()
         .ok_or_else(|| "не удалось определить папку настроек".to_string())?;
@@ -86,6 +86,35 @@ fn open() -> Result<Connection, String> {
         .execute_batch(include_str!("settings_schema.sql"))
         .map_err(|error| error.to_string())?;
     Ok(connection)
+}
+
+/// Load saved settings without creating a database or default row.
+/// This keeps the per-user destination available for an explicit legacy import.
+pub fn load_existing() -> Result<Option<AppSettings>, String> {
+    crate::auth::require_authenticated()?;
+    let path = database_path()?;
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let connection = Connection::open(path).map_err(|error| error.to_string())?;
+    connection
+        .execute_batch(include_str!("settings_schema.sql"))
+        .map_err(|error| error.to_string())?;
+    read_optional(&connection).map(|settings| settings.map(normalize))
+}
+
+/// Restore an earlier optional app-settings row after a failed migration.
+pub fn restore_optional(settings: Option<AppSettings>) -> Result<(), String> {
+    let connection = open()?;
+    match settings {
+        Some(settings) => write(&connection, &normalize(settings)),
+        None => {
+            connection
+                .execute("DELETE FROM app_settings WHERE key = ?1", params![SETTINGS_KEY])
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
+    }
 }
 
 fn read_optional(connection: &Connection) -> Result<Option<AppSettings>, String> {
@@ -142,6 +171,7 @@ fn write(connection: &Connection, settings: &AppSettings) -> Result<(), String> 
 
 #[tauri::command]
 pub fn settings_get() -> Result<AppSettings, String> {
+    crate::auth::require_authenticated()?;
     let connection = open()?;
     if let Some(settings) = read_optional(&connection)? {
         return Ok(normalize(settings));
@@ -153,30 +183,8 @@ pub fn settings_get() -> Result<AppSettings, String> {
 
 #[tauri::command]
 pub fn settings_save(settings: AppSettings) -> Result<AppSettings, String> {
+    crate::auth::require_authenticated()?;
     let connection = open()?;
-    let settings = normalize(settings);
-    write(&connection, &settings)?;
-    Ok(settings)
-}
-
-#[tauri::command]
-pub fn settings_migrate_legacy(
-    language: Option<String>,
-    font_size: Option<u32>,
-) -> Result<AppSettings, String> {
-    let connection = open()?;
-    if let Some(settings) = read_optional(&connection)? {
-        return Ok(normalize(settings));
-    }
-
-    let mut settings = AppSettings::default();
-    if let Some(language) = language {
-        settings.language = language;
-        settings.voice.language = settings.language.clone();
-    }
-    if let Some(font_size) = font_size {
-        settings.font_size = font_size;
-    }
     let settings = normalize(settings);
     write(&connection, &settings)?;
     Ok(settings)
@@ -184,6 +192,7 @@ pub fn settings_migrate_legacy(
 
 #[tauri::command]
 pub fn settings_reset() -> Result<AppSettings, String> {
+    crate::auth::require_authenticated()?;
     let connection = open()?;
     let settings = AppSettings::default();
     write(&connection, &settings)?;

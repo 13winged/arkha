@@ -38,7 +38,8 @@ fn add_rag_context(mut messages: Vec<Message>) -> Vec<Message> {
         return messages;
     }
 
-    let database = crate::profile::config_dir().join("memory.db");
+    let Ok(roots) = crate::user_data::current_roots() else { return messages };
+    let database = roots.memory_db;
     let Ok(connection) = crate::memory::sqlite::open(&database) else {
         return messages;
     };

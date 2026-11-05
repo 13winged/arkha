@@ -50,6 +50,19 @@ fn resolve_inside(raw: &str, settings: &Settings) -> Result<PathBuf, ToolError> 
         )));
     }
 
+    if crate::user_data::current_roots()
+        .is_ok_and(|roots| crate::user_data::is_other_profile_path(&roots, given))
+    {
+        return Err(ToolError::Denied(
+            "профили других пользователей ArkHa закрыты даже при широком доступе к диску".into(),
+        ));
+    }
+    if crate::user_data::is_protected_app_data_path(given) {
+        return Err(ToolError::Denied(
+            "служебные данные аккаунтов и нераспределённые legacy-данные ArkHa закрыты для файловых инструментов".into(),
+        ));
+    }
+
     // Весь диск — явное решение человека, а не пустой список папок.
     //
     // Почему отдельным флагом, а не подстановкой корня диска в

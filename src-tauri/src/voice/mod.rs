@@ -148,8 +148,9 @@ impl Default for Голос {
 /// Команда: что с голосом.
 #[tauri::command]
 #[tracing::instrument(skip(г))]
-pub fn voice_status(г: tauri::State<'_, Голос>) -> ГолосСостояние {
-    г.состояние()
+pub fn voice_status(г: tauri::State<'_, Голос>) -> Result<ГолосСостояние, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
+    Ok(г.состояние())
 }
 
 /// Команда: включить голос.
@@ -158,6 +159,7 @@ pub fn voice_status(г: tauri::State<'_, Голос>) -> ГолосСостоя�
 #[tauri::command]
 #[tracing::instrument(skip(г))]
 pub fn voice_enable(г: tauri::State<'_, Голос>) -> Result<ГолосСостояние, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     debug!("голос: включить");
     stt::включить(&г)?;
     Ok(г.состояние())
@@ -166,10 +168,11 @@ pub fn voice_enable(г: tauri::State<'_, Голос>) -> Result<ГолосСос
 /// Команда: выключить голос и освободить место.
 #[tauri::command]
 #[tracing::instrument(skip(г))]
-pub fn voice_disable(г: tauri::State<'_, Голос>) -> ГолосСостояние {
+pub fn voice_disable(г: tauri::State<'_, Голос>) -> Result<ГолосСостояние, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     debug!("голос: выключить");
     stt::выключить(&г);
-    г.состояние()
+    Ok(г.состояние())
 }
 
 /// Команда: произнести текст.
@@ -189,6 +192,7 @@ pub struct Сказано {
 #[tauri::command]
 #[tracing::instrument(skip(г, текст), fields(текст_длина = текст.len()))]
 pub fn voice_say(г: tauri::State<'_, Голос>, текст: String) -> Result<Сказано, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     debug!("голос: синтез, {} символов", текст.len());
     let (путь, размер) = tts::синтез(&г, &текст)?;
 
@@ -212,8 +216,16 @@ pub fn voice_say(г: tauri::State<'_, Голос>, текст: String) -> Result
 #[tauri::command]
 #[tracing::instrument(skip(г), fields(путь = путь.as_str()))]
 pub fn voice_hear(г: tauri::State<'_, Голос>, путь: String) -> Result<String, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
+    let path = Path::new(&путь);
+    let roots = crate::user_data::current_roots()?;
+    if crate::user_data::is_other_profile_path(&roots, path)
+        || crate::user_data::is_protected_app_data_path(path)
+    {
+        return Err("нельзя распознавать аудио из приватных данных другого аккаунта ArkHa".into());
+    }
     debug!("голос: распознать {}", путь);
-    stt::распознать(&г, Path::new(&путь))
+    stt::распознать(&г, path)
 }
 
 // --- диктовка по клавише ----------------------------------------------
@@ -242,6 +254,7 @@ pub struct Диктовка {
 #[tauri::command]
 #[tracing::instrument]
 pub fn voice_record_start() -> Result<(), ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     debug!("запись: старт по клавише");
     record::начать(микрофон_из_настроек()).map_err(ошибка)
 }
@@ -250,6 +263,7 @@ pub fn voice_record_start() -> Result<(), ГолосОшибка> {
 #[tauri::command]
 #[tracing::instrument]
 pub fn voice_record_stop(г: tauri::State<'_, Голос>) -> Result<Диктовка, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     debug!("запись: стоп и распознать");
     let звук = record::остановить().map_err(ошибка)?;
     разобрать_запись(&г, звук)
@@ -266,6 +280,7 @@ pub fn voice_hotkey_enable(
     app: tauri::AppHandle,
     г: tauri::State<'_, Голос>,
 ) -> Result<String, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     let канал = hotkey::поставить().map_err(ошибка)?;
 
     std::thread::Builder::new()
@@ -339,14 +354,16 @@ fn слушать_клавишу(
 
 /// Команда: выключить запись по клавише.
 #[tauri::command]
-pub fn voice_hotkey_disable() -> ГолосОшибка {
+pub fn voice_hotkey_disable() -> Result<(), ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     hotkey::снять();
-    String::new()
+    Ok(())
 }
 
 /// Команда: переназначить клавишу.
 #[tauri::command]
 pub fn voice_hotkey_set(сочетание: String) -> Result<String, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     hotkey::сменить(&сочетание).map_err(ошибка)?;
     Ok(hotkey::комбинация().to_string())
 }
@@ -358,6 +375,7 @@ pub fn voice_hotkey_set(сочетание: String) -> Result<String, Голос
 /// было при установке.
 #[tauri::command]
 pub fn voice_devices() -> Result<devices::Устройства, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     Ok(devices::Устройства {
         микрофоны: devices::микрофоны().unwrap_or_default(),
         выводы: devices::выводы().unwrap_or_default(),
@@ -367,8 +385,9 @@ pub fn voice_devices() -> Result<devices::Устройства, ГолосОши
 
 /// Команда: что человек выбрал для звука.
 #[tauri::command]
-pub fn voice_audio_settings() -> devices::Аудио {
-    devices::настройки()
+pub fn voice_audio_settings() -> Result<devices::Аудио, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
+    Ok(devices::настройки())
 }
 
 /// Команда: сохранить выбор звука.
@@ -378,6 +397,7 @@ pub fn voice_audio_settings() -> devices::Аудио {
 /// его, и тогда настройка молча указывала бы в никуда.
 #[tauri::command]
 pub fn voice_audio_set(микрофон: Option<String>, вывод: Option<String>, горячая_клавиша: Option<String>) -> Result<devices::Аудио, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     let выбор = devices::Аудио { микрофон, вывод, горячая_клавиша };
 
     if let (Some(имя), Ok(доступные)) = (&выбор.микрофон, devices::микрофоны()) {
@@ -400,8 +420,9 @@ pub fn voice_audio_set(микрофон: Option<String>, вывод: Option<Stri
 
 /// Команда: какая тема оформления выбрана.
 #[tauri::command]
-pub fn voice_theme_settings() -> devices::Тема {
-    devices::тема()
+pub fn voice_theme_settings() -> Result<devices::Тема, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
+    Ok(devices::тема())
 }
 
 /// Команда: сохранить режим глитча.
@@ -410,6 +431,7 @@ pub fn voice_theme_settings() -> devices::Тема {
 /// интерфейс не отправил в CSS мусор.
 #[tauri::command]
 pub fn voice_theme_set(глитч: Option<String>) -> Result<devices::Тема, ГолосОшибка> {
+    crate::auth::require_authenticated()?;
     let тема = devices::Тема { глитч };
 
     if let Some(режим) = &тема.глитч {

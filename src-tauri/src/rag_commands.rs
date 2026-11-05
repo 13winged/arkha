@@ -41,6 +41,7 @@ pub struct CorpusStatsView {
 #[tauri::command]
 pub async fn rag_open_window(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
+    crate::auth::require_authenticated()?;
 
     if let Some(window) = app.get_webview_window("rag") {
         let _ = window.show();
@@ -68,7 +69,15 @@ pub async fn rag_open_window(app: tauri::AppHandle) -> Result<(), String> {
 /// Добавить текстовый файл в корпус.
 #[tauri::command]
 pub fn rag_add_file(path: String) -> Result<usize, String> {
+    crate::auth::require_authenticated()?;
     let path = std::path::Path::new(&path);
+    let roots = crate::user_data::current_roots()?;
+    if crate::user_data::is_other_profile_path(&roots, path) {
+        return Err("нельзя добавлять данные из приватного профиля другого пользователя".into());
+    }
+    if crate::user_data::is_protected_app_data_path(path) {
+        return Err("служебные и нераспределённые legacy-данные ArkHa нельзя импортировать через RAG".into());
+    }
     let title = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
@@ -83,12 +92,13 @@ pub fn rag_add_file(path: String) -> Result<usize, String> {
 /// Добавить произвольный текст в корпус.
 #[tauri::command]
 pub fn rag_add_text(title: String, text: String, source: Option<String>) -> Result<usize, String> {
+    crate::auth::require_authenticated()?;
     let source = source.unwrap_or_else(|| "вручную".to_string());
     rag_add_text_inner(&title, &source, &text)
 }
 
 fn rag_add_text_inner(title: &str, source: &str, text: &str) -> Result<usize, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     fts::init_fts(&conn).map_err(|e| format!("ошибка инициализации FTS: {e}"))?;
@@ -107,7 +117,8 @@ fn rag_add_text_inner(title: &str, source: &str, text: &str) -> Result<usize, St
 /// Поиск по корпусу.
 #[tauri::command]
 pub fn rag_search(query: String, limit: Option<usize>) -> Result<Vec<SearchHitView>, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     fts::init_fts(&conn).map_err(|e| format!("ошибка инициализации FTS: {e}"))?;
@@ -131,7 +142,8 @@ pub fn rag_search(query: String, limit: Option<usize>) -> Result<Vec<SearchHitVi
 /// Удалить документ из корпуса по источнику.
 #[tauri::command]
 pub fn rag_remove(source: String) -> Result<usize, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     fts::init_fts(&conn).map_err(|e| format!("ошибка инициализации FTS: {e}"))?;
@@ -143,7 +155,8 @@ pub fn rag_remove(source: String) -> Result<usize, String> {
 /// Статистика корпуса.
 #[tauri::command]
 pub fn rag_stats() -> Result<CorpusStatsView, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     fts::init_fts(&conn).map_err(|e| format!("ошибка инициализации FTS: {e}"))?;
@@ -160,7 +173,8 @@ pub fn rag_stats() -> Result<CorpusStatsView, String> {
 /// Список всех документов в корпусе.
 #[tauri::command]
 pub fn rag_list() -> Result<Vec<DocumentView>, String> {
-    let conn = sqlite::open(&crate::profile::config_dir().join("memory.db"))
+    crate::auth::require_authenticated()?;
+    let conn = sqlite::open(&crate::user_data::current_roots()?.memory_db)
         .map_err(|e| format!("не удалось открыть базу: {e}"))?;
 
     fts::init_fts(&conn).map_err(|e| format!("ошибка инициализации FTS: {e}"))?;
@@ -189,6 +203,7 @@ pub fn rag_list() -> Result<Vec<DocumentView>, String> {
 #[tauri::command]
 pub fn rag_ask(app: tauri::AppHandle, text: String) -> Result<(), String> {
     use tauri::Manager;
+    crate::auth::require_authenticated()?;
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();

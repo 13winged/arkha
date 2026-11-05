@@ -93,6 +93,12 @@ fn state() -> &'static Mutex<Option<State>> {
     STATE.get_or_init(|| Mutex::new(None))
 }
 
+pub fn clear_transient_state() {
+    if let Ok(mut onboarding) = state().lock() {
+        *onboarding = None;
+    }
+}
+
 // --- чистое ядро ---------------------------------------------------------
 // Логика отделена от глобального состояния, иначе тесты делят одно
 // на всех и падают в зависимости от порядка. Команды ниже — тонкая
@@ -184,6 +190,7 @@ pub fn check_applicable(s: &State) -> Result<(), String> {
 /// они были выбраны.
 #[tauri::command]
 pub fn onboarding_confirm(lang: Option<String>) -> Result<Preview, String> {
+    crate::auth::require_authenticated()?;
     let _ = lang;
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.as_mut().ok_or("знакомство не начато")?;
@@ -209,6 +216,11 @@ pub fn apply(s: &State) -> Result<Preview, String> {
 /// Начать знакомство с нуля.
 #[tauri::command]
 pub fn onboarding_start(lang: Option<String>) -> Result<StepView, String> {
+    crate::auth::require_authenticated()?;
+    start_inner(lang)
+}
+
+fn start_inner(lang: Option<String>) -> Result<StepView, String> {
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let s = State::start();
@@ -220,6 +232,11 @@ pub fn onboarding_start(lang: Option<String>) -> Result<StepView, String> {
 /// Текущий шаг, без сброса. Нужен при перерисовке окна.
 #[tauri::command]
 pub fn onboarding_current(lang: Option<String>) -> Result<StepView, String> {
+    crate::auth::require_authenticated()?;
+    current_inner(lang)
+}
+
+fn current_inner(lang: Option<String>) -> Result<StepView, String> {
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
@@ -252,6 +269,7 @@ pub fn onboarding_set_tools(
     disable: Vec<String>,
     lang: Option<String>,
 ) -> Result<SayResult, String> {
+    crate::auth::require_authenticated()?;
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
@@ -278,6 +296,9 @@ pub struct FolderView {
 
 #[tauri::command]
 pub fn onboarding_folders() -> Vec<FolderView> {
+    if crate::auth::require_authenticated().is_err() {
+        return Vec::new();
+    }
     onboarding::folder_suggestions()
         .into_iter()
         .map(|(label, path)| FolderView {
@@ -291,6 +312,7 @@ pub fn onboarding_folders() -> Vec<FolderView> {
 /// человек, а пути он мог и не знать.
 #[tauri::command]
 pub fn onboarding_set_paths(paths: Vec<String>, lang: Option<String>) -> Result<SayResult, String> {
+    crate::auth::require_authenticated()?;
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
@@ -311,6 +333,7 @@ pub fn onboarding_set_paths(paths: Vec<String>, lang: Option<String>) -> Result<
 /// решение, а не как «выбрана папка C:\».
 #[tauri::command]
 pub fn onboarding_set_whole_disk(enabled: bool, lang: Option<String>) -> Result<SayResult, String> {
+    crate::auth::require_authenticated()?;
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
@@ -337,6 +360,7 @@ pub fn onboarding_set_modes(
     approval: Option<String>,
     lang: Option<String>,
 ) -> Result<SayResult, String> {
+    crate::auth::require_authenticated()?;
     let исп = match executor.as_deref() {
         Some(v) => Some(
             serde_json::from_value::<Executor>(serde_json::Value::String(v.to_string()))
@@ -374,6 +398,7 @@ pub struct Preview {
 
 #[tauri::command]
 pub fn onboarding_say(text: String, lang: Option<String>) -> Result<SayResult, String> {
+    crate::auth::require_authenticated()?;
     let en = lang.as_deref() == Some("en");
     let tier = crate::profile::detect_and_persist().effective();
     let mut guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
@@ -383,6 +408,7 @@ pub fn onboarding_say(text: String, lang: Option<String>) -> Result<SayResult, S
 
 #[tauri::command]
 pub fn onboarding_preview(lang: Option<String>) -> Result<Preview, String> {
+    crate::auth::require_authenticated()?;
     let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.as_ref().ok_or("знакомство не начато")?;
     Ok(preview_of(s))
@@ -392,6 +418,7 @@ pub fn onboarding_preview(lang: Option<String>) -> Result<Preview, String> {
 /// отдельного нажатия после того, как пользователь увидел итог.
 #[tauri::command]
 pub fn onboarding_apply(lang: Option<String>) -> Result<Preview, String> {
+    crate::auth::require_authenticated()?;
     let guard = state().lock().map_err(|e| format!("состояние занято: {e}"))?;
     let s = guard.as_ref().ok_or("знакомство не начато")?;
     apply(s)
@@ -582,11 +609,11 @@ mod tests {
         drop(guard);
 
         // Теперь команда, которой пользуется кнопка.
-        let начало = onboarding_start(None).expect("сброс не должен падать");
+        let начало = start_inner(None).expect("сброс не должен падать");
         assert_eq!(начало.step, "introduction");
         assert_eq!(начало.index, 1);
 
-        let после = onboarding_current(None).expect("текущий шаг");
+        let после = current_inner(None).expect("текущий шаг");
         assert_eq!(после.step, "introduction");
         let summary = state().lock().expect("состояние занято").as_ref().unwrap().summary();
         assert!(

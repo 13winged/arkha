@@ -169,6 +169,7 @@ const EN: Record<string, string> = {
   "активен": "active",
   "Сделать активным": "Make active",
   "Удалить этот runtime?": "Delete this runtime?",
+  "Runtime-файлы общие для аккаунтов: установка добавляет версию, существующие версии не удаляются и не перезаписываются.": "Runtime files are shared across accounts: installation adds a version; existing versions cannot be deleted or overwritten.",
   "Открыть папку": "Open folder",
   "Удалить": "Delete",
   "Установить runtime из ZIP": "Install runtime from ZIP",
@@ -196,6 +197,42 @@ const EN: Record<string, string> = {
   "Просмотр": "View",
   "Найти": "Find",
   "Навыки не найдены": "No skills found",
+  "Вход": "Sign in",
+  "Пароль": "Password",
+  "Запомнить меня": "Remember me",
+  "Войти": "Sign in",
+  "Войти как гость": "Continue as guest",
+  "Создать пользователя": "Create account",
+  "Не удалось загрузить настройки профиля": "Could not load profile settings",
+  "Проверяем старые данные…": "Checking for previous data…",
+  "Перенос старых данных": "Import previous data",
+  "Найдены данные старой версии. Выберите, что перенести в этот аккаунт.": "Data from an older version was found. Choose what to import into this account.",
+  "Исходные данные останутся на месте. После импорта legacy-набор будет закреплён за этим аккаунтом и не предложен другим аккаунтам. Общие модели и runtime не переносятся. Уже существующие файлы профиля не перезаписываются.": "Original data remains untouched. After import, this legacy set is assigned to this account and will not be offered to other accounts. Shared models and runtimes are not imported. Existing profile files will not be overwritten.",
+  "Категории для переноса": "Data to import",
+  "файлов": "files",
+  "Есть совпадения в профиле — категория пропущена без перезаписи.": "This category conflicts with existing profile data and will not be overwritten.",
+  "Повторить проверку": "Retry scan",
+  "Продолжить без переноса": "Continue without importing",
+  "Переносим…": "Importing…",
+  "Перенести выбранное": "Import selected",
+  "Настройки приложения": "Application settings",
+  "Язык, интерфейс, выбранные модель и режим агента.": "Language, interface preferences, selected model, and agent mode.",
+  "Память, RAG и вложения": "Memory, RAG, and attachments",
+  "Локальная память, индекс документов и связанные файлы вложений.": "Local memory, document index, and attached files.",
+  "Разрешения агента": "Agent permissions",
+  "Выбранные папки, инструменты и режим подтверждений.": "Selected folders, tools, and approval mode.",
+  "Профиль устройства": "Device profile",
+  "Ручной профиль железа и выбранный размер контекста.": "Manual hardware profile and context size.",
+  "Звук и тема": "Audio and theme",
+  "Выбранные аудиоустройства и оформление интерфейса.": "Selected audio devices and interface appearance.",
+  "Пользовательские навыки": "User skills",
+  "Навыки, добавленные в старую пользовательскую папку skills.": "Skills added to the previous user skills folder.",
+  "Настройки интерфейса браузера": "Previous interface preferences",
+  "Старые язык и размер шрифта из WebView. Они применятся поверх настроек приложения, если выбраны обе категории.": "Previous language and font size from the WebView. These override app settings if both categories are selected.",
+  "Уже есть пользователь": "Already have an account",
+  "Проверяем сессию…": "Checking session…",
+  "Выйти": "Sign out",
+  "гость": "guest",
   "Прикрепить файл": "Attach file",
   "модели": "models",
   "Удалить модель полностью?": "Delete the model permanently?",
@@ -305,27 +342,12 @@ export function язык(): Lang {
   return текущий;
 }
 
-export function поставитьЯзык(новый: Lang) {
-  применитьЯзык(новый);
-  localStorage.setItem("arkha-lang", новый);
-}
-
-/** Применить язык без записи в legacy localStorage. */
+/** Применить язык и уведомить подписчиков. */
 export function применитьЯзык(новый: Lang) {
   if (новый === текущий) return;
   текущий = новый;
   document.documentElement.lang = новый;
   for (const с of слушатели) с();
-}
-
-/** Прочитать язык при запуске. Некорректное значение игнорируем. */
-export function восстановитьЯзык(): Lang {
-  const сохранён = localStorage.getItem("arkha-lang");
-  if (сохранён === "en" || сохранён === "ru") {
-    текущий = сохранён;
-    document.documentElement.lang = сохранён;
-  }
-  return текущий;
 }
 
 /**

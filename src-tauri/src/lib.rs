@@ -4,6 +4,7 @@
 // по этапам S1–S13 согласно docs/03-дорожная-карта.md.
 
 pub mod agent;
+pub mod auth;
 pub mod attachments;
 pub mod agent_commands;
 pub mod agent_modes;
@@ -15,6 +16,7 @@ pub mod chat;
 pub mod downloader;
 pub mod engine;
 pub mod memory;
+pub mod legacy_migration;
 pub mod model_manager;
 pub mod observability_commands;
 pub mod onboarding;
@@ -27,11 +29,13 @@ pub mod profile_commands;
 pub mod resources;
 pub mod runtime;
 pub mod settings;
+mod secure_storage;
 pub mod skill_registry;
 pub mod skills;
 pub mod state;
 pub mod tools;
 pub mod voice;
+pub mod user_data;
 pub mod webview_orphans;
 
 // S1: профиль. S2: модель и чат. S3: возможности и разрешения.
@@ -54,12 +58,22 @@ pub fn run() {
     // функции «открыть ссылку в браузере» в приложении не было, а
     // вес крейта оставался. Убран вместе с зависимостями.
     let app = tauri::Builder::default()
+        .manage(auth::AuthState::default())
         .manage(model_manager::SidecarState::new())
         .manage(chat::ModelState::new())
         .manage(agent_commands::SettingsState::new())
         .manage(voice::Голос::новый())
         .invoke_handler(tauri::generate_handler![
             profile_commands::get_profile,
+            auth::auth_register,
+            auth::auth_login,
+            auth::auth_guest,
+            auth::auth_logout,
+            auth::auth_session,
+            auth::auth_remember_supported,
+            legacy_migration::legacy_migration_preview,
+            legacy_migration::legacy_migration_import,
+            legacy_migration::legacy_migration_skip,
             profile_commands::set_profile_tier,
             profile_commands::set_context,
             resources::память_сейчас,
@@ -82,7 +96,6 @@ pub fn run() {
             voice::voice_theme_set,
             settings::settings_get,
             settings::settings_save,
-            settings::settings_migrate_legacy,
             settings::settings_reset,
             skill_registry::skills_list,
             skill_registry::skills_enable,

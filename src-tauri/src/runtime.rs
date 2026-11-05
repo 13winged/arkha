@@ -278,13 +278,9 @@ fn managed_package_dir(id: &str) -> Result<PathBuf, String> {
 
 #[tauri::command]
 pub fn runtime_delete(id: String) -> Result<Vec<RuntimePackage>, String> {
-    let settings = crate::settings::settings_get()?;
-    if settings.active_runtime.as_deref() == Some(id.as_str()) {
-        return Err("нельзя удалить активный runtime".to_string());
-    }
-    let path = managed_package_dir(&id)?;
-    fs::remove_dir_all(path).map_err(|error| error.to_string())?;
-    runtime_list()
+    crate::auth::require_authenticated()?;
+    let _ = id;
+    Err("runtime-файлы общие для всех аккаунтов и не удаляются из профиля".into())
 }
 
 #[tauri::command]
@@ -327,6 +323,7 @@ pub async fn runtime_install(
     sha256: String,
     manifest: RuntimeManifest,
 ) -> Result<Vec<RuntimePackage>, String> {
+    crate::auth::require_authenticated()?;
     if !url.starts_with("https://") {
         return Err("runtime можно загружать только по HTTPS".to_string());
     }
@@ -337,6 +334,15 @@ pub async fn runtime_install(
     let expected = sha256.trim().to_ascii_lowercase();
     if expected.len() != 64 || !expected.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err("некорректный SHA-256 runtime".to_string());
+    }
+
+    let root = runtime_root();
+    let target = root
+        .join(&manifest.engine)
+        .join(&manifest.backend)
+        .join(&manifest.version);
+    if target.exists() {
+        return Err("эта версия runtime уже установлена как общий ресурс; перезапись запрещена".into());
     }
 
     let response = reqwest::Client::new()
@@ -367,12 +373,15 @@ pub async fn runtime_install(
         return Err(format!("SHA-256 не совпал: ожидался {expected}, получен {actual}"));
     }
 
-    let root = runtime_root();
-    let target = root
-        .join(&manifest.engine)
-        .join(&manifest.backend)
-        .join(&manifest.version);
-    let staging = root.join(format!(".staging-{}-{}", manifest.id, std::process::id()));
+    let staging = root.join(format!(
+        ".staging-{}-{}-{}",
+        manifest.id,
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
     fs::create_dir_all(&staging).map_err(|error| error.to_string())?;
     let extraction = (|| -> Result<(), String> {
         let archive_file = fs::File::open(&temp).map_err(|error| error.to_string())?;
@@ -410,9 +419,6 @@ pub async fn runtime_install(
     }
     fs::create_dir_all(target.parent().expect("runtime target has parent"))
         .map_err(|error| error.to_string())?;
-    if target.exists() {
-        fs::remove_dir_all(&target).map_err(|error| error.to_string())?;
-    }
     fs::rename(staging, target).map_err(|error| error.to_string())?;
     runtime_list()
 }

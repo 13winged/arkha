@@ -531,12 +531,12 @@ pub fn config_dir() -> PathBuf {
     base.join("ArkHa")
 }
 
-pub fn profile_path() -> PathBuf {
-    config_dir().join("profile.json")
+pub fn profile_path() -> Result<PathBuf, String> {
+    Ok(crate::user_data::current_roots()?.profile)
 }
 
 pub fn save(p: &Profile) -> std::io::Result<()> {
-    let path = profile_path();
+    let path = profile_path().map_err(|error| std::io::Error::new(std::io::ErrorKind::PermissionDenied, error))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -546,7 +546,7 @@ pub fn save(p: &Profile) -> std::io::Result<()> {
 }
 
 pub fn load() -> Option<Profile> {
-    let json = std::fs::read_to_string(profile_path()).ok()?;
+    let json = std::fs::read_to_string(profile_path().ok()?).ok()?;
     serde_json::from_str(&json).ok()
 }
 

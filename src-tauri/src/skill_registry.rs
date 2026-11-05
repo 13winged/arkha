@@ -79,9 +79,12 @@ fn legacy_item(path: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
 
 fn manifest_item(dir: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
     let manifest_path = dir.join("skill.json");
+    if is_other_profile_path(&manifest_path) {
+        return None;
+    }
     let manifest: SkillManifest = serde_json::from_str(&fs::read_to_string(&manifest_path).ok()?).ok()?;
     let entrypoint = dir.join(&manifest.entrypoint);
-    if !entrypoint.is_file() {
+    if !entrypoint.is_file() || is_other_profile_path(&entrypoint) {
         return None;
     }
     let id = manifest
@@ -108,6 +111,9 @@ fn discover(enabled: &[String]) -> Vec<SkillRegistryItem> {
         let Ok(entries) = fs::read_dir(root) else { continue };
         for entry in entries.flatten() {
             let path = entry.path();
+            if is_other_profile_path(&path) {
+                continue;
+            }
             if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("md") {
                 if let Some(item) = legacy_item(&path, enabled) { items.push(item); }
             } else if path.is_dir() && path.join("skill.json").is_file() {
@@ -121,8 +127,14 @@ fn discover(enabled: &[String]) -> Vec<SkillRegistryItem> {
     items
 }
 
+fn is_other_profile_path(path: &Path) -> bool {
+    crate::user_data::current_roots()
+        .is_ok_and(|roots| crate::user_data::is_other_profile_path(&roots, path))
+}
+
 #[tauri::command]
 pub fn skills_list() -> Result<Vec<SkillRegistryItem>, String> {
+    crate::auth::require_authenticated()?;
     Ok(discover(&persisted_enabled()?))
 }
 
@@ -147,30 +159,36 @@ fn set_enabled(id: String, enabled: bool) -> Result<Vec<SkillRegistryItem>, Stri
 
 #[tauri::command]
 pub fn skills_enable(id: String) -> Result<Vec<SkillRegistryItem>, String> {
+    crate::auth::require_authenticated()?;
     set_enabled(id, true)
 }
 
 #[tauri::command]
 pub fn skills_disable(id: String) -> Result<Vec<SkillRegistryItem>, String> {
+    crate::auth::require_authenticated()?;
     set_enabled(id, false)
 }
 
 #[tauri::command]
 pub fn skills_read(id: String) -> Result<String, String> {
+    crate::auth::require_authenticated()?;
     let item = discover(&[])
         .into_iter()
         .find(|skill| skill.id == id)
         .ok_or_else(|| format!("skill не найден: {id}"))?;
     let path = PathBuf::from(item.path);
-    let file = if item.manifest {
+        let file = if item.manifest {
         let manifest: SkillManifest = serde_json::from_str(
             &fs::read_to_string(path.join("skill.json")).map_err(|error| error.to_string())?,
         )
         .map_err(|error| error.to_string())?;
-        path.join(manifest.entrypoint)
-    } else {
-        path
-    };
+            path.join(manifest.entrypoint)
+        } else {
+            path
+        };
+        if is_other_profile_path(&file) {
+            return Err("профили других пользователей ArkHa недоступны".into());
+        }
     let content = fs::read_to_string(&file).map_err(|error| error.to_string())?;
     if content.len() > 200_000 {
         return Err("SKILL.md слишком большой для просмотра".to_string());

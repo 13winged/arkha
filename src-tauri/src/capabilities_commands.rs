@@ -45,6 +45,7 @@ pub struct Report {
 /// значение считается русским — молча угадывать язык нельзя.
 #[tauri::command]
 pub fn capabilities_report(lang: Option<String>) -> Result<Report, String> {
+    crate::auth::require_authenticated()?;
     let tier = detect_and_persist().effective();
     build_lang(tier, lang.as_deref() == Some("en"))
 }
@@ -111,6 +112,7 @@ pub fn build_lang(tier: Tier, en: bool) -> Result<Report, String> {
 /// нужен список того, что можно, и того, что нельзя.
 #[tauri::command]
 pub fn capabilities_for_model() -> Result<Vec<crate::capabilities::ModelView>, String> {
+    crate::auth::require_authenticated()?;
     let tier = detect_and_persist().effective();
     let reg = Registry::load()?;
     reg.validate()?;

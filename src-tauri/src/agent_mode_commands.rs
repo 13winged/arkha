@@ -27,6 +27,7 @@ pub struct AgentSelectView {
 #[tauri::command]
 pub async fn agent_select_open_window(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
+    crate::auth::require_authenticated()?;
 
     if let Some(window) = app.get_webview_window("agent_select") {
         let _ = window.show();
@@ -51,6 +52,9 @@ pub async fn agent_select_open_window(app: tauri::AppHandle) -> Result<(), Strin
 /// Получить текущий режим и список доступных.
 #[tauri::command]
 pub fn agent_mode_list() -> AgentSelectView {
+    if crate::auth::require_authenticated().is_err() {
+        return AgentSelectView { current_mode: "build".into(), modes: Vec::new() };
+    }
     let current = agent_modes::current_mode();
     let modes: Vec<ModeView> = agent_modes::AgentMode::all()
         .iter()
@@ -73,10 +77,14 @@ pub fn agent_mode_list() -> AgentSelectView {
 /// Установить режим агента.
 #[tauri::command]
 pub fn agent_mode_set(mode: String) -> Result<AgentSelectView, String> {
+    crate::auth::require_authenticated()?;
     let mode = agent_modes::AgentMode::from_str(&mode)
         .ok_or_else(|| format!("неизвестный режим: {mode}"))?;
 
     agent_modes::set_mode(mode);
+    let mut settings = crate::settings::settings_get()?;
+    settings.agent_mode = mode.as_str().to_string();
+    crate::settings::settings_save(settings)?;
     tracing::info!("режим агента: {}", mode.as_str());
 
     Ok(agent_mode_list())
@@ -85,11 +93,13 @@ pub fn agent_mode_set(mode: String) -> Result<AgentSelectView, String> {
 /// Получить текущий режим.
 #[tauri::command]
 pub fn agent_mode_current() -> String {
+    if crate::auth::require_authenticated().is_err() { return "build".into(); }
     agent_modes::current_mode().as_str().to_string()
 }
 
 /// Проверить, разрешено ли действие в текущем режиме.
 #[tauri::command]
 pub fn agent_mode_allows(capability: String) -> bool {
+    if crate::auth::require_authenticated().is_err() { return false; }
     agent_modes::current_mode().allows_capability(&capability)
 }

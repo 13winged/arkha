@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.2.1] - 2026-11-05
+
+### Added
+
+- Local account registration, password login and isolated guest sessions.
+- Explicit legacy-data import with category preview, conflict protection and SQLite online backup.
+- Legacy import can be claimed by only one account; shared models, runtimes and package recipes are excluded.
+- Windows DPAPI-backed Remember Me, shared across ArkHa windows and expiring after 30 days.
+- Per-account settings, memory, RAG, attachments, permissions, profiles, audio preferences and user skills.
+- Protection against reading another account's files or the unclaimed legacy data through filesystem, RAG and voice commands.
+
+### Changed
+
+- Shared models and runtimes remain machine-wide; models cannot be deleted and runtime versions cannot be overwritten or deleted from an account.
+- Legacy browser preferences are only imported after the user selects them in the migration screen.
+
+### Fixed
+
+- Secondary ArkHa windows now reuse the active in-process session instead of prompting for another login.
+
+### Verification
+
+- 347 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- Selected integration gates: 56 pass; 8 model/network-dependent tests are ignored or skip without local assets. `uia_gate` remains unverified because Chrome did not expose page content to the accessibility tree in this environment.
+- TypeScript, i18n and Windows NSIS/MSI production builds pass.
+
 ## [1.2.0] - 2026-11-05
 
 ### Added

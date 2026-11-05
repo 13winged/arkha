@@ -8,7 +8,6 @@ use serde_json::Value;
 use std::time::SystemTime;
 
 use super::sqlite::open as open_db;
-use crate::profile::config_dir;
 
 /// Сущность графа памяти.
 #[derive(Debug, Clone)]
@@ -53,7 +52,9 @@ pub struct RelatedEntity {
 
 /// Открыть базу памяти по умолчанию (в конфигурационной папке).
 pub fn default_connection() -> Result<Connection, rusqlite::Error> {
-    let dir = config_dir();
+    let dir = crate::user_data::current_roots()
+        .map_err(|error| rusqlite::Error::InvalidPath(error.into()))?
+        .root;
     std::fs::create_dir_all(&dir)
         .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?;
     let path = dir.join("memory.db");
