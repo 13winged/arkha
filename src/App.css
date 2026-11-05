@@ -614,6 +614,23 @@ body {
   overflow: hidden;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+.app-main,
+.app-workspace,
+.app-body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sidebar-subitem {
+  margin-left: 10px;
+  width: calc(100% - 10px);
+  opacity: 0.86;
+}
+
 .app-workspace {
   display: flex;
   flex: 1;
@@ -1059,6 +1076,29 @@ h3 {
   margin-top: 14px;
 }
 
+.skills-search {
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  box-sizing: border-box;
+}
+
+.skills-search-row {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.skills-search-row .skills-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
 .model-library-list {
   display: grid;
   gap: 8px;
@@ -1130,6 +1170,15 @@ h3 {
   opacity: 0.45;
 }
 
+.model-delete {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--cp-neon-red);
+  background: transparent;
+  color: var(--cp-neon-red);
+  cursor: pointer;
+}
+
 @media (max-width: 700px) {
   .model-family-heading,
   .model-family-footer {
@@ -1173,6 +1222,34 @@ h3 {
 .skill-toggle.enabled {
   border-color: var(--cp-neon-green);
   color: var(--cp-neon-green);
+}
+
+.skill-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-viewer {
+  margin-top: 14px;
+  border: 1px solid var(--cp-line-2);
+  background: var(--cp-bg);
+}
+
+.skill-viewer h3 {
+  margin: 0;
+}
+
+.skill-viewer pre {
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: 0.86em;
 }
 
 /* Каркасные уголки панели — киберпанк-эстетика, уголки как на
@@ -2402,6 +2479,10 @@ kbd.cap,
   background-clip: content-box;
 }
 
+.onb-input input[type="file"] {
+  display: none !important;
+}
+
 /* ---------------------------------------------------------------
    Единая киберпанк-оболочка дополнительных окон
    --------------------------------------------------------------- */
@@ -2764,11 +2845,42 @@ kbd.cap,
   color: var(--cp-text-dim);
 }
 
+.agent-panel .agent-результат {
+  border-left-color: var(--cp-neon-green);
+  color: var(--cp-text-dim);
+  opacity: 0.82;
+}
+
 .chat-panel .messages {
   padding: 16px;
   margin-bottom: 18px;
   border: 1px solid var(--cp-line-2);
   box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.65);
+}
+
+.attach-button {
+  display: grid;
+  min-width: 34px;
+  place-items: center;
+  border: 1px solid var(--cp-line);
+  color: var(--cp-neon-green);
+  cursor: pointer;
+}
+
+.chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chat-attachments button {
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg-2);
+  color: var(--cp-text-dim);
+  cursor: pointer;
+  font-size: 0.8em;
+  padding: 4px 7px;
 }
 
 .chat-panel {

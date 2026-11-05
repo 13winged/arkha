@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0] - 2026-11-05
+
+### Added
+
+- Finalized Skills Registry, permissions confirmation and `SKILL.md` viewing.
+- Agent context builder with RAG and attachment metadata.
+- Local attachments for chat and agent requests with SQLite metadata, SHA-256 and indexed text.
+- Agent timeout, cancellation and expanded trace events.
+- Model family grouping, quantization selection and safe model deletion.
+- Separate Model Library window.
+
+### Verification
+
+- 333 Rust tests pass; 3 hardware-dependent tests remain ignored.
+- TypeScript, Vite and Tauri production builds pass.
+
 ## [1.2.0-beta] - 2026-11-04
 
 ### Added

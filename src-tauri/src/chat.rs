@@ -28,6 +28,8 @@ static DOWNLOAD_CANCEL: AtomicBool = AtomicBool::new(false);
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -194,6 +196,26 @@ fn старт_на_потоке(app: &AppHandle) -> Result<ModelStatus, String> 
     Ok(s)
 }
 
+#[tauri::command]
+pub async fn models_open_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("models") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "models",
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("ArkHa — Модели")
+    .inner_size(980.0, 720.0)
+    .min_inner_size(720.0, 480.0)
+    .build()
+    .map_err(|error| format!("не удалось открыть окно моделей: {error}"))?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalModel {
@@ -254,6 +276,27 @@ pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
     let mut settings = crate::settings::settings_get()?;
     settings.active_model = Some(name);
     crate::settings::settings_save(settings)?;
+    models_list()
+}
+
+#[tauri::command]
+pub fn model_delete(name: String, status: State<'_, ModelState>) -> Result<Vec<LocalModel>, String> {
+    if status.get().running {
+        return Err("остановите модель перед удалением файла".to_string());
+    }
+    if name.contains(['/', '\\', ':']) || name != Path::new(&name).file_name().and_then(|value| value.to_str()).unwrap_or_default() {
+        return Err("недопустимое имя модели".to_string());
+    }
+    let path = model_manager::models_dir().join(&name);
+    if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") || !path.is_file() {
+        return Err("модель не найдена".to_string());
+    }
+    std::fs::remove_file(path).map_err(|error| format!("не удалось удалить модель: {error}"))?;
+    let mut settings = crate::settings::settings_get()?;
+    if settings.active_model.as_deref() == Some(name.as_str()) {
+        settings.active_model = None;
+        crate::settings::settings_save(settings)?;
+    }
     models_list()
 }
 
@@ -444,7 +487,11 @@ pub async fn chat(
             if user.display_name.is_empty() { "не указано" } else { &user.display_name },
             if user.login.is_empty() { "не указано" } else { &user.login },
         );
-        messages.insert(0, ChatMessage { role: "system".into(), content: identity });
+        messages.insert(0, ChatMessage { role: "system".into(), content: identity, attachments: Vec::new() });
+    }
+    let attachment_ids = messages.iter().flat_map(|message| message.attachments.iter().cloned()).collect::<Vec<_>>();
+    if let Some(context) = crate::attachments::context(&attachment_ids)? {
+        messages.insert(0, ChatMessage { role: "system".into(), content: context, attachments: Vec::new() });
     }
     // Номер запроса может прийти из интерфейса, и это не мелочь.
     //

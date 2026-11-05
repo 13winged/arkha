@@ -1,4 +1,4 @@
-# ArkHa 1.0
+# ArkHa 1.2
 
 [![Build](https://img.shields.io/github/actions/workflow/status/13winged/arkha/ci.yml)](https://github.com/13winged/arkha/actions)
 [![Release](https://img.shields.io/github/v/release/13winged/arkha)](https://github.com/13winged/arkha/releases)
@@ -17,6 +17,15 @@ ArkHa is a local AI secretary for Windows. It runs models through `llama.cpp`, k
 - Hidden console windows for `llama-server.exe`, `nvidia-smi` and voice services.
 - WebView2 orphan cleanup and production CSP.
 - Russian and English UI with persisted font-size preference.
+
+## 1.2 highlights
+
+- Runtime Manager with CPU/CUDA/Vulkan packages, compatibility checks and SHA-256 installation.
+- Local model library grouped by family and quantization.
+- Skills Registry with enable/disable controls, permissions and `SKILL.md` viewer.
+- Agent context builder with local RAG context, profile context and bounded tool history.
+- Local attachments stored as SQLite metadata plus files under `%APPDATA%\\ArkHa\\attachments`.
+- Text attachments are indexed into the local RAG corpus.
 
 ## Requirements
 
@@ -50,6 +59,8 @@ npm run check:i18n
 ```
 
 The Rust library suite currently contains 328 passing tests and 2 ignored hardware-dependent tests.
+
+Attachments are stored locally. Binary files are not placed into SQLite; SQLite stores metadata and SHA-256 while file contents remain in the attachments directory.
 
 ## Permissions and safety
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -214,6 +214,15 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   toolCalls?: unknown;
+}
+
+interface AttachmentView {
+  id: string;
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  path: string;
+  indexed: boolean;
 }
 
 function gb(mb: number): string {
@@ -873,6 +882,7 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentView[]>([]);
   const bottom = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
 
@@ -939,7 +949,13 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
       const мой = requestId.current;
       await invoke<number>("chat", {
         requestId: мой,
-        messages: next.map(({ role, content }) => ({ role, content })),
+         messages: next.map(({ role, content }, index) => ({
+           role,
+           content,
+           ...(index === next.length - 1 && attachments.length > 0
+             ? { attachments: attachments.map((attachment) => attachment.id) }
+             : {}),
+         })),
         maxTokens: 1024,
       });
     } catch (e) {
@@ -947,7 +963,24 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
       setNotice(String(e));
       setMessages(next);
     }
-  }, [busy, input, messages, model.running]);
+  }, [attachments, busy, input, messages, model.running]);
+
+  async function attach(files: FileList | null) {
+    if (!files) return;
+    try {
+      for (const file of Array.from(files)) {
+        const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+        const attachment = await invoke<AttachmentView>("attachment_add", {
+          name: file.name,
+          mime: file.type || "application/octet-stream",
+          data: bytes,
+        });
+        setAttachments((current) => [...current, attachment]);
+      }
+    } catch (error) {
+      setNotice(String(error));
+    }
+  }
 
   return (
     <section className="chat chat-panel" style={hidden ? { display: "none" } : undefined}>
@@ -972,6 +1005,10 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
       {notice && <p className="muted notice">{notice}</p>}
 
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        <label className="attach-button" title={t("Прикрепить файл")}>
+          +
+          <input type="file" hidden multiple onChange={(event) => void attach(event.target.files)} />
+        </label>
         <input
           className="app-input"
           value={input}
@@ -983,6 +1020,15 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
         <button className="app-send" type="submit" disabled={!input.trim() || busy || !model.running}>{t("Отправить")}
         </button>
       </form>
+      {attachments.length > 0 && (
+        <div className="chat-attachments">
+          {attachments.map((attachment) => (
+            <button type="button" key={attachment.id} onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>
+              {attachment.name} ×
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -1432,6 +1478,16 @@ function ModelLibrary() {
     }
   };
 
+  const remove = async (name: string) => {
+    if (!window.confirm(`${t("Удалить модель полностью?")}\n${name}`)) return;
+    try {
+      setModels(await invoke<LocalModel[]>("model_delete", { name }));
+      setError(null);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
   const groups = Array.from(
     (models ?? []).reduce((result, model) => {
       const family = modelFamily(model.name);
@@ -1487,6 +1543,9 @@ function ModelLibrary() {
                 >
                   {active.active ? t("выбрана") : t("выбрать")}
                 </button>
+                <button type="button" className="model-delete" onClick={() => void remove(active.name)}>
+                  {t("Удалить")}
+                </button>
               </div>
             </article>
           );
@@ -1499,6 +1558,9 @@ function ModelLibrary() {
 function SkillsPanel() {
   const [skills, setSkills] = useState<SkillRegistryItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [viewing, setViewing] = useState<{ name: string; content: string } | null>(null);
 
   const refresh = () => {
     invoke<SkillRegistryItem[]>("skills_list")
@@ -1509,6 +1571,13 @@ function SkillsPanel() {
   useEffect(() => { refresh(); }, []);
 
   const toggle = async (skill: SkillRegistryItem) => {
+    if (!skill.enabled && skill.permissions.length > 0) {
+      const permissions = skill.permissions.join(", ");
+      const confirmed = window.confirm(
+        `${t("Навык запрашивает разрешения")}: ${permissions}\n\n${t("Разрешения не выдаются автоматически и будут проверяться при каждом вызове инструмента.")}\n\n${t("Включить навык?")}`,
+      );
+      if (!confirmed) return;
+    }
     try {
       const next = await invoke<SkillRegistryItem[]>(skill.enabled ? "skills_disable" : "skills_enable", { id: skill.id });
       setSkills(next);
@@ -1517,6 +1586,18 @@ function SkillsPanel() {
       setError(String(reason));
     }
   };
+
+  const view = async (skill: SkillRegistryItem) => {
+    try {
+      setViewing({ name: skill.name, content: await invoke<string>("skills_read", { id: skill.id }) });
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  const filtered = skills?.filter((skill) =>
+    `${skill.name} ${skill.description} ${skill.permissions.join(" ")}`.toLowerCase().includes(query.toLowerCase()),
+  );
 
   return (
     <section className="panel skills-panel">
@@ -1527,10 +1608,14 @@ function SkillsPanel() {
         </div>
         <button type="button" className="chip" onClick={refresh}>{t("Обновить")}</button>
       </div>
+      <form className="skills-search-row" onSubmit={(event) => { event.preventDefault(); setQuery(searchInput.trim()); }}>
+        <input className="skills-search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t("Поиск навыков")} />
+        <button type="submit" className="chip">{t("Найти")}</button>
+      </form>
       {error && <p className="error">{error}</p>}
       {!skills && !error && <p className="muted">{t("Проверяем навыки…")}</p>}
       <div className="skills-registry-list">
-        {skills?.map((skill) => (
+        {filtered?.map((skill) => (
           <article className="skill-registry-card" key={skill.id}>
             <div>
               <strong>{skill.name}</strong>
@@ -1538,12 +1623,22 @@ function SkillsPanel() {
               <p className="muted">{skill.description}</p>
               {skill.permissions.length > 0 && <small>{skill.permissions.join(", ")}</small>}
             </div>
-            <button type="button" className={`skill-toggle ${skill.enabled ? "enabled" : ""}`} onClick={() => void toggle(skill)}>
-              {skill.enabled ? t("включён") : t("выключен")}
-            </button>
+            <div className="skill-actions">
+              <button type="button" className="chip" onClick={() => void view(skill)}>{t("Просмотр")}</button>
+              <button type="button" className={`skill-toggle ${skill.enabled ? "enabled" : ""}`} onClick={() => void toggle(skill)}>
+                {skill.enabled ? t("включён") : t("выключен")}
+              </button>
+            </div>
           </article>
         ))}
       </div>
+      {skills && filtered?.length === 0 && <p className="muted skills-empty">{t("Навыки не найдены")}</p>}
+      {viewing && (
+        <div className="skill-viewer">
+          <div className="runtime-panel-heading"><h3>{viewing.name}</h3><button type="button" className="chip" onClick={() => setViewing(null)}>×</button></div>
+          <pre>{viewing.content}</pre>
+        </div>
+      )}
     </section>
   );
 }
@@ -1873,7 +1968,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "download" | "capabilities" | "settings" | "dashboard";
+type Tab = "chat" | "agent" | "download" | "settings" | "skills" | "capabilities" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -2054,6 +2149,7 @@ const ТОН: Record<Tab, "gold" | "blue"> = {
   download: "gold",
   capabilities: "blue",
   settings: "blue",
+  skills: "gold",
   dashboard: "blue",
 };
 
@@ -2400,6 +2496,10 @@ function App() {
   if (isAgentSelectWindow) {
     return <AgentSelect />;
   }
+  const isModelsWindow = getCurrentWindow().label === "models";
+  if (isModelsWindow) {
+    return <main className="app-shell models-window"><ModelLibrary /></main>;
+  }
   // Слушатель события rag:ask — текст из RAG-окна для чата
   useEffect(() => {
     const unlisten = listen("rag:ask", (event) => {
@@ -2526,8 +2626,9 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {(["agent", "chat", "download", "settings", "capabilities", "dashboard"] as Tab[]).map((вкладка) => (
-            <button key={вкладка} type="button"
+          {(["agent", "chat", "download", "settings", "skills", "capabilities", "dashboard"] as Tab[]).map((вкладка) => (
+            <Fragment key={вкладка}>
+            <button type="button"
               data-tone={ТОН[вкладка]}
               className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
               onClick={() => setTab(вкладка)}
@@ -2537,6 +2638,7 @@ function App() {
                 download: "загрузка",
                 capabilities: "возможности",
                 settings: "профиль",
+                skills: "Навыки",
                 dashboard: "наблюдение",
               }[вкладка])}
             >
@@ -2546,6 +2648,7 @@ function App() {
                 download: "↓",
                 capabilities: "✦",
                 settings: "◉",
+                skills: "⌘",
                 dashboard: "▥",
               }[вкладка]}</span>
               {!sidebarCollapsed && <span className="sidebar-label">{t({
@@ -2554,9 +2657,17 @@ function App() {
                 download: "загрузка",
                 capabilities: "возможности",
                 settings: "профиль",
+                skills: "Навыки",
                 dashboard: "наблюдение",
               }[вкладка])}</span>}
             </button>
+            {вкладка === "download" && (
+              <button type="button" className="sidebar-item sidebar-subitem" onClick={() => void invoke("models_open_window")}>
+                <span className="sidebar-icon" aria-hidden="true">▦</span>
+                {!sidebarCollapsed && <span className="sidebar-label">{t("модели")}</span>}
+              </button>
+            )}
+            </Fragment>
           ))}
         </nav>
         {!sidebarCollapsed && (
@@ -2640,9 +2751,9 @@ function App() {
                   }}
                 />
                 <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
-                <SkillsPanel />
               </>
             )}
+            {tab === "skills" && <SkillsPanel />}
             {tab === "dashboard" && <Dashboard />}
           </section>
           <ModelDock model={model} onChange={setModel} />

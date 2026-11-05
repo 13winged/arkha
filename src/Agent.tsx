@@ -24,6 +24,11 @@ interface CallRecord {
   denied: boolean;
 }
 
+interface AttachmentView {
+  id: string;
+  name: string;
+}
+
 interface DoneEvent {
   request_id: number;
   answer: string;
@@ -63,7 +68,7 @@ interface ToolsReport {
 }
 
 interface Реплика {
-  роль: "я" | "секретарь" | "инструмент" | "отказ";
+  роль: "я" | "секретарь" | "инструмент" | "результат" | "отказ";
   текст: string;
   /// Название инструмента для строк о вызовах. Отдельное поле, а не
   /// часть текста: склеивать имя и суть через разделитель значит
@@ -107,10 +112,11 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
   const [инструменты, setИнструменты] = useState<ToolsReport | null>(null);
   const [ждёт, setЖдёт] = useState<(PendingEvent & { отвечено?: boolean }) | null>(null);
   const [сжато, setСжато] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentView[]>([]);
 
   // История для следующего запроса. Отдельная от видимых реплик: в
   // модель уходят только роли и текст, без наших пометок.
-  const история = useRef<{ role: string; content: string }[]>([]);
+  const история = useRef<{ role: string; content: string; attachments?: string[] }[]>([]);
   const низ = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -133,6 +139,23 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
 
     listen<{ request_id: number; messages: number; tools: number }>("agent:context_ready", (e) => {
       setПричина(`контекст собран: ${e.payload.messages} сообщений, ${e.payload.tools} инструментов`);
+    }).then((f) => unlisten.push(f));
+
+    listen<{ request_id: number; call: CallRecord }>("agent:tool_result", (e) => {
+      setРеплики((старые) => [
+        ...старые,
+        { роль: e.payload.call.denied ? "отказ" : "результат", инструмент: e.payload.call.tool, текст: e.payload.call.summary },
+      ]);
+    }).then((f) => unlisten.push(f));
+
+    listen<{ request_id: number; message: string }>("agent:error", (e) => {
+      setКрутится(false);
+      setПричина(e.payload.message);
+    }).then((f) => unlisten.push(f));
+
+    listen<{ request_id: number; message: string }>("agent:cancelled", (e) => {
+      setКрутится(false);
+      setПричина(e.payload.message);
     }).then((f) => unlisten.push(f));
 
     // Событие приходит после того, как интерфейс уже нарисован.
@@ -208,14 +231,32 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
     setПричина(null);
     setКрутится(true);
 
-    const сообщения = [...история.current, { role: "user", content: текст }];
+    const сообщения = [...история.current, { role: "user", content: текст, attachments: attachments.map((attachment) => attachment.id) }];
     история.current = сообщения;
+    setAttachments([]);
 
     try {
       await invoke<number>("agent_chat", { messages: сообщения });
     } catch (e) {
       setКрутится(false);
       setПричина(String(e));
+    }
+  }
+
+  async function прикрепить(files: FileList | null) {
+    if (!files) return;
+    try {
+      for (const file of Array.from(files)) {
+        const data = Array.from(new Uint8Array(await file.arrayBuffer()));
+        const attachment = await invoke<AttachmentView>("attachment_add", {
+          name: file.name,
+          mime: file.type || "application/octet-stream",
+          data,
+        });
+        setAttachments((current) => [...current, attachment]);
+      }
+    } catch (error) {
+      setПричина(String(error));
     }
   }
 
@@ -351,7 +392,7 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
       {инструменты && инструменты.tools.length === 0 && (
         <p className="error">
           Ни одного инструмента не разрешено. Отметь хотя бы чтение файлов
-          во вкладке «Знакомство».
+           в профиле.
         </p>
       )}
 
@@ -415,6 +456,10 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
       {сжато && <p className="agent-compact">{сжато}</p>}
 
       <div className="onb-input">
+        <label className="attach-button" title="Прикрепить файл">
+          +
+          <input type="file" hidden multiple onChange={(event) => void прикрепить(event.target.files)} />
+        </label>
         <input
           type="text"
           value={вопрос}
@@ -443,6 +488,15 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
           </button>
         )}
       </div>
+      {attachments.length > 0 && (
+        <div className="chat-attachments">
+          {attachments.map((attachment) => (
+            <button type="button" key={attachment.id} onClick={() => setAttachments((items) => items.filter((item) => item.id !== attachment.id))}>
+              {attachment.name} ×
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

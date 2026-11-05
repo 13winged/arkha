@@ -135,3 +135,16 @@ CREATE TABLE IF NOT EXISTS memory_documents (
 );
 
 CREATE INDEX IF NOT EXISTS idx_memory_documents_source ON memory_documents(source);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    mime TEXT NOT NULL DEFAULT 'application/octet-stream',
+    path TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    sha256 TEXT NOT NULL,
+    indexed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_created_at ON attachments(created_at);

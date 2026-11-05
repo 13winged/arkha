@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::permissions::Settings;
 use crate::tools::{Registry, ToolError};
@@ -41,6 +42,8 @@ use super::approvals::Решение;
 /// больше, чем нужно человеку, и заведомо меньше, чем нужно, чтобы
 /// зациклиться и съесть память.
 pub const MAX_TURNS: usize = 12;
+pub const MAX_RUN_TIME: Duration = Duration::from_secs(600);
+pub const MAX_TOOL_TIME: Duration = Duration::from_secs(120);
 
 /// Что сказать модели, когда она ответила словами, не вызвав ни одного
 /// инструмента.
@@ -407,6 +410,7 @@ impl<'a> Agent<'a> {
 
     /// Запустить цикл до ответа, отказа или лимита.
     pub fn run(&mut self, mut messages: Vec<Message>, request_id: u64) -> Outcome {
+        let started = Instant::now();
         // Сжатие — до первого обращения к модели. Иначе запрос может
         // просто не уйти: контекст конечен, а разговор нет.
         let prepared = super::context_builder::prepare(messages, self.порог_контекста);
@@ -416,6 +420,18 @@ impl<'a> Agent<'a> {
         let tools = self.registry.as_request_json(&self.settings);
 
         for turn_no in 0..MAX_TURNS {
+            if started.elapsed() >= MAX_RUN_TIME {
+                return Outcome {
+                    answer: String::new(),
+                    calls: self.calls.clone(),
+                    messages,
+                    turns: turn_no,
+                    stop_reason: "превышено время работы агента (10 минут)".into(),
+                    основание: self.основание(),
+                    была_страховка: self.страховка_сработала,
+                    инструменты_были: !tools.is_empty(),
+                };
+            }
             let prepared = super::context_builder::prepare(messages, self.порог_контекста);
             if !prepared.compression_note.is_empty() {
                 self.сжатие_текст = prepared.compression_note.clone();
@@ -613,7 +629,20 @@ impl<'a> Agent<'a> {
                 }
                 self.done.push(key);
 
-                match self.registry.call(&name, &args, &self.settings) {
+                let tool_started = Instant::now();
+                let tool_result = self.registry.call(&name, &args, &self.settings);
+                if tool_started.elapsed() >= MAX_TOOL_TIME {
+                    let timeout = format!("инструмент «{name}» превысил лимит 120 секунд");
+                    self.calls.push(CallRecord {
+                        tool: name.clone(),
+                        ok: false,
+                        summary: timeout.clone(),
+                        denied: false,
+                    });
+                    messages.push(Message::tool_result(&id, &name, timeout));
+                    continue;
+                }
+                match tool_result {
                     Ok(out) => {
                         let summary = out.summary.clone();
                         let text = out.text.clone();

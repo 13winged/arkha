@@ -34,6 +34,7 @@ const EVENT_STARTED: &str = "agent:started";
 const EVENT_CONTEXT: &str = "agent:context_ready";
 const EVENT_TOOL_RESULT: &str = "agent:tool_result";
 const EVENT_ERROR: &str = "agent:error";
+const EVENT_CANCELLED: &str = "agent:cancelled";
 
 /// Один вызов инструмента для интерфейса.
 #[derive(Debug, Clone, Serialize)]
@@ -92,6 +93,8 @@ pub struct Incoming {
     pub role: String,
     #[serde(default)]
     pub content: String,
+    #[serde(default)]
+    pub attachments: Vec<String>,
 }
 
 /// Что агент умеет и что ему разрешено. Для вкладки настроек.
@@ -242,6 +245,7 @@ pub fn agent_chat(
         }
     };
 
+    let attachment_ids = messages.iter().flat_map(|message| message.attachments.iter().cloned()).collect::<Vec<_>>();
     let mut messages = messages;
     let user = crate::settings::settings_get()?.user;
     if !user.login.is_empty() || !user.display_name.is_empty() {
@@ -252,7 +256,11 @@ pub fn agent_chat(
                 if user.display_name.is_empty() { "не указано" } else { &user.display_name },
                 if user.login.is_empty() { "не указано" } else { &user.login },
             ),
+            attachments: Vec::new(),
         });
+    }
+    if let Some(context) = crate::attachments::context(&attachment_ids)? {
+        messages.insert(0, Incoming { role: "system".into(), content: context, attachments: Vec::new() });
     }
     let start: Vec<Message> = messages.into_iter().map(|m| Message { role: m.role, content: m.content, tool_calls: None, tool_call_id: None, name: None }).collect();
     if start.is_empty() {
@@ -315,6 +323,9 @@ fn report(app: &AppHandle, out: &Outcome, агент: &Agent, request_id: u64) {
     // разрешён.
     if out.stop_reason.starts_with("модель не ответила") {
         let _ = app.emit(EVENT_ERROR, ErrorEvent { request_id, message: out.stop_reason.clone() });
+    }
+    if out.stop_reason == "остановлено вами" {
+        let _ = app.emit(EVENT_CANCELLED, ErrorEvent { request_id, message: out.stop_reason.clone() });
     }
     // Основание собирается здесь, а не в цикле: интерфейсу нужна
     // готовая строка, и собирать её из вызовов второй раз значит

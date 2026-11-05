@@ -46,6 +46,9 @@ pub struct Skill {
     pub parameters: Value,
     /// Тело: шаги для модели.
     pub steps: String,
+    /// Для manifest-based skills тело можно прочитать только при вызове.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps_path: Option<PathBuf>,
     /// Откуда прочитан. Для ошибок и для показа пользователю.
     pub file: PathBuf,
 }
@@ -66,6 +69,16 @@ impl Skill {
     /// начале, а модель к этому месту готова отвечать. В конце —
     /// готова действовать.
     pub fn текст_для_модели(&self, args: &Value) -> String {
+        let steps = self
+            .steps_path
+            .as_ref()
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .unwrap_or_else(|| self.steps.clone());
+        let дополнительные = self
+            .steps_path
+            .as_ref()
+            .map(|path| дополнительные_ресурсы(path.parent().unwrap_or(path)))
+            .unwrap_or_default();
         let mut вызов = String::from("Параметры навыка:\n");
         match args.as_object() {
             Some(м) if !м.is_empty() => {
@@ -79,7 +92,7 @@ impl Skill {
         }
         format!(
             "Навык «{}» (версия {}) выбран человеком.\n\
-             Ресурсы: {}\n\
+             Ресурсы: {}\n{}\
              Требуемые возможности: {}\n\
              Параметры:\n{}             Шаги:\n{}\n\n\
              Теперь выполняй. Следующий твой ответ — вызов инструмента, который \
@@ -90,10 +103,11 @@ impl Skill {
              Не выдумывайте результат и не продолжайте мимо отказа.",
             self.name,
             self.version,
-            если_пусто(&self.resources, "нет"),
-            self.tools.join(", "),
-            вызов,
-            self.steps
+             если_пусто(&self.resources, "нет"),
+             дополнительные,
+             self.tools.join(", "),
+             вызов,
+             steps
         )
     }
 
@@ -204,17 +218,30 @@ impl Набор {
         // Порядок чтения с диска произволен, а список навыков уходит
         // в модель. Без сортировки список менялся бы от запуска к
         // запуску, и кэш префиксов — тоже.
+        let записи: Vec<PathBuf> = записи.flatten().map(|з| з.path()).collect();
         let mut файлы: Vec<PathBuf> = записи
-            .flatten()
-            .map(|з| з.path())
+            .iter()
             .filter(|п| п.extension().map(|р| р == "md").unwrap_or(false))
+            .cloned()
+            .collect();
+        let mut manifest_dirs: Vec<PathBuf> = записи
+            .iter()
+            .filter(|п| п.is_dir() && п.join("skill.json").is_file())
+            .cloned()
             .collect();
         файлы.sort();
+        manifest_dirs.sort();
 
         for файл in файлы {
             match разобрать_файл(&файл) {
                 Ok(н) => набор.навыки.push(н),
                 Err(о) => набор.сломанные.push(о),
+            }
+        }
+        for directory in manifest_dirs {
+            match разобрать_manifest(&directory) {
+                Ok(skill) => набор.навыки.push(skill),
+                Err(error) => набор.сломанные.push(error),
             }
         }
         набор
@@ -318,6 +345,7 @@ pub fn разобрать(текст: &str, файл: &Path) -> Result<Skill, О
         resources: ресурсы,
         parameters: схема_аргументов(&аргументы),
         steps: тело.trim().to_string(),
+        steps_path: None,
         file: файл.to_path_buf(),
     })
 }
@@ -575,9 +603,79 @@ arguments: папка, шаблон
             resources: vec![],
             parameters: json!({}),
             steps: "шаги".into(),
+            steps_path: None,
             file: PathBuf::from("a.md"),
         };
         let т = н.текст_для_модели(&json!({}));
         assert!(т.contains("не заданы"), "{т}");
     }
+}
+
+fn дополнительные_ресурсы(directory: &Path) -> String {
+    let mut paths = Vec::new();
+    for folder in ["references", "templates", "examples", "bin"] {
+        let path = directory.join(folder);
+        if path.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&path) {
+                for entry in entries.flatten() {
+                    paths.push(entry.path().display().to_string());
+                }
+            }
+        }
+    }
+    if paths.is_empty() {
+        String::new()
+    } else {
+        format!("\nДополнительные ресурсы, доступные через инструменты:\n- {}\n", paths.join("\n- "))
+    }
+}
+
+/// Прочитать metadata manifest, оставив тело инструкции ленивым.
+pub fn разобрать_manifest(directory: &Path) -> Result<Skill, Ошибка> {
+    #[derive(Deserialize)]
+    struct Manifest {
+        id: Option<String>,
+        name: Option<String>,
+        version: Option<String>,
+        description: String,
+        #[serde(default)]
+        tools: Vec<String>,
+        #[serde(default)]
+        resources: Vec<String>,
+        #[serde(default)]
+        arguments: Vec<String>,
+        #[serde(default = "default_entrypoint")]
+        entrypoint: String,
+    }
+    fn default_entrypoint() -> String { "SKILL.md".to_string() }
+
+    let manifest_path = directory.join("skill.json");
+    let text = std::fs::read_to_string(&manifest_path).map_err(|error| Ошибка {
+        file: путь(&manifest_path),
+        текст: format!("не читается: {error}"),
+    })?;
+    let manifest: Manifest = serde_json::from_str(&text).map_err(|error| Ошибка {
+        file: путь(&manifest_path),
+        текст: format!("manifest не разобран: {error}"),
+    })?;
+    let name = manifest
+        .id
+        .or(manifest.name)
+        .or_else(|| directory.file_name().and_then(|value| value.to_str()).map(str::to_string))
+        .ok_or_else(|| Ошибка { file: путь(&manifest_path), текст: "нет id".into() })?;
+    let steps_path = directory.join(manifest.entrypoint);
+    if !steps_path.is_file() {
+        return Err(Ошибка { file: путь(&steps_path), текст: "entrypoint не найден".into() });
+    }
+    Ok(Skill {
+        name,
+        version: manifest.version.unwrap_or_else(|| "1.0.0".into()),
+        description: manifest.description,
+        tools: manifest.tools,
+        resources: manifest.resources,
+        parameters: схема_аргументов(&manifest.arguments),
+        steps: String::new(),
+        steps_path: Some(steps_path.clone()),
+        file: steps_path,
+    })
 }

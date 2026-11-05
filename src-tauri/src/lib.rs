@@ -4,6 +4,7 @@
 // по этапам S1–S13 согласно docs/03-дорожная-карта.md.
 
 pub mod agent;
+pub mod attachments;
 pub mod agent_commands;
 pub mod agent_modes;
 pub mod agent_mode_commands;
@@ -86,6 +87,7 @@ pub fn run() {
             skill_registry::skills_list,
             skill_registry::skills_enable,
             skill_registry::skills_disable,
+            skill_registry::skills_read,
             runtime::runtime_list,
             runtime::runtime_set_active,
             runtime::runtime_check,
@@ -114,6 +116,10 @@ pub fn run() {
             chat::repo_files,
             chat::models_list,
             chat::model_set_active,
+            chat::model_delete,
+            attachments::attachment_add,
+            attachments::attachments_delete,
+            chat::models_open_window,
             chat::search_models,
             chat::download_hosts,
             chat::download_model,

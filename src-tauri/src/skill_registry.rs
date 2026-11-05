@@ -155,6 +155,29 @@ pub fn skills_disable(id: String) -> Result<Vec<SkillRegistryItem>, String> {
     set_enabled(id, false)
 }
 
+#[tauri::command]
+pub fn skills_read(id: String) -> Result<String, String> {
+    let item = discover(&[])
+        .into_iter()
+        .find(|skill| skill.id == id)
+        .ok_or_else(|| format!("skill не найден: {id}"))?;
+    let path = PathBuf::from(item.path);
+    let file = if item.manifest {
+        let manifest: SkillManifest = serde_json::from_str(
+            &fs::read_to_string(path.join("skill.json")).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())?;
+        path.join(manifest.entrypoint)
+    } else {
+        path
+    };
+    let content = fs::read_to_string(&file).map_err(|error| error.to_string())?;
+    if content.len() > 200_000 {
+        return Err("SKILL.md слишком большой для просмотра".to_string());
+    }
+    Ok(content)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -164,6 +164,7 @@ mod tests {
             resources: vec![],
             parameters: json!({"type": "object", "properties": {}, "required": []}),
             steps: "1. Сделай то-то.".into(),
+            steps_path: None,
             file: PathBuf::from(format!("{имя}.md")),
         }
     }
