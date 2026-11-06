@@ -28,6 +28,20 @@ pub struct AuthSession {
     pub remember_me: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthProfileSummary {
+    pub login: String,
+    pub display_name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthProfileDeleteResult {
+    pub login: String,
+    pub private_data_removed: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {
     pub user: AuthUser,
@@ -170,6 +184,110 @@ fn delete_persisted_session(connection: &Connection, token: &str) -> Result<(), 
         .execute("DELETE FROM sessions WHERE token_hash = ?1", params![token_hash(token)])
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+fn move_profile_to_tombstone(
+    roots: &crate::user_data::UserDataRoots,
+    app_root: &PathBuf,
+    user_id: &str,
+) -> Result<Option<PathBuf>, String> {
+    let metadata = match std::fs::symlink_metadata(&roots.root) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("не удалось проверить папку профиля: {error}")),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("папка профиля является ссылкой или не является каталогом; удаление остановлено".into());
+    }
+
+    let users_root = app_root.join("users");
+    let users_metadata = std::fs::symlink_metadata(&users_root)
+        .map_err(|error| format!("не удалось проверить каталог пользователей: {error}"))?;
+    if users_metadata.file_type().is_symlink() || !users_metadata.is_dir() {
+        return Err("каталог пользователей является ссылкой или не является каталогом".into());
+    }
+    let canonical_users = users_root
+        .canonicalize()
+        .map_err(|error| format!("каталог пользователей недоступен: {error}"))?;
+    let canonical_profile = roots
+        .root
+        .canonicalize()
+        .map_err(|error| format!("папка профиля недоступна: {error}"))?;
+    if canonical_profile.parent() != Some(canonical_users.as_path()) {
+        return Err("папка профиля находится вне каталога пользователей".into());
+    }
+
+    let tombstone = users_root.join(format!(".deleting-{user_id}-{}", new_id()));
+    std::fs::rename(&roots.root, &tombstone)
+        .map_err(|error| format!("не удалось подготовить приватные данные к удалению: {error}"))?;
+    Ok(Some(tombstone))
+}
+
+fn delete_profile_with_password(
+    connection: &mut Connection,
+    app_root: &PathBuf,
+    login: &str,
+    password: &str,
+) -> Result<AuthProfileDeleteResult, String> {
+    let login = validate_login(login)?;
+    let row: Option<(String, String, String)> = connection
+        .query_row(
+            "SELECT id, display_name, password_hash FROM users WHERE login = ?1",
+            params![login],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some((user_id, display_name, password_hash)) = row else {
+        return Err("неверный login или пароль".into());
+    };
+    if !verify_password(password, &password_hash)? {
+        return Err("неверный login или пароль".into());
+    }
+
+    let roots = crate::user_data::roots_for_at(
+        &AuthenticatedUser {
+            user: AuthUser { id: user_id.clone(), login: login.clone(), display_name },
+            guest: false,
+            session_token_hash: String::new(),
+        },
+        app_root,
+    )?;
+    let tombstone = move_profile_to_tombstone(&roots, app_root, &user_id)?;
+    let delete_result = (|| -> Result<(), String> {
+        let transaction = connection.transaction().map_err(|error| error.to_string())?;
+        transaction
+            .execute("DELETE FROM sessions WHERE user_id = ?1", params![user_id])
+            .map_err(|error| error.to_string())?;
+        let removed = transaction
+            .execute("DELETE FROM users WHERE id = ?1", params![user_id])
+            .map_err(|error| error.to_string())?;
+        if removed != 1 {
+            return Err("профиль уже удалён или изменился".into());
+        }
+        transaction.commit().map_err(|error| error.to_string())
+    })();
+
+    if let Err(error) = delete_result {
+        if let Some(tombstone) = tombstone.as_ref() {
+            if let Err(restore_error) = std::fs::rename(tombstone, &roots.root) {
+                return Err(format!("{error}; приватная папка не восстановилась: {restore_error}"));
+            }
+        }
+        return Err(error);
+    }
+
+    let private_data_removed = match tombstone {
+        Some(tombstone) => match std::fs::remove_dir_all(tombstone) {
+            Ok(()) => true,
+            Err(error) => {
+                tracing::error!("профиль {login} удалён, но временную папку не удалось очистить: {error}");
+                false
+            }
+        },
+        None => true,
+    };
+    Ok(AuthProfileDeleteResult { login, private_data_removed })
 }
 
 fn validate_login(login: &str) -> Result<String, String> {
@@ -403,6 +521,40 @@ pub fn auth_remember_supported() -> bool {
     crate::secure_storage::supported()
 }
 
+#[tauri::command]
+pub fn auth_profiles_list(auth: State<'_, AuthState>) -> Result<Vec<AuthProfileSummary>, String> {
+    auth.ensure_no_active_session()?;
+    let connection = database()?;
+    let mut statement = connection
+        .prepare("SELECT login, display_name FROM users ORDER BY login COLLATE NOCASE")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(AuthProfileSummary {
+                login: row.get(0)?,
+                display_name: row.get(1)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    rows.map(|row| row.map_err(|error| error.to_string())).collect()
+}
+
+#[tauri::command]
+pub fn auth_profile_delete(
+    auth: State<'_, AuthState>,
+    login: String,
+    password: String,
+) -> Result<AuthProfileDeleteResult, String> {
+    auth.ensure_no_active_session()?;
+    let mut connection = database()?;
+    delete_profile_with_password(
+        &mut connection,
+        &crate::profile::config_dir(),
+        &login,
+        &password,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -463,5 +615,49 @@ mod tests {
         state.activate(&session, true).unwrap();
         assert!(state.current().unwrap().guest);
         state.clear_token("guest-token").unwrap();
+    }
+
+    #[test]
+    fn deleting_a_profile_requires_its_password_and_removes_only_private_data() {
+        let base = std::env::temp_dir().join(format!(
+            "arkha-profile-delete-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let app_root = base.join("ArkHa");
+        let id = "ab".repeat(32);
+        let private_root = app_root.join("users").join(&id);
+        let shared_models = app_root.join("models");
+        std::fs::create_dir_all(&private_root).unwrap();
+        std::fs::create_dir_all(&shared_models).unwrap();
+        std::fs::write(private_root.join("memory.db"), b"private").unwrap();
+        std::fs::write(shared_models.join("model.gguf"), b"shared").unwrap();
+
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(include_str!("auth_schema.sql")).unwrap();
+        let password_hash = hash_password("correct password").unwrap();
+        connection.execute(
+            "INSERT INTO users (id, login, display_name, password_hash) VALUES (?1, ?2, ?3, ?4)",
+            params![id, "alice", "Alice", password_hash],
+        ).unwrap();
+
+        assert!(delete_profile_with_password(&mut connection, &app_root, "alice", "wrong password").is_err());
+        let count: i64 = connection.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 1);
+        assert!(private_root.join("memory.db").is_file());
+
+        let result = delete_profile_with_password(&mut connection, &app_root, "alice", "correct password").unwrap();
+        assert_eq!(result.login, "alice");
+        assert!(result.private_data_removed);
+        let count: i64 = connection.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 0);
+        assert!(!private_root.exists());
+        assert!(shared_models.join("model.gguf").is_file());
+
+        drop(connection);
+        std::fs::remove_dir_all(base).unwrap();
     }
 }

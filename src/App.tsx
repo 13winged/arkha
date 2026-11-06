@@ -2455,6 +2455,16 @@ interface AuthSession {
   rememberMe: boolean;
 }
 
+interface AuthProfileSummary {
+  login: string;
+  displayName: string;
+}
+
+interface AuthProfileDeleteResult {
+  login: string;
+  privateDataRemoved: boolean;
+}
+
 function AuthGate({ onAuthenticated }: { onAuthenticated: (session: AuthSession) => void }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [login, setLogin] = useState("");
@@ -2464,11 +2474,20 @@ function AuthGate({ onAuthenticated }: { onAuthenticated: (session: AuthSession)
   const [rememberSupported, setRememberSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [profiles, setProfiles] = useState<AuthProfileSummary[]>([]);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AuthProfileSummary | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingProfile, setDeletingProfile] = useState(false);
 
   useEffect(() => {
     invoke<boolean>("auth_remember_supported")
       .then(setRememberSupported)
       .catch(() => setRememberSupported(false));
+    invoke<AuthProfileSummary[]>("auth_profiles_list")
+      .then(setProfiles)
+      .catch((reason) => setProfilesError(String(reason)));
   }, []);
 
   async function submit() {
@@ -2483,6 +2502,31 @@ function AuthGate({ onAuthenticated }: { onAuthenticated: (session: AuthSession)
       setError(String(reason));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function deleteProfile() {
+    if (!deleteTarget || !deletePassword) return;
+    setDeletingProfile(true);
+    setDeleteError(null);
+    try {
+      const result = await invoke<AuthProfileDeleteResult>("auth_profile_delete", {
+        login: deleteTarget.login,
+        password: deletePassword,
+      });
+      setProfiles((current) => current.filter((profile) => profile.login !== result.login));
+      setDeleteTarget(null);
+      setDeletePassword("");
+      setError(null);
+      setLogin((current) => current === result.login ? "" : current);
+      if (!result.privateDataRemoved) {
+        setError(t("Аккаунт удалён, но его приватные файлы не удалось полностью очистить. Обратитесь к администратору устройства."));
+      }
+    } catch (reason) {
+      setDeleteError(String(reason));
+      setDeletePassword("");
+    } finally {
+      setDeletingProfile(false);
     }
   }
 
@@ -2504,7 +2548,55 @@ function AuthGate({ onAuthenticated }: { onAuthenticated: (session: AuthSession)
         <button type="button" className="link" onClick={() => invoke<AuthSession>("auth_guest").then(onAuthenticated).catch((reason) => setError(String(reason)))}>
           {t("Войти как гость")}
         </button>
+        {profilesError && <p className="muted">{profilesError}</p>}
+        {mode === "login" && profiles.length > 0 && <section className="auth-profiles" aria-labelledby="auth-profiles-title">
+          <h2 id="auth-profiles-title">{t("Профили на этом устройстве")}</h2>
+          <ul>
+            {profiles.map((profile) => (
+              <li key={profile.login} className="auth-profile-row">
+                <button type="button" className="auth-profile-select" onClick={() => setLogin(profile.login)}>
+                  <strong>{profile.displayName || profile.login}</strong>
+                  <span>{profile.login}</span>
+                </button>
+                <button type="button" className="auth-profile-delete" onClick={() => {
+                  setDeleteTarget(profile);
+                  setDeletePassword("");
+                  setDeleteError(null);
+                }}>
+                  {t("Удалить профиль")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>}
       </section>
+      {deleteTarget && <div className="profile-delete-backdrop">
+        <section className="profile-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-delete-title">
+          <h2 id="profile-delete-title">{t("Удалить профиль")}: {deleteTarget.displayName || deleteTarget.login}</h2>
+          <p>{t("Будут удалены аккаунт и его настройки, память, вложения и навыки. Общие модели и runtime останутся.")}</p>
+          <label htmlFor="profile-delete-password">{t("Для подтверждения введите пароль этого профиля")}</label>
+          <input
+            id="profile-delete-password"
+            type="password"
+            autoComplete="current-password"
+            value={deletePassword}
+            onChange={(event) => setDeletePassword(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") void deleteProfile(); }}
+            autoFocus
+          />
+          {deleteError && <p className="error" role="alert">{deleteError}</p>}
+          <div className="profile-delete-actions">
+            <button type="button" className="link" disabled={deletingProfile} onClick={() => {
+              setDeleteTarget(null);
+              setDeletePassword("");
+              setDeleteError(null);
+            }}>{t("Отмена")}</button>
+            <button type="button" className="danger" disabled={deletingProfile || !deletePassword} onClick={() => void deleteProfile()}>
+              {deletingProfile ? t("Удаляем…") : t("Удалить аккаунт навсегда")}
+            </button>
+          </div>
+        </section>
+      </div>}
     </main>
   );
 }

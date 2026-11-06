@@ -36,8 +36,11 @@ fn safe_id(value: &str) -> Result<&str, String> {
 }
 
 pub fn roots_for(user: &AuthenticatedUser) -> Result<UserDataRoots, String> {
+    roots_for_at(user, &crate::profile::config_dir())
+}
+
+pub fn roots_for_at(user: &AuthenticatedUser, app_root: &Path) -> Result<UserDataRoots, String> {
     let id = safe_id(&user.user.id)?;
-    let app_root = crate::profile::config_dir();
     let root = if user.guest {
         app_root.join("guest-sessions").join(id)
     } else {

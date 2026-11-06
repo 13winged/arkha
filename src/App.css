@@ -625,7 +625,9 @@ body {
 
 .auth-card {
   display: grid;
-  width: min(420px, 100%);
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   gap: 12px;
   padding: 28px;
   border: 1px solid var(--cp-line-2);
@@ -654,6 +656,119 @@ body {
 .auth-check {
   color: var(--cp-text-dim);
   font-size: 0.9em;
+}
+
+.auth-profiles {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-line);
+}
+
+.auth-profiles h2 {
+  margin: 0;
+  color: var(--cp-text-dim);
+  font-size: 0.88em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-profiles ul {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+}
+
+.auth-profile-select {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.auth-profile-select span {
+  color: var(--cp-text-dim);
+  font-size: 0.85em;
+}
+
+.auth-profile-delete {
+  padding: 5px 8px;
+  border: 1px solid var(--cp-line);
+  background: transparent;
+  color: var(--cp-danger, #ff5151);
+  cursor: pointer;
+}
+
+.profile-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.profile-delete-dialog {
+  display: grid;
+  width: min(440px, 100%);
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--cp-danger, #ff5151);
+  background: var(--cp-bg-2);
+  color: var(--cp-text);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+}
+
+.profile-delete-dialog h2 {
+  margin: 0;
+  color: var(--cp-danger, #ff5151);
+}
+
+.profile-delete-dialog p {
+  margin: 0;
+  color: var(--cp-text-dim);
+}
+
+.profile-delete-dialog input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+}
+
+.profile-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.profile-delete-actions .danger {
+  border-color: var(--cp-danger, #ff5151);
+  color: var(--cp-danger, #ff5151);
 }
 
 .migration-screen {

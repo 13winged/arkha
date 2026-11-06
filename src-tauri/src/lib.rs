@@ -71,6 +71,8 @@ pub fn run() {
             auth::auth_logout,
             auth::auth_session,
             auth::auth_remember_supported,
+            auth::auth_profiles_list,
+            auth::auth_profile_delete,
             legacy_migration::legacy_migration_preview,
             legacy_migration::legacy_migration_import,
             legacy_migration::legacy_migration_skip,

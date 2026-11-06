@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.2] - 2026-11-06
+
+### Added
+
+- Local account list on the login screen with password-confirmed account deletion.
+- Account deletion removes that user's sessions and private data directory while preserving shared models and runtimes.
+
+### Fixed
+
+- Secondary application windows reuse the current in-process session and no longer request another login.
+
+### Verification
+
+- 348 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- Selected integration gates: 56 pass; 8 model/network-dependent tests are ignored or skip without local assets. `uia_gate` remains unverified in the current Chrome accessibility environment.
+- TypeScript, i18n and Windows NSIS/MSI production builds pass.
+
 ## [1.2.1] - 2026-11-05
 
 ### Added
