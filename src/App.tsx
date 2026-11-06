@@ -2093,7 +2093,17 @@ function РазмерШрифта({ кегль, onChange }: { кегль: number
   );
 }
 
-function ModelDock({ model, onChange }: { model: ModelStatus; onChange: (next: ModelStatus) => void }) {
+function ModelDock({
+  model,
+  onChange,
+  session,
+  onLogout,
+}: {
+  model: ModelStatus;
+  onChange: (next: ModelStatus) => void;
+  session: AuthSession;
+  onLogout: () => void;
+}) {
   return (
     <aside className="model-dock" aria-label="Состояние модели">
       <div className="model-dock-kicker">// MODEL.NODE // STATIC LINK</div>
@@ -2101,6 +2111,12 @@ function ModelDock({ model, onChange }: { model: ModelStatus; onChange: (next: M
       <div className="model-dock-voice">
         <div className="model-dock-kicker">// AUDIO.SUBSYSTEM</div>
         <VoiceToggle />
+      </div>
+      <div className="model-dock-account">
+        <span className="model-dock-account-name" title={`${session.user.displayName} (${session.user.login})`}>
+          {session.user.displayName}{session.user.login === "guest" ? ` · ${t("гость")}` : ""}
+        </span>
+        <button type="button" className="model-dock-logout" onClick={onLogout}>{t("Выйти")}</button>
       </div>
     </aside>
   );
@@ -2755,15 +2771,6 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
               <span className="app-subtitle">{t("локальный секретарь")}</span>
             </div>
           )}
-          <button
-            type="button"
-            className="sidebar-toggle"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            aria-label={sidebarCollapsed ? t("развернуть панель") : t("свернуть панель")}
-            aria-expanded={!sidebarCollapsed}
-          >
-            {sidebarCollapsed ? "»" : "«"}
-          </button>
         </div>
         <nav className="sidebar-nav">
           {(["agent", "chat", "download", "settings", "skills", "capabilities", "dashboard"] as Tab[]).map((вкладка) => (
@@ -2826,16 +2833,23 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           </div>
         )}
         <div className="sidebar-footer">
-          {!sidebarCollapsed && <div className="sidebar-user">
-            <span className="sidebar-label">{session.user.displayName}{session.user.login === "guest" ? ` · ${t("гость")}` : ""}</span>
-            <button type="button" className="sidebar-logout" onClick={onLogout}>{t("Выйти")}</button>
-          </div>}
-          {!sidebarCollapsed && <ЯзыкКнопка onChange={(language) => {
+          {!sidebarCollapsed && <MemoryBar />}
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? t("развернуть панель") : t("свернуть панель")}
+            aria-expanded={!sidebarCollapsed}
+          >
+            {sidebarCollapsed ? "»" : "«"}
+          </button>
+          <div className="sidebar-language">
+            <ЯзыкКнопка onChange={(language) => {
             if (settings) {
               void saveSettings({ ...settings, language, voice: { ...settings.voice, language } });
             }
-          }} />}
-          {!sidebarCollapsed && <MemoryBar />}
+            }} />
+          </div>
         </div>
       </aside>
 
@@ -2900,7 +2914,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             {tab === "skills" && <SkillsPanel />}
             {tab === "dashboard" && <Dashboard />}
           </section>
-          <ModelDock model={model} onChange={setModel} />
+          <ModelDock model={model} onChange={setModel} session={session} onLogout={onLogout} />
         </div>
 
         <footer className="app-footer">

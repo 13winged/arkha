@@ -458,7 +458,7 @@ body {
 }
 
 .app-sidebar.collapsed .sidebar-head {
-  align-items: center;
+  display: none;
 }
 
 .sidebar-brand {
@@ -556,10 +556,6 @@ body {
   width: auto;
 }
 
-.app-sidebar.collapsed .sidebar-footer {
-  display: none;
-}
-
 .sidebar-label {
   white-space: nowrap;
   overflow: hidden;
@@ -601,9 +597,21 @@ body {
 .sidebar-footer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   padding: 8px;
   border-top: 1px solid var(--cp-line);
+  margin-top: auto;
+}
+
+.sidebar-language {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sidebar-language .lang {
+  width: 100%;
+  margin-left: 0;
+  text-align: center;
 }
 
 .app-main {
@@ -863,23 +871,6 @@ body {
   border: 1px solid var(--cp-line);
   background: transparent;
   color: var(--cp-text-dim);
-}
-
-.sidebar-user {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 8px;
-  border-top: 1px solid var(--cp-line);
-}
-
-.sidebar-logout {
-  justify-self: start;
-  padding: 4px 8px;
-  border: 1px solid var(--cp-line);
-  background: transparent;
-  color: var(--cp-text-dim);
-  cursor: pointer;
 }
 
 *, *::before, *::after {
@@ -3172,6 +3163,9 @@ kbd.cap,
   position: relative;
   flex: 0 0 248px;
   width: 248px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: 18px 14px;
   border-left: 1px solid var(--cp-line-2);
@@ -3312,6 +3306,36 @@ kbd.cap,
 .model-dock-voice .voice {
   display: block;
   margin-top: 8px;
+}
+
+.model-dock-account {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-line-2);
+}
+
+.model-dock-account-name {
+  overflow: hidden;
+  color: var(--cp-text-dim);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-dock-logout {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--cp-line);
+  background: transparent;
+  color: var(--cp-text-dim);
+  cursor: pointer;
+}
+
+.model-dock-logout:hover {
+  border-color: var(--cp-danger, #ff5151);
+  color: var(--cp-danger, #ff5151);
 }
 
 @media (max-width: 900px) {

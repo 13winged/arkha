@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.3-1] - 2026-11-06
+
+### Fixed
+
+- Moved the sidebar collapse control above the language switch at the bottom of the left dock.
+- Kept the language switch visible in both expanded and collapsed sidebar states.
+- Moved the current profile and logout control to the bottom of the model dock.
+
+### Verification
+
+- TypeScript, i18n and Windows NSIS/MSI production builds pass.
+
 ## [1.2.2] - 2026-11-06
 
 ### Added
