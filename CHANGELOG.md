@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0-1] - 2026-11-11
+
+Тестовая сборка для проверки документов. Не релиз.
+
+### Added
+
+- `docs.read`, `docs.info`, `docs.write`: reading and writing docx, pdf, xlsx and pptx through
+  pinned ArtCraft command-line tools over MCP.
+- `documents::install`: finds an installed CLI or downloads the pinned version, verifying the
+  archive and executable by SHA-256, and extracts only the executable and licence files.
+- GridCraft is opened by ArkHa itself and exposed without path-taking tools, because its MCP server
+  cannot confine folders.
+
+### Verification
+
+- 368 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- Live gates: handshake and `tools/list` on all four CLIs; sandbox rejection on WordCraft,
+  PdfCraft and DeckCraft; docx write-read round trip; xlsx and pptx reading; overwrite refusal;
+  outside-path refusal.
+
 ## [1.2.3-1] - 2026-11-06
 
 ### Fixed

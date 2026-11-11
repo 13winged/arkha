@@ -146,11 +146,11 @@
       "permission": "files.read",
       "verified": false,
       "evidence": "",
-      "refusal": "чтение документов Office ещё не подключено",
+      "refusal": "для документов нужен CLI ArtCraft: приложение найдёт установленный или предложит скачать",
       "name_en": "Office documents",
       "what_en": "Reads docx, xlsx, pptx and pdf",
       "evidence_en": "",
-      "refusal_en": "reading Office documents is not wired up yet"
+      "refusal_en": "documents need an ArtCraft CLI: the app will find an installed one or offer to download it"
     },
     {
       "id": "vision.read",

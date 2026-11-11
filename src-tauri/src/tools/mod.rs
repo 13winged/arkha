@@ -253,6 +253,10 @@ fn built() -> Vec<Box<dyn Tool>> {
         Box::new(web::SearchWeb),
         // Субагенты (только в Build mode)
         Box::new(subagent::RunSubagent),
+        // Документы через MCP: docx, pdf, xlsx, pptx.
+        Box::new(crate::documents::DocsRead),
+        Box::new(crate::documents::DocsInfo),
+        Box::new(crate::documents::DocsWrite),
     ]
 }
 

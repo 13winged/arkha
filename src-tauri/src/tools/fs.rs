@@ -34,7 +34,7 @@ const MAX_ENTRIES: usize = 200;
 ///
 /// Возвращает путь, который гарантированно лежит внутри одной из
 /// разрешённых папок.
-fn resolve_inside(raw: &str, settings: &Settings) -> Result<PathBuf, ToolError> {
+pub(crate) fn resolve_inside(raw: &str, settings: &Settings) -> Result<PathBuf, ToolError> {
     let raw = raw.trim();
     if raw.is_empty() {
         return Err(ToolError::BadArgs("пустой путь".into()));
@@ -184,7 +184,7 @@ fn within(path: &str, root: &str) -> bool {
 
 /// Из аргументов — строка. Без значения по умолчанию: если модель не
 /// прислала путь, повторять тот же вызов она будет долго.
-fn arg_str(args: &Value, key: &str) -> Result<String, ToolError> {
+pub(crate) fn arg_str(args: &Value, key: &str) -> Result<String, ToolError> {
     match args.get(key) {
         Some(Value::String(s)) if !s.trim().is_empty() => Ok(s.clone()),
         Some(Value::String(_)) => Err(ToolError::BadArgs(format!("{key} пустой"))),
