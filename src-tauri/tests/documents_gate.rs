@@ -22,6 +22,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use arkha_lib::documents::install::{self, App};
 use arkha_lib::documents::mcp::{Mcp, PROTOCOL};
 
 /// Какой CLI проверяем. Имя файла — единственное, что известно
@@ -204,6 +205,49 @@ fn гейт_документов_остановка_не_оставляет_пр
     // провалиться, а не вернуть результат из мёртвого пайпа.
     let after = mcp.call(kind.expected_tool(), serde_json::json!({}));
     assert!(after.is_err(), "остановленный CLI всё ещё отвечает");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// Скачивание по требованию. Сеть и десятки мегабайт, поэтому по
+/// умолчанию игнорируется; запуск:
+///
+/// ```text
+/// cargo test --test documents_gate -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "скачивает архив с GitHub"]
+fn гейт_документов_скачивание_и_проверка_хеша() {
+    let root = sandbox("download");
+    let pin = install::pinned(App::Gridcraft);
+
+    let path = install::install_into(App::Gridcraft, &root).expect("скачивание");
+    assert!(path.is_file(), "скачанный exe не появился");
+    install::verify(&path, pin).expect("хеш скачанного exe должен сойтись");
+
+    let folder = path.parent().expect("папка версии");
+    for entry in std::fs::read_dir(folder).expect("содержимое папки версии") {
+        let name = entry.expect("запись").file_name().to_string_lossy().to_string();
+        assert!(
+            name == pin.app.exe_name()
+                || name.starts_with("LICENSE")
+                || name == "NOTICE"
+                || name == "ATTRIBUTION.md",
+            "в папке оказался лишний файл: {name}"
+        );
+    }
+
+    // Повторный вызов не качает заново: он находит проверенную копию.
+    let again = install::install_into(App::Gridcraft, &root).expect("повторная установка");
+    assert_eq!(path, again);
+
+    // Скачанное должно не просто лежать, а работать: распаковка могла
+    // потерять байты, хотя хеш exe это уже исключает.
+    let mut mcp = Mcp::connect(&path, &["mcp".to_string()]).expect("скачанный CLI отвечает");
+    assert!(mcp.has_tool("read_range"), "нет read_range у скачанной копии");
+    mcp.stop();
+
+    println!("скачано и проверено: {}", path.display());
 
     let _ = std::fs::remove_dir_all(root);
 }
