@@ -772,6 +772,102 @@ const pickTools = async () => {
 
 // ---------------------------------------------------------------------------
 
+interface DocsCliView {
+  app: string;
+  title: string;
+  version: string;
+  downloadMb: number;
+  installed: boolean;
+  path: string | null;
+}
+
+/**
+ * Подгрузка CLI документов.
+ *
+ * Загрузка вынесена из инструментов наружу: 120 МБ, скачанные внутри
+ * вызова, выглядят как зависший агент. Здесь видно размер, полосу и
+ * что уже стоит.
+ */
+function DocumentsCli() {
+  const [items, setItems] = useState<DocsCliView[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ app: string; received: number; total: number } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    invoke<DocsCliView[]>("docs_cli_status")
+      .then((list) => { if (alive) setItems(list); })
+      .catch((reason) => { if (alive) setError(String(reason)); });
+    const off = listen<{ app: string; received: number; total: number }>("docs://cli-progress", (event) => {
+      setProgress(event.payload);
+    });
+    return () => {
+      alive = false;
+      void off.then((stop) => stop());
+    };
+  }, []);
+
+  async function download(name: string) {
+    setBusy(name);
+    setError(null);
+    try {
+      setItems(await invoke<DocsCliView[]>("docs_cli_install", { name }));
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(null);
+      setProgress(null);
+    }
+  }
+
+  const percent = progress && progress.total > 0
+    ? Math.min(100, (progress.received / progress.total) * 100)
+    : null;
+  const current = progress ? items.find((item) => item.app === progress.app) : undefined;
+
+  return (
+    <section className="panel">
+      <h2>{t("Документы")}</h2>
+      <p className="muted">
+        {t("Для docx, pdf, xlsx и pptx нужен отдельный CLI ArtCraft. Он не входит в установщик: скачайте только те форматы, которыми пользуетесь.")}
+      </p>
+      <ul className="docs-cli-list">
+        {items.map((item) => (
+          <li key={item.app} className="docs-cli-row">
+            <div className="docs-cli-copy">
+              <strong>{item.title}</strong>
+              <span className="muted"> {item.version} · {item.downloadMb} {t("МБ")}</span>
+              {item.installed && <span className="docs-cli-ok"> {t("установлен")}</span>}
+            </div>
+            {!item.installed && (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void download(item.app)}
+              >
+                {busy === item.app ? t("Скачиваем…") : t("Скачать")}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {progress && (
+        <div className="progress">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
+          </div>
+          <p className="muted">
+            {t("Загружаем")} {current?.title ?? progress.app}: {(progress.received / 1048576).toFixed(0)}
+            {progress.total > 0 ? ` / ${(progress.total / 1048576).toFixed(0)}` : ""} {t("МБ")}
+          </p>
+        </div>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 function Settings({ profile, onChange }: {
   profile: ProfileView;
   onChange: (p: ProfileView) => void;
@@ -2899,6 +2995,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
+                <DocumentsCli />
                 <LocalUserProfile settings={settings} onSave={(next) => void saveSettings(next)} />
                 <Welcome />
                 <РазмерШрифта

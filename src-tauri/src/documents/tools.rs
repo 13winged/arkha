@@ -13,7 +13,7 @@
 // держать чужой процесс.
 
 use serde_json::{json, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::install::{self, App};
 use super::mcp::{Mcp, ToolReply};
@@ -60,11 +60,30 @@ fn app_for(path: &Path) -> Result<App, ToolError> {
     }
 }
 
+/// Готовый к запуску CLI. Скачивать здесь нельзя: загрузка 120 МБ
+/// внутри вызова инструмента выглядит как зависший агент, поэтому её
+/// делает человек кнопкой в настройках. Отказ называет, куда идти.
+fn exe_for(app: App) -> Result<PathBuf, ToolError> {
+    match install::status(app) {
+        Ok(install::State::Ready(path)) => Ok(path),
+        Ok(install::State::Missing) => {
+            let pin = install::pinned(app);
+            Err(ToolError::Missing(format!(
+                "{} {} не установлен. Откройте «Настройки» → «Документы» \
+                 и нажмите «Скачать» ({} МБ)",
+                app.title(),
+                pin.version,
+                pin.archive_bytes.div_ceil(1024 * 1024)
+            )))
+        }
+        Err(error) => Err(ToolError::Refused(error)),
+    }
+}
+
 /// Поднять CLI на чтение. Корень — папка самого файла, а не все
 /// разрешённые папки: чем уже право, тем меньше последствий ошибки.
 fn connect_read(app: App, path: &Path) -> Result<Mcp, ToolError> {
-    let exe = install::ensure(app)
-        .map_err(|error| ToolError::Missing(format!("CLI документов не готов: {error}")))?;
+    let exe = exe_for(app)?;
     let parent = path
         .parent()
         .unwrap_or_else(|| Path::new("."))
@@ -83,8 +102,7 @@ fn connect_read(app: App, path: &Path) -> Result<Mcp, ToolError> {
 }
 
 fn connect_write(app: App, path: &Path) -> Result<Mcp, ToolError> {
-    let exe = install::ensure(app)
-        .map_err(|error| ToolError::Missing(format!("CLI документов не готов: {error}")))?;
+    let exe = exe_for(app)?;
     let parent = path
         .parent()
         .ok_or_else(|| ToolError::BadArgs("у пути нет папки".into()))?

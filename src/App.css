@@ -2534,6 +2534,37 @@ button:disabled {
   transition: width var(--поворот);
 }
 
+.docs-cli-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.docs-cli-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+}
+
+.docs-cli-copy {
+  min-width: 0;
+}
+
+.docs-cli-copy strong {
+  color: var(--cp-text);
+}
+
+.docs-cli-ok {
+  color: var(--cp-neon-green);
+  font-size: 0.85em;
+}
+
 .problems {
   list-style: none;
   margin: 10px 0 0;

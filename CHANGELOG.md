@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.3.0-1] - 2026-11-11
+## [1.3.0-2] - 2026-11-11
 
 Тестовая сборка для проверки документов. Не релиз.
 
@@ -10,15 +10,18 @@
   pinned ArtCraft command-line tools over MCP.
 - `documents::install`: finds an installed CLI or downloads the pinned version, verifying the
   archive and executable by SHA-256, and extracts only the executable and licence files.
+- Separate download in Settings → Documents: per-CLI version, size, button and progress events.
+  Tools never download on their own; a missing CLI produces a refusal that names the app, version
+  and size.
 - GridCraft is opened by ArkHa itself and exposed without path-taking tools, because its MCP server
   cannot confine folders.
 
 ### Verification
 
-- 368 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- 370 Rust library tests pass; 3 hardware-dependent tests remain ignored.
 - Live gates: handshake and `tools/list` on all four CLIs; sandbox rejection on WordCraft,
   PdfCraft and DeckCraft; docx write-read round trip; xlsx and pptx reading; overwrite refusal;
-  outside-path refusal.
+  outside-path refusal; download with 50 progress events and a matching full size.
 
 ## [1.2.3-1] - 2026-11-06
 

@@ -278,6 +278,12 @@ const EN: Record<string, string> = {
   "по этому слову моделей не нашлось. Проверь написание или укажи репозиторий целиком.":
     "No models found for this word. Check the spelling or give the full repository.",
   "Скачать": "Download",
+  "Документы": "Documents",
+  "Для docx, pdf, xlsx и pptx нужен отдельный CLI ArtCraft. Он не входит в установщик: скачайте только те форматы, которыми пользуетесь.": "docx, pdf, xlsx and pptx need a separate ArtCraft CLI. It is not bundled: download only the formats you use.",
+  "установлен": "installed",
+  "Скачиваем…": "Downloading…",
+  "Загружаем": "Downloading",
+  "МБ": "MB",
   "начни набирать: gemma, qwen, llama…":
     "start typing: gemma, qwen, llama…",
   "если не скачивается: нужны разрешённые домены":

@@ -215,15 +215,29 @@ fn гейт_документов_остановка_не_оставляет_пр
 /// ```text
 /// cargo test --test documents_gate -- --ignored --nocapture
 /// ```
-#[test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "скачивает архив с GitHub"]
-fn гейт_документов_скачивание_и_проверка_хеша() {
+async fn гейт_документов_скачивание_и_проверка_хеша() {
     let root = sandbox("download");
     let pin = install::pinned(App::Gridcraft);
 
-    let path = install::install_into(App::Gridcraft, &root).expect("скачивание");
+    let mut events: Vec<(u64, u64)> = Vec::new();
+    let path = install::install_with_progress(App::Gridcraft, &root, |received, total| {
+        events.push((received, total));
+    })
+    .await
+    .expect("скачивание");
+
     assert!(path.is_file(), "скачанный exe не появился");
     install::verify(&path, pin).expect("хеш скачанного exe должен сойтись");
+
+    // Прогресс — не украшение: без него 120 МБ выглядят как зависший
+    // агент. Проверяем, что он вообще приходит и называет полный размер.
+    assert!(!events.is_empty(), "не пришло ни одного события прогресса");
+    let last = *events.last().expect("последнее событие");
+    assert!(last.0 > 40_000_000, "получено всего {}", last.0);
+    assert_eq!(last.1, pin.archive_bytes, "полный размер не совпал");
+    println!("прогресс: {} событий, последнее {} из {}", events.len(), last.0, last.1);
 
     let folder = path.parent().expect("папка версии");
     for entry in std::fs::read_dir(folder).expect("содержимое папки версии") {

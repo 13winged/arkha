@@ -25,6 +25,8 @@ use std::path::{Path, PathBuf};
 use reqwest::blocking::Client;
 use sha2::{Digest, Sha256};
 
+use futures_util::StreamExt;
+
 /// Один из четырёх CLI. Имя варианта — наше, заголовок — их.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum App {
@@ -65,14 +67,26 @@ impl App {
             App::Deckcraft => "deckcraft",
         }
     }
+
+    /// Имя для интерфейса и команд. Латиницей и без заголовка: это
+    /// идентификатор, а не подпись.
+    pub fn id(self) -> &'static str {
+        self.repo()
+    }
+
+    pub fn from_id(id: &str) -> Option<Self> {
+        App::ALL.into_iter().find(|app| app.id() == id)
+    }
 }
 
-/// Закреплённый выпуск. Все три значения обязаны меняться вместе.
+/// Закреплённый выпуск. Все значения обязаны меняться вместе.
 pub struct Pinned {
     pub app: App,
     pub version: &'static str,
     /// Имя архива в релизе GitHub.
     pub archive: &'static str,
+    /// Размер архива: показывается человеку до скачивания.
+    pub archive_bytes: u64,
     /// SHA-256 архива: его публикует GitHub как digest релиза.
     pub archive_sha256: &'static str,
     /// SHA-256 распакованного `*-cli.exe`.
@@ -104,6 +118,7 @@ static PINNED: [Pinned; 4] = [
         app: App::Wordcraft,
         version: "0.17.0",
         archive: "wordcraft-0.17.0-windows-x64-portable.zip",
+        archive_bytes: 117_678_204,
         archive_sha256: "ad05af39d62504ddb382f93f9b7e2e7e9ce92938d132c18c4fb43e10822108ce",
         exe_sha256: "d95ccc0708fd7000e590f8046fd8c87eef9ee3ece31e53aca1d0cde83d729071",
     },
@@ -111,6 +126,7 @@ static PINNED: [Pinned; 4] = [
         app: App::Pdfcraft,
         version: "0.20.0",
         archive: "pdfcraft-0.20.0-windows-x64-portable.zip",
+        archive_bytes: 120_804_409,
         archive_sha256: "efb636a8c5c4f8041e6dbe39f56f40992c9a1b199a0b8a27cd0fc4d6037715d2",
         exe_sha256: "cd89da141252bc63c899eed2953bc9c9c7d5bc2e13c35919916636b8ed488d66",
     },
@@ -118,6 +134,7 @@ static PINNED: [Pinned; 4] = [
         app: App::Gridcraft,
         version: "0.18.0",
         archive: "gridcraft-0.18.0-windows-x64-portable.zip",
+        archive_bytes: 51_755_358,
         archive_sha256: "ee3a5249c3282840b5b99fa5a202f4356508772eeed9b41344751698dfbe364f",
         exe_sha256: "f3bf239a275e7b27232b25049dca79456f0035c37dba00dcf2d05744711d50bc",
     },
@@ -125,6 +142,7 @@ static PINNED: [Pinned; 4] = [
         app: App::Deckcraft,
         version: "0.17.0",
         archive: "deckcraft-0.17.0-windows-x64-portable.zip",
+        archive_bytes: 104_292_946,
         archive_sha256: "53f1fd1bd669c9f3fc6ecb704a749b679325b5ea27f7e86e7a51bafe9ff768d3",
         exe_sha256: "ac01133a31e0e619f0b079b8b6b995757ba8ce68d7080e35011cb3c63a4b6f52",
     },
@@ -252,16 +270,18 @@ pub fn install(app: App) -> Result<PathBuf, String> {
     install_into(app, &root())
 }
 
-/// То же, но в явно заданный корень. Нужно гейту: он не должен
-/// трогать настоящий профиль и не должен менять переменные окружения.
-pub fn install_into(app: App, root: &Path) -> Result<PathBuf, String> {
-    let pin = pinned(app);
-    let target = root.join(app.title()).join(pin.version);
+fn target_paths(app: App, root: &Path) -> (PathBuf, PathBuf) {
+    let target = root.join(app.title()).join(pinned(app).version);
     let exe = target.join(app.exe_name());
+    (target, exe)
+}
 
+/// Уже установленная копия — или «можно ставить».
+fn already_there(app: App, root: &Path) -> Result<Option<PathBuf>, String> {
+    let (target, exe) = target_paths(app, root);
     if exe.is_file() {
-        verify(&exe, pin)?;
-        return Ok(exe);
+        verify(&exe, pinned(app))?;
+        return Ok(Some(exe));
     }
     if target.exists() {
         return Err(format!(
@@ -271,23 +291,75 @@ pub fn install_into(app: App, root: &Path) -> Result<PathBuf, String> {
             app.exe_name()
         ));
     }
+    Ok(None)
+}
 
-    let url = pin.url();
-    if !url.starts_with("https://") {
-        return Err("CLI можно загружать только по HTTPS".into());
-    }
-
-    let temp = std::env::temp_dir().join(format!(
+fn temp_archive(app: App) -> PathBuf {
+    std::env::temp_dir().join(format!(
         "arkha-docs-{}-{}.zip",
         app.title(),
         std::process::id()
-    ));
-    let downloaded = download(&url, pin.archive_sha256, &temp);
-    if let Err(error) = downloaded {
+    ))
+}
+
+fn checked_url(app: App) -> Result<String, String> {
+    let url = pinned(app).url();
+    if !url.starts_with("https://") {
+        return Err("CLI можно загружать только по HTTPS".into());
+    }
+    Ok(url)
+}
+
+/// То же, но в явно заданный корень. Нужно гейту: он не должен
+/// трогать настоящий профиль и не должен менять переменные окружения.
+pub fn install_into(app: App, root: &Path) -> Result<PathBuf, String> {
+    if let Some(exe) = already_there(app, root)? {
+        return Ok(exe);
+    }
+    let url = checked_url(app)?;
+    let temp = temp_archive(app);
+    if let Err(error) = download(&url, pinned(app).archive_sha256, &temp) {
         let _ = std::fs::remove_file(&temp);
         return Err(error);
     }
+    let result = finish(app, root, &temp);
+    let _ = std::fs::remove_file(&temp);
+    result
+}
 
+/// Скачивание по кнопке: то же, но с отчётом о прогрессе.
+///
+/// Отчёт нужен не для красоты. 120 МБ без обратной связи выглядят как
+/// зависшее приложение, и человек либо закрывает его, либо начинает
+/// искать сломанный интернет.
+pub async fn install_with_progress<F>(
+    app: App,
+    root: &Path,
+    mut progress: F,
+) -> Result<PathBuf, String>
+where
+    F: FnMut(u64, u64),
+{
+    if let Some(exe) = already_there(app, root)? {
+        return Ok(exe);
+    }
+    let url = checked_url(app)?;
+    let temp = temp_archive(app);
+    if let Err(error) =
+        download_with_progress(&url, pinned(app).archive_sha256, &temp, &mut progress).await
+    {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error);
+    }
+    let result = finish(app, root, &temp);
+    let _ = std::fs::remove_file(&temp);
+    result
+}
+
+/// Распаковать, проверить и поставить на место.
+fn finish(app: App, root: &Path, archive: &Path) -> Result<PathBuf, String> {
+    let pin = pinned(app);
+    let (target, _) = target_paths(app, root);
     let staging = target
         .parent()
         .expect("у целевой папки есть родитель")
@@ -300,9 +372,7 @@ pub fn install_into(app: App, root: &Path) -> Result<PathBuf, String> {
                 .unwrap_or_default()
                 .as_nanos()
         ));
-    let extracted = extract(&temp, pin, &staging);
-    let _ = std::fs::remove_file(&temp);
-
+    let extracted = extract(archive, pin, &staging);
     let staged_exe = match extracted {
         Ok(path) => path,
         Err(error) => {
@@ -310,12 +380,13 @@ pub fn install_into(app: App, root: &Path) -> Result<PathBuf, String> {
             return Err(error);
         }
     };
-
     if let Err(error) = verify(&staged_exe, pin) {
         let _ = std::fs::remove_dir_all(&staging);
-        return Err(format!("распакованный {} не прошёл проверку: {error}", app.exe_name()));
+        return Err(format!(
+            "распакованный {} не прошёл проверку: {error}",
+            app.exe_name()
+        ));
     }
-
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
@@ -355,6 +426,63 @@ fn download(url: &str, expected: &str, destination: &Path) -> Result<(), String>
             .map_err(|error| format!("не удалось записать файл: {error}"))?;
     }
     file.flush().map_err(|error| error.to_string())?;
+
+    let actual = hash
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    if actual != expected {
+        return Err(format!("SHA-256 архива не совпал: ожидался {expected}, получен {actual}"));
+    }
+    Ok(())
+}
+
+/// Асинхронная загрузка с отчётом. Хеш считается по дороге и
+/// проверяется до распаковки — как и в синхронной версии.
+async fn download_with_progress<F>(
+    url: &str,
+    expected: &str,
+    destination: &Path,
+    progress: &mut F,
+) -> Result<(), String>
+where
+    F: FnMut(u64, u64),
+{
+    let response = reqwest::Client::builder()
+        .user_agent(concat!("arkha/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("не удалось создать HTTP-клиент: {error}"))?
+        .get(url)
+        .send()
+        .await
+        .map_err(|error| format!("не удалось начать загрузку: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("сервер ответил ошибкой: {error}"))?;
+
+    let total = response.content_length().unwrap_or(0);
+    let mut file = std::fs::File::create(destination)
+        .map_err(|error| format!("не удалось создать {}: {error}", destination.display()))?;
+    let mut hash = Sha256::new();
+    let mut received: u64 = 0;
+    let mut reported: u64 = 0;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| format!("загрузка прервана: {error}"))?;
+        hash.update(&chunk);
+        file.write_all(&chunk)
+            .map_err(|error| format!("не удалось записать файл: {error}"))?;
+        received += chunk.len() as u64;
+        // Событие на каждый мегабайт — достаточно часто, чтобы полоса
+        // двигалась, и достаточно редко, чтобы не забить канал.
+        if received - reported >= 1024 * 1024 {
+            reported = received;
+            progress(received, total);
+        }
+    }
+    file.flush().map_err(|error| error.to_string())?;
+    progress(received, total);
 
     let actual = hash
         .finalize()
@@ -443,6 +571,7 @@ mod tests {
             assert!(pin.version.split('.').count() == 3, "версия {}", pin.version);
             assert!(pin.archive.ends_with(".zip"), "{}", pin.archive);
             assert!(pin.archive.contains(pin.version), "{}", pin.archive);
+            assert!(pin.archive_bytes > 10_000_000, "размер архива {}", pin.archive_bytes);
             assert_eq!(pin.archive_sha256.len(), 64);
             assert_eq!(pin.exe_sha256.len(), 64);
             assert!(pin.archive_sha256.chars().all(|c| c.is_ascii_hexdigit()));

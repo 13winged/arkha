@@ -14,6 +14,7 @@ pub mod capabilities;
 pub mod capabilities_commands;
 pub mod chat;
 pub mod documents;
+pub mod documents_commands;
 pub mod downloader;
 pub mod engine;
 pub mod memory;
@@ -74,6 +75,8 @@ pub fn run() {
             auth::auth_remember_supported,
             auth::auth_profiles_list,
             auth::auth_profile_delete,
+            documents_commands::docs_cli_status,
+            documents_commands::docs_cli_install,
             legacy_migration::legacy_migration_preview,
             legacy_migration::legacy_migration_import,
             legacy_migration::legacy_migration_skip,
