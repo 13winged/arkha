@@ -13,6 +13,7 @@ pub mod audit;
 pub mod capabilities;
 pub mod capabilities_commands;
 pub mod chat;
+pub mod documents;
 pub mod downloader;
 pub mod engine;
 pub mod memory;
