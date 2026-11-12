@@ -152,25 +152,51 @@ pub struct CpuLoad {
     pub logical_cores: u16,
 }
 
+/// Последний замер CPU. Считается в фоне: команда интерфейса не должна
+/// спать двести миллисекунд на каждом опросе.
+static CPU_LOAD: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+static CPU_CORES: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+static CPU_SAMPLER: std::sync::Once = std::sync::Once::new();
+
+fn cpu_snapshot(system: &mut sysinfo::System) -> (u32, u16) {
+    system.refresh_cpu_usage();
+    let cores = system.cpus().len();
+    let load = if cores == 0 {
+        0.0
+    } else {
+        system.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / cores as f32
+    };
+    ((load as u32).min(100), cores.max(1) as u16)
+}
+
 /// Прочитать загрузку CPU через sysinfo.
 ///
 /// Между двумя замерами нужна пауза: sysinfo считает загрузку как
 /// разницу между снимками, и первый же вызов после старта всегда даёт
-/// ноль. Поэтому берём снимок, ждём минимальный интервал и берём второй.
+/// ноль. Поэтому первый замер делается один раз с паузой, а дальше
+/// фоновый поток обновляет значение раз в секунду. Команда только
+/// читает атомики и не блокирует интерфейс.
 pub fn cpu_load() -> CpuLoad {
-    use sysinfo::System;
-    let mut system = System::new_all();
-    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    system.refresh_cpu_usage();
-    let load = if system.cpus().is_empty() {
-        0.0
-    } else {
-        system.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / system.cpus().len() as f32
-    };
-    let cores = system.cpus().len() as u16;
+    use std::sync::atomic::Ordering;
+
+    CPU_SAMPLER.call_once(|| {
+        let mut system = sysinfo::System::new_all();
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+        let (load, cores) = cpu_snapshot(&mut system);
+        CPU_LOAD.store(load, Ordering::Relaxed);
+        CPU_CORES.store(cores, Ordering::Relaxed);
+
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            let (load, cores) = cpu_snapshot(&mut system);
+            CPU_LOAD.store(load, Ordering::Relaxed);
+            CPU_CORES.store(cores, Ordering::Relaxed);
+        });
+    });
+
     CpuLoad {
-        load_percent: (load as u32).min(100),
-        logical_cores: if cores > 0 { cores } else { 1 },
+        load_percent: CPU_LOAD.load(Ordering::Relaxed),
+        logical_cores: CPU_CORES.load(Ordering::Relaxed).max(1),
     }
 }
 

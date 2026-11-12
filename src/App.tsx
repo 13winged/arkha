@@ -1295,16 +1295,17 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
       <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // MODEL CHAT ] ---- CONTEXT LINK ---- [ ONLINE ]</div>
       <h2>Чат с моделью</h2>
       <div className="messages">
-        {messages.length === 0 && (
-          <p className="muted">
-            Модель {model.recipe ?? "не выбрана"} готова. Напишите что-нибудь.
-          </p>
-        )}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>{m.content || "…"}</div>
         ))}
         <div ref={bottom} />
       </div>
+
+      {messages.length === 0 && (
+        <p className="muted chat-empty-hint">
+          Модель {model.recipe ?? "не выбрана"} готова. Напишите что-нибудь.
+        </p>
+      )}
 
       {busy && (
         <button type="button" className="stop" onClick={() => invoke("stop_generation")}>{t("остановить ответ")}
@@ -1810,7 +1811,7 @@ function ModelLibrary() {
                   onChange={(event) => void select(event.target.value)}
                 >
                   {variants.map((variant) => (
-                    <option key={variant.name} value={variant.name} disabled={!variant.supported}>
+                    <option key={variant.name} value={variant.name}>
                       {quantization(variant.name)} · {gib(variant.sizeBytes)}{variant.supported ? "" : ` · ${t("нет рецепта")}`}
                     </option>
                   ))}
@@ -1822,7 +1823,7 @@ function ModelLibrary() {
                 <button
                   type="button"
                   className={`model-select ${active.active ? "selected" : ""}`}
-                  disabled={active.active || !active.supported}
+                  disabled={active.active}
                   onClick={() => void select(active.name)}
                 >
                   {active.active ? t("выбрана") : t("выбрать")}

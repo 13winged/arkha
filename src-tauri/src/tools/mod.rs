@@ -283,8 +283,29 @@ fn загрузить_навыки() -> crate::skills::Набор {
             }
         }
         result.сломанные.extend(custom.сломанные);
-        result.навыки.sort_by(|left, right| left.name.cmp(&right.name));
     }
+    // Внешние навыки OpenCode: только чтение, ничего не копируем.
+    // Свои и пользовательские навыки идут первыми: при совпадении имени
+    // выигрывает наш вариант.
+    let внешние = crate::skills::папка_агентов();
+    if внешние.is_dir() {
+        // Из сотен внешних берём только явно включённые: пустой список
+        // включённых означает «все наши», а не «все чужие».
+        let включённые = crate::settings::settings_get()
+            .map(|settings| settings.enabled_skills)
+            .unwrap_or_default();
+        let набор = crate::skills::из_агентских(&внешние);
+        for skill in набор.навыки {
+            let выбран = включённые.iter().any(|id| id.eq_ignore_ascii_case(&skill.name));
+            if !выбран {
+                continue;
+            }
+            if !result.навыки.iter().any(|existing| existing.name.eq_ignore_ascii_case(&skill.name)) {
+                result.навыки.push(skill);
+            }
+        }
+    }
+    result.навыки.sort_by(|left, right| left.name.cmp(&right.name));
     result
 }
 

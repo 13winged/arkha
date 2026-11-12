@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0-18] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Added
+
+- OpenCode skills from `%USERPROFILE%\.agents\skills` appear in Skills; external skills are disabled
+  by default and enabled one by one, so hundreds of descriptions do not flood the prompt.
+- Observability: token budget ring across the full panel with limit, spent and remaining; live
+  CPU/RAM/VRAM cards and a two-minute graph; CPU sampling moved to a background thread.
+
+### Fixed
+
+- Models without a recipe can now be selected; the missing recipe is reported when starting.
+- Chat hint moved from the message list down above the input.
+- Onboarding answer field no longer paints the browser-white input background.
+
 ## [1.3.0-17] - 2026-11-12
 
 Тестовая сборка. Не релиз.

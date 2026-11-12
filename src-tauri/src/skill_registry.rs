@@ -49,6 +49,12 @@ fn roots() -> Vec<PathBuf> {
     result.push(PathBuf::from("skills"));
     result.sort();
     result.dedup();
+    // Внешние навыки OpenCode идут последними: при совпадении id
+    // выигрывает наш вариант, а не чужой.
+    let внешние = crate::skills::папка_агентов();
+    if внешние.is_dir() {
+        result.push(внешние);
+    }
     result
 }
 
@@ -77,8 +83,7 @@ fn legacy_item(path: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
     })
 }
 
-fn manifest_item(dir: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
-    let manifest_path = dir.join("skill.json");
+fn manifest_item(dir: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {    let manifest_path = dir.join("skill.json");
     if is_other_profile_path(&manifest_path) {
         return None;
     }
@@ -105,6 +110,31 @@ fn manifest_item(dir: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
     })
 }
 
+/// Навык OpenCode: папка с `SKILL.md`, без `skill.json`.
+fn opencode_item(dir: &Path, enabled: &[String]) -> Option<SkillRegistryItem> {
+    let file = dir.join("SKILL.md");
+    if is_other_profile_path(&file) {
+        return None;
+    }
+    let skill = crate::skills::разобрать_внешний(&file).ok()?;
+    let id = skill.name.clone();
+    Some(SkillRegistryItem {
+        id: id.clone(),
+        name: skill.name,
+        version: skill.version,
+        description: skill.description,
+        source: "opencode".to_string(),
+        path: file.to_string_lossy().to_string(),
+        tools: Vec::new(),
+        permissions: Vec::new(),
+        // Внешние навыки включаются только явно: их сотни, и тянуть
+        // все в системный промпт — значит съесть контекст до начала
+        // работы.
+        enabled: enabled.iter().any(|value| value == &id),
+        manifest: false,
+    })
+}
+
 fn discover(enabled: &[String]) -> Vec<SkillRegistryItem> {
     let mut items = Vec::new();
     for root in roots() {
@@ -118,6 +148,8 @@ fn discover(enabled: &[String]) -> Vec<SkillRegistryItem> {
                 if let Some(item) = legacy_item(&path, enabled) { items.push(item); }
             } else if path.is_dir() && path.join("skill.json").is_file() {
                 if let Some(item) = manifest_item(&path, enabled) { items.push(item); }
+            } else if path.is_dir() && path.join("SKILL.md").is_file() {
+                if let Some(item) = opencode_item(&path, enabled) { items.push(item); }
             }
         }
     }
@@ -145,7 +177,14 @@ fn set_enabled(id: String, enabled: bool) -> Result<Vec<SkillRegistryItem>, Stri
     }
     let mut settings = settings::settings_get()?;
     if settings.enabled_skills.is_empty() {
-        settings.enabled_skills = available.iter().map(|item| item.id.clone()).collect();
+        // Совместимость: пустой список означает «включено всё наше».
+        // Внешние навыки OpenCode сюда не попадают — их сотни, и они
+        // должны включаться по одному.
+        settings.enabled_skills = available
+            .iter()
+            .filter(|item| item.source != "opencode")
+            .map(|item| item.id.clone())
+            .collect();
     }
     if enabled {
         if !settings.enabled_skills.contains(&id) { settings.enabled_skills.push(id); }

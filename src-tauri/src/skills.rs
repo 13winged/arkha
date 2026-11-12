@@ -210,8 +210,7 @@ impl Набор {
     ///
     /// Ошибки не поднимаются вверх: один сломанный навык не должен
     /// ломать остальные. Но они собираются и показываются.
-    pub fn из_папки(папка: &Path) -> Self {
-        let mut набор = Self::пусто();
+    pub fn из_папки(папка: &Path) -> Self {        let mut набор = Self::пусто();
         let Ok(записи) = std::fs::read_dir(папка) else {
             return набор;
         };
@@ -254,6 +253,132 @@ impl Набор {
         }
         набор
     }
+}
+
+/// Папка внешних навыков OpenCode: `%USERPROFILE%\.agents\skills`.
+///
+/// Каждый навык там — папка с `SKILL.md`. Формат тот же markdown с
+/// шапкой, но шапка богаче нашей: `license`, `allowed-tools` и прочее
+/// встречаются постоянно. Для внешних навыков незнакомые ключи
+/// игнорируются, иначе почти все они считались бы сломанными.
+pub fn папка_агентов() -> PathBuf {
+    std::env::var_os("USERPROFILE")
+        .map(PathBuf::from)
+        .unwrap_or_default()
+        .join(".agents")
+        .join("skills")
+}
+
+/// Прочитать внешние навыки OpenCode из подпапок с `SKILL.md`.
+pub fn из_агентских(папка: &Path) -> Набор {
+    let mut набор = Набор::пусто();
+    let Ok(записи) = std::fs::read_dir(папка) else {
+        return набор;
+    };
+    let mut файлы: Vec<PathBuf> = записи
+        .flatten()
+        .map(|запись| запись.path().join("SKILL.md"))
+        .filter(|файл| файл.is_file() && !путь_другого_профиля(файл))
+        .collect();
+    файлы.sort();
+    for файл in файлы {
+        match разобрать_внешний(&файл) {
+            Ok(навык) => набор.навыки.push(навык),
+            Err(ошибка) => набор.сломанные.push(ошибка),
+        }
+    }
+    набор
+}
+
+/// Разобрать `SKILL.md` из папки OpenCode.
+///
+/// Мягче нашего формата: неизвестные ключи шапки пропускаются, версия
+/// по умолчанию, имя берётся из папки, если в шапке его нет. Тело
+/// обязательно: навык без шагов — это описание, а не процедура.
+pub fn разобрать_внешний(файл: &Path) -> Result<Skill, Ошибка> {
+    let текст = std::fs::read_to_string(файл)
+        .map_err(|e| Ошибка { file: путь(файл), текст: format!("не читается: {e}") })?;
+    let ош = |т: &str| Ошибка { file: путь(файл), текст: т.to_string() };
+
+    let без_бома = текст.trim_start_matches('\u{feff}');
+    let (шапка, тело) = match без_бома.strip_prefix("---") {
+        Some(остаток) => match остаток.split_once("\n---") {
+            Some((шапка, тело)) => (шапка, тело.trim_start_matches(['\n', '\r'])),
+            None => return Err(ош("шапка не закрыта: нет второй строки ---")),
+        },
+        None => ("", без_бома),
+    };
+
+    let mut имя = None;
+    let mut версия = None;
+    let mut описание = None;
+    for строка in шапка.lines() {
+        let с = строка.trim();
+        let Some((ключ, значение)) = с.split_once(':') else {
+            continue;
+        };
+        let значение = значение.trim().trim_matches('"').to_string();
+        if значение.is_empty() {
+            continue;
+        }
+        match ключ.trim().to_lowercase().as_str() {
+            "name" => имя = Some(значение),
+            "version" => версия = Some(значение),
+            "description" => описание = Some(значение),
+            // license, allowed-tools, metadata и прочее: не наши дела.
+            _ => {}
+        }
+    }
+
+    if тело.trim().is_empty() {
+        return Err(ош("тело навыка пустое: там должны быть шаги"));
+    }
+
+    let имя = имя
+        .or_else(|| {
+            файл
+                .parent()
+                .and_then(|папка| папка.file_name())
+                .and_then(|имя| имя.to_str())
+                .map(str::to_string)
+        })
+        .ok_or_else(|| ош("не удалось определить имя навыка"))?;
+
+    // OpenCode допускает в именах больше символов. Приводим к нашему
+    // алфавиту, а не отвергаем навык целиком: имя нужно только для
+    // вызова и поиска.
+    let имя: String = имя
+        .to_lowercase()
+        .chars()
+        .map(|с| {
+            if с.is_ascii_lowercase() || с.is_ascii_digit() || с == '-' || с == '_' {
+                с
+            } else {
+                '-'
+            }
+        })
+        .collect();
+
+    let описание = описание
+        .or_else(|| {
+            тело.lines()
+                .map(str::trim)
+                .find(|строка| !строка.is_empty() && !строка.starts_with('#'))
+                .map(str::to_string)
+        })
+        .ok_or_else(|| ош("в шапке нет description: по нему модель выбирает навык"))?;
+
+    Ok(Skill {
+        name: имя,
+        version: версия.unwrap_or_else(|| "1.0.0".to_string()),
+        description: описание,
+        tools: Vec::new(),
+        resources: Vec::new(),
+        parameters: схема_аргументов(&[]),
+        steps: тело.trim().to_string(),
+        steps_path: None,
+        file: файл.to_path_buf(),
+    })
 }
 
 /// Ключи шапки, которые мы понимаем.
@@ -449,6 +574,51 @@ pub fn папка_данных() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Внешний навык OpenCode: незнакомые ключи шапки не должны его
+    /// ломать, а имя приводится к нашему алфавиту.
+    #[test]
+    fn внешний_навык_переживает_чужие_ключи_шапки() {
+        let dir = std::env::temp_dir().join(format!(
+            "arkha-open-skill-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("SKILL.md");
+        std::fs::write(
+            &file,
+            "---\nname: \"My Skill\"\ndescription: \"Does things\"\nlicense: MIT\nallowed-tools: bash\nmetadata:\n  owner: someone\n---\n\n# Steps\n\n1. Do it.\n",
+        )
+        .unwrap();
+
+        let skill = разобрать_внешний(&file).expect("внешний навык должен читаться");
+        assert_eq!(skill.name, "my-skill");
+        assert_eq!(skill.description, "Does things");
+        assert!(skill.steps.contains("Do it"), "{}", skill.steps);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Реальная папка OpenCode: если она есть, навыки должны читаться.
+    #[test]
+    fn навыки_opencode_читаются_если_папка_есть() {
+        let dir = папка_агентов();
+        if !dir.is_dir() {
+            eprintln!("ПРОПУЩЕНО: нет папки {}", dir.display());
+            return;
+        }
+        let набор = из_агентских(&dir);
+        assert!(
+            !набор.навыки.is_empty(),
+            "папка {} есть, но ни один навык не прочитался; сломано: {}",
+            dir.display(),
+            набор.сломанные.len()
+        );
+    }
 
     fn файл(имя: &str, текст: &str) -> Skill {
         разобрать(текст, Path::new(имя)).expect("навык должен разобраться")

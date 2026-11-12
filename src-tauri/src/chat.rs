@@ -272,11 +272,6 @@ pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
     if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") || !path.is_file() {
         return Err("модель не найдена".to_string());
     }
-    let catalog = model_manager::Catalog::load()?;
-    let tier = crate::profile::detect_and_persist().effective();
-    if !catalog.for_tier(tier).iter().any(|recipe| recipe.file == name) {
-        return Err("для этой модели нет рецепта текущего профиля".to_string());
-    }
     let mut settings = crate::settings::settings_get()?;
     settings.active_model = Some(name);
     crate::settings::settings_save(settings)?;

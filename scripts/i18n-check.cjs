@@ -6,13 +6,24 @@
 // `format("|")` и подобные заканчиваются на `t("...")`, и чек
 // объявлял их несуществующими переводами. На файле интерфейса это
 // давало два ложных срабатывания — `|` и `/`.
+//
+// Проверяются все экраны, а не только App.tsx: Dashboard, AgentSelect
+// и другие файлы тоже зовут t(), и раньше их строки проходили мимо.
 const fs = require("node:fs");
+const path = require("node:path");
 
-const app = fs.readFileSync("src/App.tsx", "utf8");
 const i18n = fs.readFileSync("src/i18n.ts", "utf8");
 
+const файлы = fs
+  .readdirSync("src", { recursive: true })
+  .filter((file) => file.endsWith(".tsx"))
+  .map((file) => path.join("src", file));
+
 const ключи = new Set();
-for (const m of app.matchAll(/(?<![\w.$])t\("((?:[^"\\]|\\.)+)"\)/g)) ключи.add(m[1]);
+for (const файл of файлы) {
+  const app = fs.readFileSync(файл, "utf8");
+  for (const m of app.matchAll(/(?<![\w.$])t\("((?:[^"\\]|\\.)+)"\)/g)) ключи.add(m[1]);
+}
 
 const есть = new Set();
 for (const m of i18n.matchAll(/^\s*"((?:[^"\\]|\\.)+)"\s*:/gm)) есть.add(m[1]);
