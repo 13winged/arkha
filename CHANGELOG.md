@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.1] - 2026-11-12
+
+### Fixed
+
+- Model downloads no longer stop around 1.2 GB. The request used a 120-second total timeout, which
+  cut the body at roughly that size; it is replaced with an idle read timeout. Interrupted transfers
+  now resume automatically, up to six attempts with growing pauses.
+
+### Added
+
+- Models: add an existing `.gguf` file by its full path, without downloading it again.
+
 ## [1.3.0] - 2026-11-12
 
 ### Added

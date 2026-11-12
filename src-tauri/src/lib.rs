@@ -137,6 +137,7 @@ pub fn run() {
             chat::repo_files,
             chat::models_list,
             chat::model_set_active,
+            chat::model_add,
             chat::model_delete,
             attachments::attachment_add,
             attachments::attachments_delete,

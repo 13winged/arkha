@@ -4059,6 +4059,17 @@ details[open] summary {
    Наблюдение: бюджет, графики, трейсы
    --------------------------------------------------------------- */
 
+.model-add-row {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.model-add-row .app-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .dashboard {
   max-width: none;
   width: 100%;

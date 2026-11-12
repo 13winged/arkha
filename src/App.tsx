@@ -1755,6 +1755,8 @@ function RuntimePanel() {
 function ModelLibrary() {
   const [models, setModels] = useState<LocalModel[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importPath, setImportPath] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const refresh = () => {
     invoke<LocalModel[]>("models_list")
@@ -1763,6 +1765,20 @@ function ModelLibrary() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  async function addModel() {
+    if (!importPath.trim()) return;
+    setImporting(true);
+    try {
+      setModels(await invoke<LocalModel[]>("model_add", { path: importPath.trim() }));
+      setImportPath("");
+      setError(null);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const select = async (name: string) => {
     try {
@@ -1791,6 +1807,25 @@ function ModelLibrary() {
           <p className="muted">{t("Локальная библиотека GGUF")}</p>
         </div>
         <button type="button" className="chip" onClick={refresh}>{t("Обновить")}</button>
+      </div>
+      {/* Добавить модель, скачанную другим способом: путь + кнопка. */}
+      <div className="model-add-row">
+        <input
+          className="app-input"
+          value={importPath}
+          onChange={(event) => setImportPath(event.currentTarget.value)}
+          placeholder={t("Полный путь к файлу .gguf")}
+          disabled={importing}
+          aria-label={t("Полный путь к файлу .gguf")}
+        />
+        <button
+          type="button"
+          className="chip"
+          disabled={!importPath.trim() || importing}
+          onClick={() => void addModel()}
+        >
+          {importing ? t("Добавляем…") : t("Добавить")}
+        </button>
       </div>
       {error && <p className="error">{error}</p>}
       {!models && !error && <p className="muted">{t("Сканируем папку моделей…")}</p>}

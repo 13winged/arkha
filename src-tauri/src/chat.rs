@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 // `Manager` нужен ради `AppHandle::state`: работа запуска ушла в
 // отдельный поток и достаёт состояние уже оттуда, а не из параметров
 // команды. Без него состояние не достать вовсе.
@@ -278,9 +278,54 @@ pub fn model_set_active(name: String) -> Result<Vec<LocalModel>, String> {
     models_list()
 }
 
+/// Добавить модель из локального файла в общую папку моделей.
+///
+/// Нужна, когда файл уже скачан другим способом: качать 5 ГБ заново
+/// только потому, что приложение его не видело, — бессмысленно.
 #[tauri::command]
-pub fn model_delete(name: String, status: State<'_, ModelState>) -> Result<Vec<LocalModel>, String> {
+pub async fn model_add(path: String) -> Result<Vec<LocalModel>, String> {
     crate::auth::require_authenticated()?;
+    let source = PathBuf::from(path.trim());
+    if !source.is_file() {
+        return Err(format!("файл не найден: {}", source.display()));
+    }
+    if source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.eq_ignore_ascii_case("gguf"))
+        != Some(true)
+    {
+        return Err("нужен файл .gguf".to_string());
+    }
+    let name = source
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "у файла нет имени".to_string())?
+        .to_string();
+
+    let directory = model_manager::models_dir();
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let destination = directory.join(&name);
+    if destination.exists() {
+        return Err(format!("модель {name} уже есть в библиотеке"));
+    }
+    if source == destination {
+        return Err("файл уже лежит в папке моделей".to_string());
+    }
+
+    // Копирование гигабайтов не должно занимать поток интерфейса.
+    let from = source.clone();
+    let to = destination.clone();
+    tauri::async_runtime::spawn_blocking(move || std::fs::copy(&from, &to))
+        .await
+        .map_err(|error| format!("копирование прервано: {error}"))?
+        .map_err(|error| format!("не удалось скопировать {}: {error}", source.display()))?;
+
+    models_list()
+}
+
+#[tauri::command]
+pub fn model_delete(name: String, status: State<'_, ModelState>) -> Result<Vec<LocalModel>, String> {    crate::auth::require_authenticated()?;
     let _ = (name, status);
     Err("общие модели доступны только для чтения и не могут быть удалены из профиля".into())
 }

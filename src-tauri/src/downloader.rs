@@ -76,6 +76,11 @@ fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent(concat!("arkha/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(META_TIMEOUT)
+        // `read_timeout` — простой между чтениями, а не на весь запрос.
+        // Раньше здесь стоял общий таймаут 120 с, и он обрывал тело на
+        // ~1.2 ГБ при скорости около 10 МБ/с: файл на 6 ГБ не
+        // докачивался никогда.
+        .read_timeout(BODY_TIMEOUT)
         .build()
         .map_err(|e| format!("не удалось создать HTTP-клиент: {e}"))
 }
@@ -411,87 +416,142 @@ pub async fn download(
     }
 
     // Адрес подписан и живёт ограниченное время, каждый раз заново.
-    let url = FILE_URL
-        .replace("{repo}", repo)
-        .replace("{path}", &file.path);
+    // Обрыв соединения не повод начинать с нуля: `.part` уже лежит на
+    // диске, поэтому повтор идёт с Range и продолжает с того же байта.
+    const MAX_ATTEMPTS: u32 = 6;
+    let mut attempts: u32 = 0;
 
-    // Таймаут тела: ответ приходит сразу, а тело качается долго.
-    let mut req = client()?.get(&url).timeout(BODY_TIMEOUT);
-    if already > 0 {
-        req = req.header("Range", format!("bytes={already}-"));
-    }
+    loop {
+        let url = FILE_URL
+            .replace("{repo}", repo)
+            .replace("{path}", &file.path);
 
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| friendly(&url, &e))?;
-
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!(
-            "сервер {url} ответил {status}: {}",
-            truncate(&body, 200)
-        ));
-    }
-
-    // Сервер может не поддержать докачку и ответить 200 вместо 206.
-    // Тогда начать надо с нуля, иначе в файл попадёт мусор.
-    let resuming = status == reqwest::StatusCode::PARTIAL_CONTENT;
-    if already > 0 && !resuming {
-        already = 0;
-        let _ = std::fs::remove_file(&part_path);
-    }
-
-    let total = if resuming {
-        already + resp.content_length().unwrap_or(0).max(0)
-    } else {
-        resp.content_length().unwrap_or(file.size)
-    };
-
-    let mut file_out = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .write(true)
-        .open(&part_path)
-        .map_err(|e| format!("не удалось открыть {}: {e}", part_path.display()))?;
-
-    let started = Instant::now();
-    let start_at = already;
-    let mut last_report = Instant::now();
-
-    let mut stream = resp.bytes_stream();
-    while let Some(item) = stream.next().await {
-        if cancel.load(Ordering::SeqCst) {
-            return Err(CANCELLED.to_string());
+        let mut req = client()?.get(&url);
+        if already > 0 {
+            req = req.header("Range", format!("bytes={already}-"));
         }
 
-        let chunk = item.map_err(|e| friendly("при скачивании", &e))?;
-        file_out
-            .write_all(&chunk)
-            .map_err(|e| format!("не удалось записать в {}: {e}", part_path.display()))?;
-        already += chunk.len() as u64;
+        let resp = match req.send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                attempts += 1;
+                if attempts < MAX_ATTEMPTS {
+                    pause_before_retry(attempts).await;
+                    continue;
+                }
+                return Err(friendly(&url, &e));
+            }
+        };
 
-        // Не чаще четырёх раз в секунду: события не должны
-        // забивать интерфейс.
-        if last_report.elapsed() > Duration::from_millis(250) {
-            let secs = started.elapsed().as_secs_f32().max(0.001);
-            let done_now = already - start_at;
-            on_progress(Progress::Downloading {
-                downloaded: already,
-                total,
-                mib_per_s: (done_now as f32 / secs) / (1024.0 * 1024.0),
-            });
-            last_report = Instant::now();
+        let status = resp.status();
+
+        // 416: сервер считает, что Range за пределами файла. Значит
+        // `.part` не той длины — начинаем заново, а не застреваем.
+        if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE && already > 0 {
+            let _ = std::fs::remove_file(&part_path);
+            already = 0;
+            attempts += 1;
+            if attempts < MAX_ATTEMPTS {
+                continue;
+            }
+            return Err("сервер не принимает докачку; начните загрузку заново".into());
         }
-    }
 
-    file_out
-        .flush()
-        .map_err(|e| format!("не удалось дописать файл: {e}"))?;
-    drop(file_out);
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            if status.is_server_error() && attempts + 1 < MAX_ATTEMPTS {
+                attempts += 1;
+                pause_before_retry(attempts).await;
+                continue;
+            }
+            return Err(format!(
+                "сервер {url} ответил {status}: {}",
+                truncate(&body, 200)
+            ));
+        }
+
+        // Сервер может не поддержать докачку и ответить 200 вместо 206.
+        // Тогда начать надо с нуля, иначе в файл попадёт мусор.
+        let resuming = status == reqwest::StatusCode::PARTIAL_CONTENT;
+        if already > 0 && !resuming {
+            already = 0;
+            let _ = std::fs::remove_file(&part_path);
+        }
+
+        let total = if resuming {
+            already + resp.content_length().unwrap_or(0).max(0)
+        } else {
+            resp.content_length().unwrap_or(file.size)
+        };
+
+        let mut file_out = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .write(true)
+            .open(&part_path)
+            .map_err(|e| format!("не удалось открыть {}: {e}", part_path.display()))?;
+
+        let started = Instant::now();
+        let start_at = already;
+        let mut last_report = Instant::now();
+        let mut failure: Option<String> = None;
+
+        let mut stream = resp.bytes_stream();
+        while let Some(item) = stream.next().await {
+            if cancel.load(Ordering::SeqCst) {
+                return Err(CANCELLED.to_string());
+            }
+
+            match item {
+                Ok(chunk) => {
+                    file_out
+                        .write_all(&chunk)
+                        .map_err(|e| format!("не удалось записать в {}: {e}", part_path.display()))?;
+                    already += chunk.len() as u64;
+
+                    // Не чаще четырёх раз в секунду: события не должны
+                    // забивать интерфейс.
+                    if last_report.elapsed() > Duration::from_millis(250) {
+                        let secs = started.elapsed().as_secs_f32().max(0.001);
+                        let done_now = already - start_at;
+                        on_progress(Progress::Downloading {
+                            downloaded: already,
+                            total,
+                            mib_per_s: (done_now as f32 / secs) / (1024.0 * 1024.0),
+                        });
+                        last_report = Instant::now();
+                    }
+                }
+                Err(error) => {
+                    failure = Some(friendly("при скачивании", &error));
+                    break;
+                }
+            }
+        }
+
+        let _ = file_out.flush();
+        drop(file_out);
+
+        if let Some(error) = failure {
+            attempts += 1;
+            if attempts < MAX_ATTEMPTS {
+                pause_before_retry(attempts).await;
+                continue;
+            }
+            return Err(error);
+        }
+
+        break;
+    }
 
     finish(&part_path, &final_path, &file, &mut on_progress)
+}
+
+/// Пауза перед повтором: короткая, но растущая. Мгновенный повтор на
+/// том же оборванном соединении обычно обрывается так же.
+async fn pause_before_retry(attempt: u32) {
+    let seconds = u64::from(attempt).min(8);
+    tokio::time::sleep(Duration::from_secs(seconds)).await;
 }
 
 /// Сверка и переход в конечный файл.
