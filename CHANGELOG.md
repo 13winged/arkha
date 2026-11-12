@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0-8] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Added
+
+- Menu items can be reordered by dragging, including moving an item between the top zone and the
+  bottom zone next to the agent mode. Arrow buttons remain for precise moves.
+
 ## [1.3.0-7] - 2026-11-12
 
 Тестовая сборка. Не релиз.

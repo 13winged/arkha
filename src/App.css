@@ -2134,6 +2134,38 @@ button:disabled {
   padding: 5px 10px;
   border: 1px solid var(--cp-line);
   background: var(--cp-bg);
+  cursor: grab;
+}
+
+.menu-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.menu-row.drop-target,
+.menu-drop-end.drop-target {
+  border-color: var(--cp-neon-green);
+  box-shadow: inset 2px 0 0 var(--cp-neon-green);
+}
+
+/* Полоса в конце списка: сюда можно бросить пункт, чтобы он стал
+   последним. Видна только во время перетаскивания. */
+.menu-drop-end {
+  min-height: 6px;
+  border: 1px dashed transparent;
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.66);
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  transition: min-height var(--ход), border-color var(--ход);
+}
+
+.menu-drop-end.drop-target {
+  min-height: 28px;
+  border-style: dashed;
+  line-height: 26px;
 }
 
 .menu-row-name {

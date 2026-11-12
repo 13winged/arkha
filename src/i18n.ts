@@ -295,6 +295,8 @@ const EN: Record<string, string> = {
   "Вверх": "Up",
   "Вниз": "Down",
   "Сбросить порядок": "Reset order",
+  "Перетащите пункт мышью или двигайте стрелками.": "Drag an item with the mouse or use the arrows.",
+  "Перетащите сюда": "Drop here",
   "оформление": "appearance",
   "навыки": "skills",
   "plan — только читает и планирует, ничего не меняет.": "plan — reads and plans only, changes nothing.",

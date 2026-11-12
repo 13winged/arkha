@@ -963,6 +963,9 @@ function DocumentsCli() {
  * пункт, чтобы вернуть — поставить галочку.
  */
 function MenuSettings({ layout, onChange }: { layout: MenuLayout; onChange: (next: MenuLayout) => void }) {
+  const [dragging, setDragging] = useState<Tab | null>(null);
+  const [over, setOver] = useState<{ zone: "main" | "bottom"; index: number } | null>(null);
+
   const move = (zone: "main" | "bottom", index: number, delta: number) => {
     const list = [...layout[zone]];
     const target = index + delta;
@@ -978,10 +981,53 @@ function MenuSettings({ layout, onChange }: { layout: MenuLayout; onChange: (nex
     onChange({ ...layout, hidden });
   };
 
+  /**
+   * Вставить перетаскиваемый пункт в позицию `index` зоны `zone`.
+   *
+   * Пункт сначала убирается из обеих зон, потом вставляется в нужную:
+   * так перенос между верхом и низом не оставляет дубля. Индекс — это
+   * место в уже очищенном списке, поэтому перетаскивание вниз не
+   * сдвигает элемент на одну позицию больше нужного.
+   */
+  const dropAt = (zone: "main" | "bottom", index: number) => {
+    if (!dragging) return;
+    const main = layout.main.filter((id) => id !== dragging);
+    const bottom = layout.bottom.filter((id) => id !== dragging);
+    const target = zone === "main" ? main : bottom;
+    target.splice(Math.min(index, target.length), 0, dragging);
+    onChange({ ...layout, main, bottom });
+    setDragging(null);
+    setOver(null);
+  };
+
   const row = (id: Tab, zone: "main" | "bottom", index: number, count: number) => {
     const meta = TAB_META[id];
+    const isOver = over?.zone === zone && over.index === index;
     return (
-      <li key={id} className="menu-row">
+      <li
+        key={id}
+        draggable
+        onDragStart={(event) => {
+          setDragging(id);
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", id);
+        }}
+        onDragEnd={() => {
+          setDragging(null);
+          setOver(null);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setOver({ zone, index });
+        }}
+        onDragLeave={() => setOver((current) => (current?.zone === zone && current.index === index ? null : current))}
+        onDrop={(event) => {
+          event.preventDefault();
+          dropAt(zone, index);
+        }}
+        className={`menu-row${dragging === id ? " dragging" : ""}${isOver ? " drop-target" : ""}`}
+      >
         <label className="menu-row-name">
           <input type="checkbox" checked={!layout.hidden.includes(id)} onChange={(event) => toggle(id, event.target.checked)} />
           <span className="menu-row-icon" aria-hidden="true">{meta.icon}</span>
@@ -995,13 +1041,37 @@ function MenuSettings({ layout, onChange }: { layout: MenuLayout; onChange: (nex
     );
   };
 
+  const dropEnd = (zone: "main" | "bottom", index: number) => (
+    <li
+      className={`menu-drop-end${over?.zone === zone && over.index === index ? " drop-target" : ""}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setOver({ zone, index });
+      }}
+      onDragLeave={() => setOver((current) => (current?.zone === zone && current.index === index ? null : current))}
+      onDrop={(event) => {
+        event.preventDefault();
+        dropAt(zone, index);
+      }}
+    >
+      {dragging ? t("Перетащите сюда") : ""}
+    </li>
+  );
+
   return (
     <section className="panel">
       <h2>{t("Меню")}</h2>
       <p className="muted">{t("Порядок и видимость пунктов. Основные — сверху, настройки и возможности — внизу у режима агента.")}</p>
-      <ul className="menu-list">{layout.main.map((id, index) => row(id, "main", index, layout.main.length))}</ul>
+      <p className="muted">{t("Перетащите пункт мышью или двигайте стрелками.")}</p>
+      <ul className="menu-list">
+        {layout.main.map((id, index) => row(id, "main", index, layout.main.length))}
+        {dropEnd("main", layout.main.length)}
+      </ul>
       <h3>{t("Внизу")}</h3>
-      <ul className="menu-list">{layout.bottom.map((id, index) => row(id, "bottom", index, layout.bottom.length))}</ul>
+      <ul className="menu-list">
+        {layout.bottom.map((id, index) => row(id, "bottom", index, layout.bottom.length))}
+        {dropEnd("bottom", layout.bottom.length)}
+      </ul>
       <button type="button" className="chip" onClick={() => onChange({ main: [...DEFAULT_MAIN_MENU], bottom: [...DEFAULT_BOTTOM_MENU], hidden: [] })}>
         {t("Сбросить порядок")}
       </button>
