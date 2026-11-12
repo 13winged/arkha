@@ -2125,7 +2125,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "download" | "settings" | "skills" | "capabilities" | "dashboard";
+type Tab = "chat" | "agent" | "documents" | "download" | "settings" | "appearance" | "skills" | "capabilities" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -2320,10 +2320,43 @@ const ТОН: Record<Tab, "gold" | "blue"> = {
   agent: "gold",
   chat: "blue",
   download: "gold",
+  documents: "gold",
   capabilities: "blue",
   settings: "blue",
+  appearance: "blue",
   skills: "gold",
   dashboard: "blue",
+};
+
+/**
+ * Пункты меню. Значок и подпись лежат рядом, чтобы порядок и группы
+ * задавались одним списком, а не тремя словарями в разметке.
+ */
+const TAB_META: Record<Tab, { icon: string; label: string }> = {
+  agent: { icon: "◈", label: "секретарь" },
+  chat: { icon: "▤", label: "чат" },
+  download: { icon: "↓", label: "загрузка" },
+  documents: { icon: "▧", label: "документы" },
+  settings: { icon: "◉", label: "профиль" },
+  appearance: { icon: "◐", label: "оформление" },
+  capabilities: { icon: "✦", label: "возможности" },
+  skills: { icon: "⌘", label: "навыки" },
+  dashboard: { icon: "▥", label: "наблюдение" },
+};
+
+/** Меню по смыслу: работа, система, настройка, наблюдение. */
+const MENU_GROUPS: { label: string; tabs: Tab[] }[] = [
+  { label: "работа", tabs: ["agent", "chat"] },
+  { label: "система", tabs: ["download", "documents"] },
+  { label: "настройка", tabs: ["settings", "capabilities", "skills", "appearance"] },
+  { label: "наблюдение", tabs: ["dashboard"] },
+];
+
+/** Одна строка о том, что выбранный режим делает. */
+const AGENT_MODE_HINT: Record<string, string> = {
+  plan: "plan — только читает и планирует, ничего не меняет.",
+  think: "think — рассуждает и анализирует, без действий.",
+  build: "build — читает, пишет и запускает программы.",
 };
 
 /** Состояние голоса, как его отдаёт `voice_status`. */
@@ -2956,69 +2989,31 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           )}
         </div>
         <nav className="sidebar-nav">
-          {(["agent", "chat", "download", "settings", "skills", "capabilities", "dashboard"] as Tab[]).map((вкладка) => (
-            <Fragment key={вкладка}>
-            <button type="button"
-              data-tone={ТОН[вкладка]}
-              className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
-              onClick={() => setTab(вкладка)}
-              title={t({
-                agent: "секретарь",
-                chat: "чат",
-                download: "загрузка",
-                capabilities: "возможности",
-                settings: "профиль",
-                skills: "Навыки",
-                dashboard: "наблюдение",
-              }[вкладка])}
-            >
-              <span className="sidebar-icon" aria-hidden="true">{{
-                agent: "◈",
-                chat: "▤",
-                download: "↓",
-                capabilities: "✦",
-                settings: "◉",
-                skills: "⌘",
-                dashboard: "▥",
-              }[вкладка]}</span>
-              {!sidebarCollapsed && <span className="sidebar-label">{t({
-                agent: "секретарь",
-                chat: "чат",
-                download: "загрузка",
-                capabilities: "возможности",
-                settings: "профиль",
-                skills: "Навыки",
-                dashboard: "наблюдение",
-              }[вкладка])}</span>}
-            </button>
-            {вкладка === "download" && (
-              <button type="button" className="sidebar-item sidebar-subitem" onClick={() => void invoke("models_open_window")}>
-                <span className="sidebar-icon" aria-hidden="true">▦</span>
-                {!sidebarCollapsed && <span className="sidebar-label">{t("модели")}</span>}
-              </button>
-            )}
+          {MENU_GROUPS.map((group) => (
+            <Fragment key={group.label}>
+              {!sidebarCollapsed && <span className="sidebar-group">{t(group.label)}</span>}
+              {group.tabs.map((вкладка) => (
+                <Fragment key={вкладка}>
+                  <button
+                    type="button"
+                    data-tone={ТОН[вкладка]}
+                    className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
+                    onClick={() => setTab(вкладка)}
+                    title={t(TAB_META[вкладка].label)}
+                  >
+                    <span className="sidebar-icon" aria-hidden="true">{TAB_META[вкладка].icon}</span>
+                    {!sidebarCollapsed && <span className="sidebar-label">{t(TAB_META[вкладка].label)}</span>}
+                  </button>
+                  {вкладка === "download" && (
+                    <button type="button" className="sidebar-item sidebar-subitem" onClick={() => void invoke("models_open_window")}>
+                      <span className="sidebar-icon" aria-hidden="true">▦</span>
+                      {!sidebarCollapsed && <span className="sidebar-label">{t("модели")}</span>}
+                    </button>
+                  )}
+                </Fragment>
+              ))}
             </Fragment>
           ))}
-          {/* Отдельные окна: RAG и выбор агента. Они не вкладки, поэтому
-              стоят ниже и без активного состояния. */}
-          <button
-            type="button"
-            className="sidebar-item sidebar-window"
-            onClick={() => void invoke("rag_open_window")}
-            title={t("Открыть RAG")}
-          >
-            <span className="sidebar-icon" aria-hidden="true">▣</span>
-            {!sidebarCollapsed && <span className="sidebar-label">{t("RAG")}</span>}
-          </button>
-          <button
-            type="button"
-            className="sidebar-item sidebar-window"
-            onClick={() => void invoke("agent_select_open_window")}
-            title={t("Открыть выбор агента")}
-          >
-            <span className="sidebar-icon" aria-hidden="true">◆</span>
-            {!sidebarCollapsed && <span className="sidebar-label">{t("Агент")}</span>}
-          </button>
         </nav>
         {!sidebarCollapsed && (
           <div className="sidebar-agent-select">
@@ -3033,6 +3028,19 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
               <option value="think">{t("think")}</option>
               <option value="build">{t("build")}</option>
             </select>
+            <p className="sidebar-note">{t(AGENT_MODE_HINT[agentMode] ?? "")}</p>
+            {/* RAG — отдельное поле рядом с режимом: это не вкладка,
+                а окно, и оно не должно спорить с навигацией. */}
+            <button
+              type="button"
+              className="sidebar-field"
+              onClick={() => void invoke("rag_open_window")}
+              title={t("Открыть RAG")}
+            >
+              <span className="sidebar-field-icon" aria-hidden="true">▣</span>
+              <span className="sidebar-field-label">{t("RAG")}</span>
+              <span className="sidebar-field-go" aria-hidden="true">↗</span>
+            </button>
           </div>
         )}
         <div className="sidebar-footer">
@@ -3098,13 +3106,17 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
               <Downloader model={model} />
             </>
           )}
+          {tab === "documents" && <DocumentsCli />}
           {tab === "capabilities" && <Capabilities />}
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
-                <DocumentsCli />
                 <LocalUserProfile settings={settings} onSave={(next) => void saveSettings(next)} />
                 <Welcome />
+              </>
+            )}
+            {tab === "appearance" && (
+              <>
                 <РазмерШрифта
                   кегль={fontSize}
                   onChange={(value) => {
@@ -3122,7 +3134,6 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
         </div>
 
         <footer className="app-footer">
-           <span className="hint"><kbd className="cap">1</kbd>–<kbd className="cap">8</kbd> вкладок</span>
           <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
           <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
           <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>

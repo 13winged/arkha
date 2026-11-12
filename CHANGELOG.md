@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0-6] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- Sidebar is grouped by meaning: work, system, setup, observation.
+- New tabs: Documents (CLI downloads) and Appearance (font size, sound, glitch), split out of
+  Settings.
+- Agent mode select now explains the current mode in one line; the duplicate agent window entry is
+  gone.
+- RAG moved down next to the agent mode as a separate field.
+- Model dock heading is left-aligned again.
+- Removed the footer hint about 1–8 tabs: no such shortcuts existed.
+
 ## [1.3.0-5] - 2026-11-12
 
 Тестовая сборка. Не релиз.

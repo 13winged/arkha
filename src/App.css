@@ -547,14 +547,36 @@ body {
   text-shadow: none;
 }
 
-/* Окна (RAG, выбор агента) не вкладки: они не бывают активными,
-   поэтому стоят тише остальных. */
-.sidebar-window {
+/* Группы меню: работа, система, настройка, наблюдение. */
+.sidebar-group {
+  margin: 10px 0 2px;
+  padding: 0 10px;
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.62);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sidebar-group:first-child {
+  margin-top: 0;
+}
+
+.sidebar-note {
+  margin: 2px 0 10px;
+  color: var(--cp-muted);
+  font-size: calc(var(--кегль, 14px) * 0.72);
+  line-height: 1.35;
+}
+
+.sidebar-field-icon,
+.sidebar-field-go {
   color: var(--cp-muted);
 }
 
-.sidebar-window:hover {
-  color: var(--cp-text-dim);
+.sidebar-field-label {
+  flex: 1;
+  text-align: left;
 }
 
 .sidebar-icon {
@@ -2061,6 +2083,31 @@ button:disabled {
   border-color: var(--cp-muted);
 }
 
+/* Поле RAG в боковой панели. Стоит после общего правила кнопок, чтобы
+   перебить его разрядку и отступы: это поле, а не действие. */
+.app-sidebar .sidebar-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.72);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  clip-path: none;
+  cursor: pointer;
+}
+
+.app-sidebar .sidebar-field:hover {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+}
+
 /* Остановка — единственное место, где красный на кнопке. Красный
    в палитре означает опасность, и нажатие «стоп» ею и является. */
 .stop {
@@ -3329,6 +3376,8 @@ kbd.cap,
 
 .model-dock .model-panel h2 {
   margin-top: 5px;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .model-dock .model-panel .facts {
