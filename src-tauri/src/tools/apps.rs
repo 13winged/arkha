@@ -83,6 +83,48 @@ pub fn запрещено(запреты: &[String], имя: &str, полный_
     None
 }
 
+/// Найти программу в реестре Windows.
+///
+/// `App Paths` — штатное место, куда установщики прописывают полный
+/// путь: Chrome, Edge, Office и большинство обычных программ лежат не
+/// в корне `Program Files`, а в подпапках, и простой перебор папок их
+/// не находит. Ключ читается через `reg.exe`: это дешевле и проще,
+/// чем тянуть в приложение весь COM-слой ради одного значения.
+#[cfg(windows)]
+fn из_app_paths(имя_файла: &str) -> Option<PathBuf> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let ключи = [
+        format!("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{имя_файла}"),
+        format!("HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{имя_файла}"),
+        format!("HKLM\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{имя_файла}"),
+    ];
+
+    for ключ in ключи {
+        let вывод = match std::process::Command::new("reg")
+            .args(["query", &ключ, "/ve"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            Ok(вывод) if вывод.status.success() => вывод,
+            _ => continue,
+        };
+        let текст = String::from_utf8_lossy(&вывод.stdout);
+        for строка in текст.lines() {
+            let Some(позиция) = строка.find("REG_SZ") else {
+                continue;
+            };
+            let значение = строка[позиция + "REG_SZ".len()..].trim().trim_matches('"');
+            let путь = PathBuf::from(значение);
+            if путь.is_file() {
+                return Some(путь);
+            }
+        }
+    }
+    None
+}
+
 /// Найти исполняемый файл по имени.
 ///
 /// Только имя плюс `.exe`. Никакого разбора строк с пробелами в
@@ -123,8 +165,13 @@ pub fn найти(имя: &str) -> Result<PathBuf, ToolError> {
         }
     }
 
+    #[cfg(windows)]
+    if let Some(путь) = из_app_paths(&имя_файла) {
+        return Ok(путь);
+    }
+
     Err(ToolError::Missing(format!(
-        "программа «{имя}» не найдена. Искали в: {}",
+        "программа «{имя}» не найдена. Искали в: {} и в App Paths реестра",
         папки_поиска()
             .iter()
             .map(|п| п.display().to_string())

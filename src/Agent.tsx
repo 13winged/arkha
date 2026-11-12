@@ -104,7 +104,13 @@ function название(инструмент: string): string {
   return НАЗВАНИЯ[инструмент] ?? инструмент;
 }
 
-export default function Agent({ hidden = false }: { hidden?: boolean }) {
+export default function Agent({
+  hidden = false,
+  voiceCommand,
+}: {
+  hidden?: boolean;
+  voiceCommand?: { id: number; text: string } | null;
+}) {
   const [вопрос, setВопрос] = useState("");
   const [реплики, setРеплики] = useState<Реплика[]>([]);
   const [крутится, setКрутится] = useState(false);
@@ -117,6 +123,7 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
   // История для следующего запроса. Отдельная от видимых реплик: в
   // модель уходят только роли и текст, без наших пометок.
   const история = useRef<{ role: string; content: string; attachments?: string[] }[]>([]);
+  const последняяГолосовая = useRef(0);
   const низ = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -222,16 +229,16 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
     }
   }
 
-  async function спросить() {
-    const текст = вопрос.trim();
-    if (!текст || крутится) return;
+  async function отправить(текст: string) {
+    const text = текст.trim();
+    if (!text || крутится) return;
 
     setВопрос("");
-    setРеплики((старые) => [...старые, { роль: "я", текст }]);
+    setРеплики((старые) => [...старые, { роль: "я", текст: text }]);
     setПричина(null);
     setКрутится(true);
 
-    const сообщения = [...история.current, { role: "user", content: текст, attachments: attachments.map((attachment) => attachment.id) }];
+    const сообщения = [...история.current, { role: "user", content: text, attachments: attachments.map((attachment) => attachment.id) }];
     история.current = сообщения;
     setAttachments([]);
 
@@ -242,6 +249,20 @@ export default function Agent({ hidden = false }: { hidden?: boolean }) {
       setПричина(String(e));
     }
   }
+
+  async function спросить() {
+    await отправить(вопрос);
+  }
+
+  // Голосовая команда приходит из App после распознавания. Номер
+  // защищает от повторной отправки: эффект может сработать дважды
+  // при перерисовке.
+  useEffect(() => {
+    if (!voiceCommand || voiceCommand.id === последняяГолосовая.current) return;
+    последняяГолосовая.current = voiceCommand.id;
+    void отправить(voiceCommand.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceCommand]);
 
   async function прикрепить(files: FileList | null) {
     if (!files) return;

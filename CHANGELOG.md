@@ -16,6 +16,9 @@
 - Models: a **Test** button starts the model, measures speed on a short run and saves the recipe to
   `recipes.user.json`, so the model becomes usable without editing the catalog.
 - Chat: each assistant message has a **Speak** button with speed modes 0.75×, 1×, 1.25× and 1.5×.
+- Voice commands: speech recognized by push-to-talk is sent to the agent instead of only being shown as
+  text. Enabling voice now arms the hotkey; disabling it removes the hook. App launching also looks in
+  the Windows `App Paths` registry, so names like `chrome` resolve to their install folder.
 
 ### Fixed
 

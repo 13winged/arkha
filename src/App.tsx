@@ -2873,17 +2873,29 @@ function VoiceToggle() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<VoiceState>("voice_status").then(setState).catch(() => undefined);
+    invoke<VoiceState>("voice_status")
+      .then((state) => {
+        setState(state);
+        // Голос мог остаться включённым с прошлого запуска: клавишу
+        // тогда нужно поставить заново, иначе говорить некуда.
+        if (state.on) void invoke("voice_hotkey_enable").catch(() => undefined);
+      })
+      .catch(() => undefined);
   }, []);
 
   const переключить = async () => {
     setBusy(true);
     setError(null);
     try {
-      const следующее = state?.on
-        ? await invoke<VoiceState>("voice_disable")
-        : await invoke<VoiceState>("voice_enable");
-      setState(следующее);
+      if (state?.on) {
+        // Сначала снимаем клавишу: иначе хук останется висеть и
+        // продолжит писать в микрофон после выключения голоса.
+        await invoke("voice_hotkey_disable").catch(() => undefined);
+        setState(await invoke<VoiceState>("voice_disable"));
+      } else {
+        setState(await invoke<VoiceState>("voice_enable"));
+        await invoke<string>("voice_hotkey_enable");
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -3260,6 +3272,25 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
   // событие, подписчик меняет состояние, дерево перерисовывается.
   const [, перерисовать] = useState(0);
   const [глитчРежим, setГлитчРежим] = useState<string | null>(null);
+  const [voiceCommand, setVoiceCommand] = useState<{ id: number; text: string } | null>(null);
+
+  // Распознанная речь идёт в агента, а не в поле ввода: человек
+  // говорит «открой chrome» и ждёт действия, а не текста.
+  useEffect(() => {
+    let alive = true;
+    const off = listen<{ текст?: string; секунд?: number; был_звук?: boolean }>("голос-диктовка", (event) => {
+      const text = (event.payload.текст ?? "").trim();
+      // У ошибок записи текст есть, а звука не было: это сообщение
+      // для человека, а не команда агенту.
+      if (!alive || !text || event.payload.был_звук !== true) return;
+      setTab("agent");
+      setVoiceCommand({ id: Date.now(), text });
+    });
+    return () => {
+      alive = false;
+      void off.then((stop) => stop());
+    };
+  }, []);
 
   useEffect(() => {
     invoke<AppSettings>("settings_get")
@@ -3442,7 +3473,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           {/* Агент остаётся смонтированным, иначе его история и контекст
               исчезают при переходе на другую вкладку. */}
           {tab === "agent" && <Welcome />}
-          <Agent hidden={tab !== "agent"} />
+          <Agent hidden={tab !== "agent"} voiceCommand={voiceCommand} />
           {/* Чат не размонтируется: иначе история переписки пропадала
               бы при каждом переходе на другую вкладку. Скрываем его
               через display, состояние остаётся живым. */}
