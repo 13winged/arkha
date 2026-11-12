@@ -955,6 +955,60 @@ function DocumentsCli() {
   );
 }
 
+/**
+ * Порядок и видимость пунктов меню.
+ *
+ * Две зоны: основные пункты наверху и настройки с возможностями внизу,
+ * у режима агента. Внутри зоны порядок любой; прятать можно любой
+ * пункт, чтобы вернуть — поставить галочку.
+ */
+function MenuSettings({ layout, onChange }: { layout: MenuLayout; onChange: (next: MenuLayout) => void }) {
+  const move = (zone: "main" | "bottom", index: number, delta: number) => {
+    const list = [...layout[zone]];
+    const target = index + delta;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+    onChange({ ...layout, [zone]: list });
+  };
+
+  const toggle = (id: Tab, visible: boolean) => {
+    const hidden = visible
+      ? layout.hidden.filter((item) => item !== id)
+      : [...layout.hidden.filter((item) => item !== id), id];
+    onChange({ ...layout, hidden });
+  };
+
+  const row = (id: Tab, zone: "main" | "bottom", index: number, count: number) => {
+    const meta = TAB_META[id];
+    return (
+      <li key={id} className="menu-row">
+        <label className="menu-row-name">
+          <input type="checkbox" checked={!layout.hidden.includes(id)} onChange={(event) => toggle(id, event.target.checked)} />
+          <span className="menu-row-icon" aria-hidden="true">{meta.icon}</span>
+          <span>{t(meta.label)}</span>
+        </label>
+        <div className="menu-row-actions">
+          <button type="button" className="menu-arrow" aria-label={t("Вверх")} disabled={index === 0} onClick={() => move(zone, index, -1)}>↑</button>
+          <button type="button" className="menu-arrow" aria-label={t("Вниз")} disabled={index === count - 1} onClick={() => move(zone, index, 1)}>↓</button>
+        </div>
+      </li>
+    );
+  };
+
+  return (
+    <section className="panel">
+      <h2>{t("Меню")}</h2>
+      <p className="muted">{t("Порядок и видимость пунктов. Основные — сверху, настройки и возможности — внизу у режима агента.")}</p>
+      <ul className="menu-list">{layout.main.map((id, index) => row(id, "main", index, layout.main.length))}</ul>
+      <h3>{t("Внизу")}</h3>
+      <ul className="menu-list">{layout.bottom.map((id, index) => row(id, "bottom", index, layout.bottom.length))}</ul>
+      <button type="button" className="chip" onClick={() => onChange({ main: [...DEFAULT_MAIN_MENU], bottom: [...DEFAULT_BOTTOM_MENU], hidden: [] })}>
+        {t("Сбросить порядок")}
+      </button>
+    </section>
+  );
+}
+
 function Settings({ profile, onChange }: {
   profile: ProfileView;
   onChange: (p: ProfileView) => void;
@@ -2125,7 +2179,7 @@ function ModelBar({ model, onChange }: { model: ModelStatus; onChange: (m: Model
 // Приложение
 // ---------------------------------------------------------------------------
 
-type Tab = "chat" | "agent" | "documents" | "download" | "settings" | "appearance" | "skills" | "capabilities" | "dashboard";
+type Tab = "chat" | "agent" | "documents" | "download" | "settings" | "skills" | "capabilities" | "dashboard";
 
 /**
  * Кегль интерфейса.
@@ -2202,32 +2256,6 @@ interface AppSettings {
     login: string;
     display_name: string;
   };
-}
-
-function LocalUserProfile({ settings, onSave }: { settings: AppSettings | null; onSave: (next: AppSettings) => void }) {
-  const [login, setLogin] = useState("");
-  const [displayName, setDisplayName] = useState("");
-
-  useEffect(() => {
-    setLogin(settings?.user.login ?? "");
-    setDisplayName(settings?.user.display_name ?? "");
-  }, [settings]);
-
-  if (!settings) return null;
-  const save = () => onSave({ ...settings, user: { login: login.trim(), display_name: displayName.trim() } });
-
-  return (
-    <section className="panel local-user-profile">
-      <h2>{t("Локальный пользователь")}</h2>
-      <p className="muted">{t("Профиль сохраняется локально и используется в новых чатах и запросах агента.")}</p>
-      <div className="local-profile-grid">
-        <label><span>login</span><input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" /></label>
-        <label><span>{t("Имя")}</span><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-      </div>
-      <p className="muted">{t("Пароль появится вместе с локальным входом в будущем и пока не хранится.")}</p>
-      <button type="button" onClick={save}>{t("Сохранить профиль")}</button>
-    </section>
-  );
 }
 
 function РазмерШрифта({ кегль, onChange }: { кегль: number; onChange: (value: number) => void }) {
@@ -2323,7 +2351,6 @@ const ТОН: Record<Tab, "gold" | "blue"> = {
   documents: "gold",
   capabilities: "blue",
   settings: "blue",
-  appearance: "blue",
   skills: "gold",
   dashboard: "blue",
 };
@@ -2337,20 +2364,58 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   chat: { icon: "▤", label: "чат" },
   download: { icon: "↓", label: "загрузка" },
   documents: { icon: "▧", label: "документы" },
-  settings: { icon: "◉", label: "профиль" },
-  appearance: { icon: "◐", label: "оформление" },
+  settings: { icon: "◉", label: "настройки" },
   capabilities: { icon: "✦", label: "возможности" },
   skills: { icon: "⌘", label: "навыки" },
   dashboard: { icon: "▥", label: "наблюдение" },
 };
 
-/** Меню по смыслу: работа, система, настройка, наблюдение. */
+/** Меню по смыслу: работа, система, наблюдение. Настройки и
+ *  возможности стоят отдельно внизу, рядом с режимом агента. */
 const MENU_GROUPS: { label: string; tabs: Tab[] }[] = [
   { label: "работа", tabs: ["agent", "chat"] },
-  { label: "система", tabs: ["download", "documents"] },
-  { label: "настройка", tabs: ["settings", "capabilities", "skills", "appearance"] },
+  { label: "система", tabs: ["download", "documents", "skills"] },
   { label: "наблюдение", tabs: ["dashboard"] },
 ];
+
+const DEFAULT_MAIN_MENU: Tab[] = ["agent", "chat", "download", "documents", "skills", "dashboard"];
+const DEFAULT_BOTTOM_MENU: Tab[] = ["settings", "capabilities"];
+
+/**
+ * Пользовательский порядок меню. Хранится в localStorage: это
+ * настройка вида, а не данных, и переживать смену профиля ей незачем.
+ */
+interface MenuLayout {
+  main: Tab[];
+  bottom: Tab[];
+  hidden: Tab[];
+}
+
+const MENU_STORAGE = "arkha-menu-layout";
+
+function loadMenuLayout(): MenuLayout {
+  const fallback: MenuLayout = { main: [...DEFAULT_MAIN_MENU], bottom: [...DEFAULT_BOTTOM_MENU], hidden: [] };
+  try {
+    const raw = localStorage.getItem(MENU_STORAGE);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<MenuLayout>;
+    const known = new Set(Object.keys(TAB_META));
+    const clean = (list: unknown, defaults: Tab[]): Tab[] => {
+      if (!Array.isArray(list)) return defaults;
+      const valid = list.filter((id): id is Tab => typeof id === "string" && known.has(id));
+      // Новые пункты, появившиеся после сохранения, не должны теряться.
+      for (const id of defaults) if (!valid.includes(id) && !(parsed.hidden ?? []).includes(id)) valid.push(id);
+      return valid;
+    };
+    return {
+      main: clean(parsed.main, DEFAULT_MAIN_MENU),
+      bottom: clean(parsed.bottom, DEFAULT_BOTTOM_MENU),
+      hidden: Array.isArray(parsed.hidden) ? parsed.hidden.filter((id) => known.has(id)) : [],
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 /** Одна строка о том, что выбранный режим делает. */
 const AGENT_MODE_HINT: Record<string, string> = {
@@ -2867,6 +2932,15 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [menu, setMenu] = useState<MenuLayout>(() => loadMenuLayout());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MENU_STORAGE, JSON.stringify(menu));
+    } catch {
+      // Приватный режим или запрет хранилища: меню просто не запомнится.
+    }
+  }, [menu]);
   const [agentMode, setAgentMode] = useState<"plan" | "think" | "build">("build");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [fontSize, setFontSize] = useState(14);
@@ -2932,6 +3006,28 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
     }
   }
 
+  /** Один пункт меню. Разметка одна для всех: порядок задаёт layout. */
+  const пунктМеню = (вкладка: Tab) => (
+    <Fragment key={вкладка}>
+      <button
+        type="button"
+        data-tone={ТОН[вкладка]}
+        className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
+        onClick={() => setTab(вкладка)}
+        title={t(TAB_META[вкладка].label)}
+      >
+        <span className="sidebar-icon" aria-hidden="true">{TAB_META[вкладка].icon}</span>
+        {!sidebarCollapsed && <span className="sidebar-label">{t(TAB_META[вкладка].label)}</span>}
+      </button>
+      {вкладка === "download" && (
+        <button type="button" className="sidebar-item sidebar-subitem" onClick={() => void invoke("models_open_window")}>
+          <span className="sidebar-icon" aria-hidden="true">▦</span>
+          {!sidebarCollapsed && <span className="sidebar-label">{t("модели")}</span>}
+        </button>
+      )}
+    </Fragment>
+  );
+
   useEffect(() => {
     invoke<AudioTheme>("voice_theme_settings").then((т) => setГлитчРежим(т.глитч ?? null)).catch(() => undefined);
     invoke<ProfileView>("get_profile").then(setProfile).catch((e) => setError(String(e)));
@@ -2989,31 +3085,20 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           )}
         </div>
         <nav className="sidebar-nav">
-          {MENU_GROUPS.map((group) => (
-            <Fragment key={group.label}>
-              {!sidebarCollapsed && <span className="sidebar-group">{t(group.label)}</span>}
-              {group.tabs.map((вкладка) => (
-                <Fragment key={вкладка}>
-                  <button
-                    type="button"
-                    data-tone={ТОН[вкладка]}
-                    className={tab === вкладка ? "sidebar-item active" : "sidebar-item"}
-                    onClick={() => setTab(вкладка)}
-                    title={t(TAB_META[вкладка].label)}
-                  >
-                    <span className="sidebar-icon" aria-hidden="true">{TAB_META[вкладка].icon}</span>
-                    {!sidebarCollapsed && <span className="sidebar-label">{t(TAB_META[вкладка].label)}</span>}
-                  </button>
-                  {вкладка === "download" && (
-                    <button type="button" className="sidebar-item sidebar-subitem" onClick={() => void invoke("models_open_window")}>
-                      <span className="sidebar-icon" aria-hidden="true">▦</span>
-                      {!sidebarCollapsed && <span className="sidebar-label">{t("модели")}</span>}
-                    </button>
-                  )}
-                </Fragment>
-              ))}
-            </Fragment>
-          ))}
+          {menu.main.join(",") === DEFAULT_MAIN_MENU.join(",")
+            ? MENU_GROUPS.map((group) => {
+                const visible = group.tabs.filter((вкладка) => !menu.hidden.includes(вкладка));
+                if (visible.length === 0) return null;
+                return (
+                  <Fragment key={group.label}>
+                    {!sidebarCollapsed && <span className="sidebar-group">{t(group.label)}</span>}
+                    {visible.map(пунктМеню)}
+                  </Fragment>
+                );
+              })
+            : menu.main.filter((вкладка) => !menu.hidden.includes(вкладка)).map(пунктМеню)}
+          <span className="sidebar-separator" aria-hidden="true" />
+          {menu.bottom.filter((вкладка) => !menu.hidden.includes(вкладка)).map(пунктМеню)}
         </nav>
         {!sidebarCollapsed && (
           <div className="sidebar-agent-select">
@@ -3093,30 +3178,20 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             {error && <p className="error">Не удалось определить профиль: {error}</p>}
           {/* Агент остаётся смонтированным, иначе его история и контекст
               исчезают при переходе на другую вкладку. */}
+          {tab === "agent" && <Welcome />}
           <Agent hidden={tab !== "agent"} />
           {/* Чат не размонтируется: иначе история переписки пропадала
               бы при каждом переходе на другую вкладку. Скрываем его
               через display, состояние остаётся живым. */}
           <Chat model={model} hidden={tab !== "chat"} />
-          {tab === "download" && (
-            <>
-              <ModelLibrary />
-              <EnginePanel />
-              <RuntimePanel />
-              <Downloader model={model} />
-            </>
-          )}
+          {tab === "download" && <Downloader model={model} />}
           {tab === "documents" && <DocumentsCli />}
           {tab === "capabilities" && <Capabilities />}
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
-                <LocalUserProfile settings={settings} onSave={(next) => void saveSettings(next)} />
-                <Welcome />
-              </>
-            )}
-            {tab === "appearance" && (
-              <>
+                <EnginePanel />
+                <RuntimePanel />
                 <РазмерШрифта
                   кегль={fontSize}
                   onChange={(value) => {
@@ -3125,6 +3200,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
                   }}
                 />
                 <AudioSettings глитч={глитчРежим} установитьГлитч={установитьГлитч} />
+                <MenuSettings layout={menu} onChange={setMenu} />
               </>
             )}
             {tab === "skills" && <SkillsPanel />}

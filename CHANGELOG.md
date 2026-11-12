@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0-7] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- Download tab no longer repeats the local model library: it only downloads models, the library
+  stays in the Models window.
+- Engine and runtime panels moved from Download into Settings, together with font size, sound and
+  glitch; the former Profile tab is now Settings and sits at the bottom, above the agent mode.
+- Capabilities moved to the bottom under Settings.
+- Local user panel removed: the account is created before login anyway.
+- Onboarding moved into the Secretary tab and restyled as flat cards.
+- Sidebar order and visibility are user-configurable (Settings → Menu), stored locally; a reset
+  restores the grouped default.
+
 ## [1.3.0-6] - 2026-11-12
 
 Тестовая сборка. Не релиз.

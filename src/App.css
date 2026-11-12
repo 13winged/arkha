@@ -562,6 +562,15 @@ body {
   margin-top: 0;
 }
 
+.sidebar-separator {
+  display: block;
+  height: 1px;
+  /* auto сверху прижимает настройки и возможности к низу колонки,
+     прямо над режимом агента. */
+  margin: auto 6px 8px;
+  background: var(--cp-line);
+}
+
 .sidebar-note {
   margin: 2px 0 10px;
   color: var(--cp-muted);
@@ -2108,6 +2117,69 @@ button:disabled {
   color: var(--cp-neon-green);
 }
 
+/* Настройка меню: строки с галочкой и стрелками. */
+.menu-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+}
+
+.menu-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--cp-text-dim);
+  font-size: calc(var(--кегль, 14px) * 0.8);
+}
+
+.menu-row-name input {
+  accent-color: var(--cp-neon-green);
+}
+
+.menu-row-icon {
+  width: 14px;
+  color: var(--cp-muted);
+  text-align: center;
+}
+
+.menu-row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.menu-row button.menu-arrow {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--cp-line);
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.menu-row button.menu-arrow:hover:not(:disabled) {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+  background: transparent;
+  box-shadow: none;
+}
+
 /* Остановка — единственное место, где красный на кнопке. Красный
    в палитре означает опасность, и нажатие «стоп» ею и является. */
 .stop {
@@ -2320,34 +2392,32 @@ button:disabled {
   margin-bottom: 14px;
   display: flex;
   flex-direction: column;
-  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
-  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+  clip-path: none;
 }
 
 .onb-user,
 .onb-agent {
-  max-width: 74%;
-  padding: 10px 13px;
+  max-width: 78%;
+  padding: 9px 12px;
   font-family: var(--cp-font-mono);
-  font-size: calc(var(--кегль, 14px) * 0.929);
-  font-weight: 700;
-  line-height: 1.55;
+  font-size: calc(var(--кегль, 14px) * 0.82);
+  font-weight: 400;
+  line-height: 1.5;
   border: 1px solid var(--cp-line);
-  margin-bottom: 8px;
+  background: var(--cp-bg-2);
+  margin-bottom: 6px;
   word-break: break-word;
-  clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
+  clip-path: none;
 }
 
 .onb-user {
   align-self: flex-end;
-  border-color: rgba(0, 255, 65, 0.4);
-  background: rgba(0, 255, 65, 0.08);
+  box-shadow: inset 2px 0 0 rgba(0, 255, 65, 0.5);
 }
 
 .onb-agent {
   align-self: flex-start;
-  background: var(--cp-bg-2);
-  border-color: var(--cp-neon-pink);
+  box-shadow: inset 2px 0 0 rgba(255, 0, 255, 0.4);
 }
 
 .onb-log > .onb-user:last-child,
