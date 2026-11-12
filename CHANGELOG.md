@@ -11,6 +11,8 @@
 ### Added
 
 - Models: add an existing `.gguf` file by its full path, without downloading it again.
+- Models outside the recipe catalog can be started: they use the profile's context and KV-cache,
+  and their speed is measured on launch. A downloaded file no longer has to match a recipe name.
 
 ## [1.3.0] - 2026-11-12
 

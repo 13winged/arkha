@@ -444,10 +444,6 @@ pub async fn download_model(
     crate::auth::require_authenticated()?;
     let tier = crate::profile::detect_and_persist().effective();
     let catalog = model_manager::Catalog::load()?;
-    let recipe = catalog
-        .recommended(tier)
-        .or_else(|| catalog.fallback(tier))
-        .ok_or_else(|| format!("нет рецептов для профиля {}", tier.as_str()))?;
 
     let repo = repo.unwrap_or_else(|| {
         catalog
@@ -475,17 +471,9 @@ pub async fn download_model(
     )
     .await?;
 
-    // Имя файла должно совпасть с тем, что ждёт рецепт, иначе
-    // приложение скачает модель и не сможет её запустить.
-    let expected = recipe.file.rsplit('/').next().unwrap_or(&recipe.file);
-    let got = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
-    if got != expected {
-        return Err(format!(
-            "скачан файл {got}, а рецепту «{}» нужен {expected}",
-            recipe.name
-        ));
-    }
-
+    // Имя файла может не совпадать с рецептом: человек вправе скачать
+    // другую модель. Запуск возьмёт параметры профиля для модели вне
+    // каталога, поэтому запрещать загрузку из-за имени нельзя.
     Ok(path.display().to_string())
 }
 

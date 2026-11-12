@@ -1235,11 +1235,43 @@ pub fn start_transactional_selected(
     port: u16,
     selected_model: Option<&str>,
 ) -> Result<(Sidecar, StartOutcome), String> {
-    let mut ordered: Vec<&Recipe> = catalog.for_tier(tier).iter().collect();
-    ordered.sort_by_key(|r| {
-        if selected_model == Some(r.file.as_str()) {
+    let mut ordered: Vec<Recipe> = catalog.for_tier(tier).to_vec();
+
+    // Модель вне каталога: параметры берём из первого рецепта профиля,
+    // но имя и файл — свои. Это не «рецепт-заглушка ради галочки»:
+    // контекст и KV-кэш профиля проверены на этой машине, а скорость
+    // и размещение для чужой модели неизвестны и будут измерены при
+    // запуске.
+    if let Some(name) = selected_model {
+        if !ordered.iter().any(|recipe| recipe.file == name) {
+            if model_dir.join(name).is_file() {
+                let template = catalog.for_tier(tier).first();
+                ordered.insert(
+                    0,
+                    Recipe {
+                        name: format!("{} (вне каталога)", name),
+                        file: name.to_string(),
+                        kv_cache: template
+                            .map(|recipe| recipe.kv_cache.clone())
+                            .unwrap_or_else(|| "q8_0".to_string()),
+                        context: template.map(|recipe| recipe.context).unwrap_or(16_384),
+                        full_gpu: template.map(|recipe| recipe.full_gpu).unwrap_or(false),
+                        verified: false,
+                        tok_s: None,
+                        note: Some(
+                            "модель не из каталога: контекст и KV-кэш взяты из профиля".into(),
+                        ),
+                        measured_on: None,
+                    },
+                );
+            }
+        }
+    }
+
+    ordered.sort_by_key(|recipe| {
+        if selected_model == Some(recipe.file.as_str()) {
             0
-        } else if r.verified {
+        } else if recipe.verified {
             1
         } else {
             2
@@ -1259,7 +1291,7 @@ pub fn start_transactional_selected(
     let mut attempts = Vec::new();
     for recipe in ordered {
         let model = model_dir.join(&recipe.file);
-        match start(recipe, &model, port) {
+        match start(&recipe, &model, port) {
             Ok(sidecar) => {
                 attempts.push(Attempt {
                     recipe: recipe.name.clone(),

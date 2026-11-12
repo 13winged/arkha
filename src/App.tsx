@@ -1845,16 +1845,16 @@ function ModelLibrary() {
                   value={active.name}
                   onChange={(event) => void select(event.target.value)}
                 >
-                  {variants.map((variant) => (
+                    {variants.map((variant) => (
                     <option key={variant.name} value={variant.name}>
-                      {quantization(variant.name)} · {gib(variant.sizeBytes)}{variant.supported ? "" : ` · ${t("нет рецепта")}`}
+                      {quantization(variant.name)} · {gib(variant.sizeBytes)}{variant.supported ? "" : ` · ${t("вне каталога")}`}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="runtime-path" title={active.path}>{active.path}</div>
               <div className="model-family-footer">
-                <span className="runtime-meta">{gib(active.sizeBytes)} · {active.supported ? t("рецепт найден") : t("нет рецепта профиля")}</span>
+                <span className="runtime-meta">{gib(active.sizeBytes)} · {active.supported ? t("рецепт найден") : t("вне каталога, параметры профиля")}</span>
                 <button
                   type="button"
                   className={`model-select ${active.active ? "selected" : ""}`}

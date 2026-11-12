@@ -329,6 +329,8 @@ const EN: Record<string, string> = {
   "Полный путь к файлу .gguf": "Full path to a .gguf file",
   "Добавляем…": "Adding…",
   "Добавить": "Add",
+  "вне каталога": "outside the catalog",
+  "вне каталога, параметры профиля": "outside the catalog, profile parameters",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",
   "токенов": "tokens",
