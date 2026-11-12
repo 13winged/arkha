@@ -135,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "arkha"
-version = "1.3.0-16"
+version = "1.3.0-17"
 dependencies = [
  "argon2",
  "audioadapter-buffers",

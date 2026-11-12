@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0-17] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- One selection language across the app: green frame, pulsing glow and a corner check badge on
+  profile tiers, context chips, voice toggles, model rows, glitch buttons, onboarding choices and
+  the wide-disk option.
+- Errors share one look too: red frame, pulsing glow, an exclamation badge and a stepped
+  broken-pixel grid animation.
+
 ## [1.3.0-16] - 2026-11-12
 
 Тестовая сборка. Не релиз.
