@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0-4] - 2026-11-12
+
+Тестовая сборка для проверки документов. Не релиз.
+
+### Changed
+
+- Documents panel follows the ArtCraft card layout: thin border, small uppercase kicker with
+  version, size and state, description, action at the bottom. Other ArtCraft apps use the same grid.
+- Section headings inside panels are small uppercase labels separated by a rule.
+- Glitch effect is vertical and quieter: narrow left and right columns instead of horizontal slices,
+  vertical displacement instead of sideways shake, longer cycles. Aggressive mode dropped from
+  5 px / 0.2 s to 2 px / 1.2 s, subtle from 1 px / 5 s to 1 px / 8 s.
+
 ## [1.3.0-3] - 2026-11-12
 
 Тестовая сборка для проверки документов. Не релиз.

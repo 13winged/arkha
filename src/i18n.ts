@@ -281,6 +281,7 @@ const EN: Record<string, string> = {
   "Документы": "Documents",
   "Для docx, pdf, xlsx и pptx нужен отдельный CLI ArtCraft. Он не входит в установщик: скачайте только те форматы, которыми пользуетесь.": "docx, pdf, xlsx and pptx need a separate ArtCraft CLI. It is not bundled: download only the formats you use.",
   "установлен": "installed",
+  "не установлен": "not installed",
   "Скачиваем…": "Downloading…",
   "Загружаем": "Downloading",
   "МБ": "MB",

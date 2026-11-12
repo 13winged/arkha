@@ -891,26 +891,28 @@ function DocumentsCli() {
       <p className="muted">
         {t("Для docx, pdf, xlsx и pptx нужен отдельный CLI ArtCraft. Он не входит в установщик: скачайте только те форматы, которыми пользуетесь.")}
       </p>
-      <ul className="docs-cli-list">
+      <ul className="docs-cli-grid">
         {items.map((item) => (
-          <li key={item.app} className="docs-cli-row">
-            <div className="docs-cli-copy">
-              <div className="docs-cli-title">
-                <strong>{item.title}</strong>
-                <span className="muted"> {item.version} · {item.downloadMb} {t("МБ")}</span>
-                {item.installed && <span className="docs-cli-ok"> {t("установлен")}</span>}
-              </div>
-              <span className="docs-cli-purpose">{t(DOCS_CLI_PURPOSE[item.app] ?? "")}</span>
+          <li key={item.app} className={`docs-cli-card${item.installed ? " ready" : ""}`}>
+            <div className="docs-cli-kicker">
+              <span>v{item.version}</span>
+              <span>{item.downloadMb} {t("МБ")}</span>
+              <span className="docs-cli-state">{item.installed ? t("установлен") : t("не установлен")}</span>
             </div>
-            {!item.installed && (
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void download(item.app)}
-              >
-                {busy === item.app ? t("Скачиваем…") : t("Скачать")}
-              </button>
-            )}
+            <div className="docs-cli-name">{item.title}</div>
+            <p className="docs-cli-purpose">{t(DOCS_CLI_PURPOSE[item.app] ?? "")}</p>
+            <div className="docs-cli-action">
+              {!item.installed && (
+                <button
+                  type="button"
+                  className="docs-btn"
+                  disabled={busy !== null}
+                  onClick={() => void download(item.app)}
+                >
+                  {busy === item.app ? t("Скачиваем…") : t("Скачать")}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
@@ -931,18 +933,16 @@ function DocumentsCli() {
       <p className="muted">
         {t("ArkHa их пока не использует. Поставить и обновлять их можно официальным ArtCraft Launcher.")}
       </p>
-      <ul className="docs-cli-list">
+      <ul className="docs-cli-grid compact">
         {OTHER_APPS.map((app) => (
-          <li key={app.title} className="docs-cli-row static">
-            <div className="docs-cli-copy">
-              <div className="docs-cli-title"><strong>{app.title}</strong></div>
-              <span className="docs-cli-purpose">{t(app.purpose)}</span>
-            </div>
+          <li key={app.title} className="docs-cli-card static">
+            <div className="docs-cli-name">{app.title}</div>
+            <p className="docs-cli-purpose">{t(app.purpose)}</p>
           </li>
         ))}
       </ul>
       <div className="docs-cli-launcher">
-        <button type="button" disabled={launcherBusy} onClick={() => void downloadLauncher()}>
+        <button type="button" className="docs-btn" disabled={launcherBusy} onClick={() => void downloadLauncher()}>
           {launcherBusy
             ? t("Скачиваем…")
             : launcherPath

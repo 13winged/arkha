@@ -249,15 +249,10 @@
 
 @keyframes cp-shake {
   0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(calc(var(--cp-glitch-intensity) * -1), calc(var(--cp-glitch-intensity) * 0.5)); }
-  20% { transform: translate(var(--cp-glitch-intensity), calc(var(--cp-glitch-intensity) * -1)); }
-  30% { transform: translate(calc(var(--cp-glitch-intensity) * -0.5), var(--cp-glitch-intensity)); }
-  40% { transform: translate(var(--cp-glitch-intensity) * 0.5, calc(var(--cp-glitch-intensity) * -0.5)); }
-  50% { transform: translate(0, 0); }
-  60% { transform: translate(calc(var(--cp-glitch-intensity) * -1), 0); }
-  70% { transform: translate(0, calc(var(--cp-glitch-intensity) * -1)); }
-  80% { transform: translate(var(--cp-glitch-intensity), calc(var(--cp-glitch-intensity) * 0.5)); }
-  90% { transform: translate(calc(var(--cp-glitch-intensity) * 0.5), calc(var(--cp-glitch-intensity) * -0.5)); }
+  20% { transform: translate(0, calc(var(--cp-glitch-intensity) * -1)); }
+  40% { transform: translate(0, var(--cp-glitch-intensity)); }
+  60% { transform: translate(calc(var(--cp-glitch-intensity) * 0.2), calc(var(--cp-glitch-intensity) * -0.5)); }
+  80% { transform: translate(0, calc(var(--cp-glitch-intensity) * 0.5)); }
 }
 
 /* RGB-split копии текста через псевдоэлементы.
@@ -282,7 +277,10 @@
   color: var(--cp-neon-red);
   left: var(--cp-glitch-intensity);
   text-shadow: 1px 0 var(--cp-neon-pink);
-  clip-path: polygon(0 0, 100% 0, 100% 40%, 0 40%, 0 0);
+  /* Вертикальная полоса слева, а не горизонтальный срез: эффект
+     читается как сбой колонки, а не как порванная строка. */
+  clip-path: inset(0 74% 0 0);
+  opacity: 0.55;
   animation: cp-glitch-red var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
@@ -291,25 +289,24 @@
   color: var(--cp-neon-pink);
   left: calc(var(--cp-glitch-intensity) * -1);
   text-shadow: -1px 0 var(--cp-neon-green);
-  clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%, 0 60%);
+  clip-path: inset(0 0 0 70%);
+  opacity: 0.55;
   animation: cp-glitch-pink var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
 
 @keyframes cp-glitch-red {
-  0%, 100% { clip-path: polygon(0 0, 100% 0, 100% 10%, 0 10%, 0 0); transform: translate(0, 0); }
-  25% { clip-path: polygon(0 30%, 100% 30%, 100% 40%, 0 40%, 0 30%); transform: translate(2px, 0); }
-  50% { clip-path: polygon(0 60%, 100% 60%, 100% 70%, 0 70%, 0 60%); transform: translate(-1px, 0); }
-  75% { clip-path: polygon(0 15%, 100% 15%, 100% 25%, 0 25%, 0 15%); transform: translate(1px, 0); }
-  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0); transform: translate(0, 0); }
+  0%, 100% { clip-path: inset(0 74% 0 0); transform: translate(-1px, 0); }
+  25% { clip-path: inset(0 82% 0 0); transform: translate(-1px, -2px); }
+  50% { clip-path: inset(0 66% 0 6%); transform: translate(0, 2px); }
+  75% { clip-path: inset(0 78% 0 0); transform: translate(-1px, -1px); }
 }
 
 @keyframes cp-glitch-pink {
-  0%, 100% { clip-path: polygon(0 80%, 100% 80%, 100% 100%, 0 100%, 0 80%); transform: translate(0, 0); }
-  20% { clip-path: polygon(0 10%, 100% 10%, 100% 20%, 0 20%, 0 10%); transform: translate(-2px, 0); }
-  40% { clip-path: polygon(0 50%, 100% 50%, 100% 60%, 0 60%, 0 50%); transform: translate(2px, 0); }
-  60% { clip-path: polygon(0 35%, 100% 35%, 100% 45%, 0 45%, 0 35%); transform: translate(-1px, 0); }
-  80% { clip-path: polygon(0 75%, 100% 75%, 100% 85%, 0 85%, 0 75%); transform: translate(1px, 0); }
-  100% { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%, 0 100%); transform: translate(0, 0); }
+  0%, 100% { clip-path: inset(0 0 0 70%); transform: translate(1px, 0); }
+  20% { clip-path: inset(0 0 0 62%); transform: translate(1px, 2px); }
+  40% { clip-path: inset(4% 0 0 74%); transform: translate(0, -2px); }
+  60% { clip-path: inset(0 0 8% 68%); transform: translate(1px, 1px); }
+  80% { clip-path: inset(0 0 0 76%); transform: translate(0, -1px); }
 }
 
 /* Заголовки тоже трясутся, без правки каждого в App.tsx */
@@ -363,21 +360,23 @@
   box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
-/* Режимы интенсивности — класс прямо на корне (.glitch-subtle или .glitch-aggressive) */
+/* Режимы интенсивности — класс прямо на корне (.glitch-subtle или .glitch-aggressive).
+   Значения намеренно тихие: эффект должен читаться как сбой сигнала,
+   а не мешать читать. */
 .glitch-subtle {
-  --cp-glitch-dur: 5s;
+  --cp-glitch-dur: 8s;
   --cp-glitch-intensity: 1px;
 }
 
 .glitch-aggressive {
-  --cp-glitch-dur: 0.2s;
-  --cp-glitch-intensity: 5px;
+  --cp-glitch-dur: 1.2s;
+  --cp-glitch-intensity: 2px;
 }
 
 /* Режим по умолчанию — анимации отключены */
 .glitch-on:not(.glitch-subtle):not(.glitch-aggressive) {
-  --cp-glitch-dur: 1.5s;
-  --cp-glitch-intensity: 3px;
+  --cp-glitch-dur: 3s;
+  --cp-glitch-intensity: 2px;
 }
 
 /* ---------------------------------------------------------------
@@ -1171,6 +1170,20 @@ h3 {
 /* ---------------------------------------------------------------
    Панели
    --------------------------------------------------------------- */
+
+/* Заголовок секции как у ArtCraft: маленькая разреженная строка с
+   линейкой сверху. Цвет тихий — акцент остаётся за содержимым. */
+.panel h3 {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-line);
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.72);
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
 
 .panel {
   max-width: 1160px;
@@ -2534,53 +2547,107 @@ button:disabled {
   transition: width var(--поворот);
 }
 
-.docs-cli-list {
+.docs-cli-grid {
   display: grid;
-  gap: 6px;
-  margin: 8px 0 0;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.docs-cli-row {
+/* Карточка как у ArtCraft: тонкая рамка, тихая заливка, подпись
+   сверху и действие внизу. Палитра наша: зелёный только на рамке,
+   статусе и кнопке. */
+.docs-cli-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 118px;
+  padding: 10px 12px;
+  border: 1px solid var(--cp-line);
+  background:
+    linear-gradient(180deg, rgba(0, 255, 65, 0.03), transparent 48%),
+    var(--cp-bg-2);
+  transition: border-color var(--ход), background var(--ход);
+}
+
+.docs-cli-card:hover {
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.docs-cli-card.ready {
+  border-color: rgba(0, 255, 65, 0.22);
+}
+
+.docs-cli-grid.compact .docs-cli-card {
+  min-height: 0;
+}
+
+.docs-cli-kicker {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  padding: 7px 9px;
-  border: 1px solid var(--cp-line);
-  background: var(--cp-bg);
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.64);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.docs-cli-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
+.docs-cli-state {
+  margin-left: auto;
+  color: var(--cp-text-dim);
 }
 
-.docs-cli-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px;
+.docs-cli-card.ready .docs-cli-state {
+  color: var(--cp-neon-green);
 }
 
-.docs-cli-copy strong {
+.docs-cli-name {
   color: var(--cp-text);
+  font-family: var(--cp-font-display);
+  font-size: calc(var(--кегль, 14px) * 1.14);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .docs-cli-purpose {
+  margin: 0;
   color: var(--cp-text-dim);
-  font-size: 0.85em;
+  font-size: calc(var(--кегль, 14px) * 0.8);
+  line-height: 1.4;
 }
 
-.docs-cli-ok {
+.docs-cli-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.docs-btn {
+  appearance: none;
+  min-width: 112px;
+  padding: 7px 12px;
+  border: 1px solid var(--cp-neon-green);
+  background: transparent;
   color: var(--cp-neon-green);
-  font-size: 0.85em;
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.7);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ход), color var(--ход), opacity var(--ход);
 }
 
-.docs-cli-row.static {
-  justify-content: flex-start;
+.docs-btn:hover:not(:disabled) {
+  background: var(--cp-neon-green);
+  color: #041006;
+}
+
+.docs-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .docs-cli-launcher {
@@ -2588,7 +2655,7 @@ button:disabled {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .problems {
