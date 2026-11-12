@@ -7,7 +7,7 @@
 
 use serde::Serialize;
 
-use crate::permissions::{ApprovalMode, Executor, Settings};
+use crate::permissions::{ApprovalMode, CapabilityRule, Executor, Settings};
 
 /// Разрешение, готовое к показать: значение, название и объяснение.
 #[derive(Debug, Clone, Serialize)]
@@ -153,8 +153,91 @@ pub fn permission_settings(lang: Option<String>) -> Result<SettingsView, String>
     Ok(view_lang(&s, lang.as_deref() == Some("en")))
 }
 
-pub fn view(s: &Settings) -> SettingsView {
-    // Предупреждение не оценочное суждение, а конкретное следствие
+/// Возможность и её текущее разрешение.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapabilityToggle {
+    pub id: String,
+    pub name: String,
+    pub enabled: bool,
+    pub side_effecting: bool,
+}
+
+fn capabilities_from(s: &Settings) -> Result<Vec<CapabilityToggle>, String> {
+    let registry = crate::capabilities::Registry::load()?;
+    Ok(registry
+        .capabilities
+        .iter()
+        .map(|capability| {
+            let enabled = s
+                .capabilities
+                .get(&capability.id)
+                .map(|rule| rule.enabled)
+                .unwrap_or(!s.is_side_effecting(&capability.id));
+            CapabilityToggle {
+                id: capability.id.clone(),
+                name: capability.name.clone(),
+                enabled,
+                side_effecting: s.is_side_effecting(&capability.id),
+            }
+        })
+        .collect())
+}
+
+/// Какие возможности включены сейчас. Читается панелью разрешений.
+#[tauri::command]
+pub fn permission_capabilities() -> Result<Vec<CapabilityToggle>, String> {
+    crate::auth::require_authenticated()?;
+    capabilities_from(&Settings::load()?)
+}
+
+/// Включить или выключить возможность. Вызывает человек, не агент.
+#[tauri::command]
+pub fn permission_set_capability(
+    id: String,
+    enabled: bool,
+) -> Result<Vec<CapabilityToggle>, String> {
+    crate::auth::require_authenticated()?;
+    let mut settings = Settings::load()?;
+    let registry = crate::capabilities::Registry::load()?;
+    if !registry.capabilities.iter().any(|capability| capability.id == id) {
+        return Err(format!("неизвестная возможность: {id}"));
+    }
+    settings
+        .capabilities
+        .insert(id, CapabilityRule { enabled, mode: None });
+    crate::onboarding::save(&settings)?;
+    capabilities_from(&settings)
+}
+
+#[tauri::command]
+pub fn permission_set_executor(value: String) -> Result<SettingsView, String> {
+    crate::auth::require_authenticated()?;
+    let mut settings = Settings::load()?;
+    settings.executor = match value.as_str() {
+        "dry-run" => Executor::DryRun,
+        "live" => Executor::Live,
+        other => return Err(format!("неизвестный режим выполнения: {other}")),
+    };
+    crate::onboarding::save(&settings)?;
+    Ok(view(&settings))
+}
+
+#[tauri::command]
+pub fn permission_set_approval(value: String) -> Result<SettingsView, String> {
+    crate::auth::require_authenticated()?;
+    let mut settings = Settings::load()?;
+    settings.approval_mode = match value.as_str() {
+        "actions" => ApprovalMode::Risky,
+        "all" => ApprovalMode::Confirm,
+        "never" => ApprovalMode::Auto,
+        other => return Err(format!("неизвестный режим подтверждений: {other}")),
+    };
+    crate::onboarding::save(&settings)?;
+    Ok(view(&settings))
+}
+
+pub fn view(s: &Settings) -> SettingsView {    // Предупреждение не оценочное суждение, а конкретное следствие
     // режима: пользователь должен понимать, что именно он разрешил.
     let warning = match s.executor {
         Executor::Live => Some(

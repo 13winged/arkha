@@ -4125,6 +4125,99 @@ details[open] summary {
   gap: 8px;
 }
 
+/* Разрешения */
+.perm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 8px 0 14px;
+}
+
+.perm-row label {
+  display: grid;
+  gap: 4px;
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.perm-row select {
+  padding: 6px 8px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.perm-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.perm-item {
+  padding: 6px 10px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+}
+
+.perm-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cp-text-dim);
+  font-size: 0.82rem;
+}
+
+.perm-item input {
+  accent-color: var(--cp-neon-green);
+}
+
+.perm-item .muted {
+  margin-left: auto;
+  font-size: 0.7rem;
+}
+
+/* Уведомление о завершении запроса */
+.app-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 54px;
+  z-index: 6000;
+  display: grid;
+  gap: 4px;
+  max-width: min(420px, 70vw);
+  padding: 10px 12px;
+  border: 1px solid var(--cp-neon-green);
+  background: var(--cp-bg-2);
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.25);
+  animation: toast-in 180ms ease-out;
+}
+
+.app-toast b {
+  color: var(--cp-neon-green);
+  font-family: var(--cp-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.app-toast span {
+  color: var(--cp-text-dim);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
 .dashboard {
   max-width: none;
   width: 100%;

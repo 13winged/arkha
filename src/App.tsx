@@ -1079,6 +1079,108 @@ function MenuSettings({ layout, onChange }: { layout: MenuLayout; onChange: (nex
   );
 }
 
+interface CapabilityToggle {
+  id: string;
+  name: string;
+  enabled: boolean;
+  sideEffecting: boolean;
+}
+
+/**
+ * Разрешения: режим выполнения, подтверждения и опасные возможности.
+ *
+ * Без этой панели их можно было задать только в знакомстве. Человек,
+ * пропустивший шаг или передумавший, оставался с «не разрешено явно»
+ * и не мог ничего изменить.
+ */
+function Permissions() {
+  const [view, setView] = useState<{
+    executor: { value: string };
+    approval_mode: { value: string };
+  } | null>(null);
+  const [caps, setCaps] = useState<CapabilityToggle[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<{ executor: { value: string }; approval_mode: { value: string } }>("permission_settings", { lang: язык() })
+      .then(setView)
+      .catch((reason) => setError(String(reason)));
+    invoke<CapabilityToggle[]>("permission_capabilities")
+      .then(setCaps)
+      .catch((reason) => setError(String(reason)));
+  }, []);
+
+  async function setExecutor(value: string) {
+    try {
+      setView(await invoke("permission_set_executor", { value }));
+    } catch (reason) {
+      setError(String(reason));
+    }
+  }
+
+  async function setApproval(value: string) {
+    try {
+      setView(await invoke("permission_set_approval", { value }));
+    } catch (reason) {
+      setError(String(reason));
+    }
+  }
+
+  async function toggle(id: string, enabled: boolean) {
+    try {
+      setCaps(await invoke<CapabilityToggle[]>("permission_set_capability", { id, enabled }));
+    } catch (reason) {
+      setError(String(reason));
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>{t("Разрешения")}</h2>
+      {error && <p className="error">{error}</p>}
+
+      {view && (
+        <div className="perm-row">
+          <label>
+            <span>{t("Режим выполнения")}</span>
+            <select value={view.executor.value} onChange={(event) => void setExecutor(event.currentTarget.value)}>
+              <option value="dry-run">{t("только показывать")}</option>
+              <option value="live">{t("выполнять")}</option>
+            </select>
+          </label>
+          <label>
+            <span>{t("Подтверждения")}</span>
+            <select value={view.approval_mode.value} onChange={(event) => void setApproval(event.currentTarget.value)}>
+              <option value="actions">{t("спрашивать, когда меняет")}</option>
+              <option value="all">{t("спрашивать всегда")}</option>
+              <option value="never">{t("не спрашивать")}</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      {caps && (
+        <ul className="perm-list">
+          {caps.filter((capability) => capability.sideEffecting).map((capability) => (
+            <li key={capability.id} className="perm-item">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={capability.enabled}
+                  onChange={(event) => void toggle(capability.id, event.target.checked)}
+                />
+                <span>{capability.name}</span>
+                <span className="muted">{capability.id}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted">{t("Действия требуют включения: чтение работает без галочек.")}</p>
+    </section>
+  );
+}
+
 function Settings({ profile, onChange }: {
   profile: ProfileView;
   onChange: (p: ProfileView) => void;
@@ -3273,6 +3375,24 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
   const [, перерисовать] = useState(0);
   const [глитчРежим, setГлитчРежим] = useState<string | null>(null);
   const [voiceCommand, setVoiceCommand] = useState<{ id: number; text: string } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  // Уведомление о завершении запроса агента. Человек мог отойти или
+  // говорить в микрофон, поэтому конец работы должен быть виден сам,
+  // а не только в журнале на вкладке.
+  useEffect(() => {
+    const off = listen<{ answer?: string; stop_reason?: string; error?: string | null }>("agent:done", (event) => {
+      const text = (event.payload.answer || event.payload.stop_reason || "").trim();
+      setToast(text ? text.slice(0, 220) : t("Готово"));
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+      toastTimer.current = window.setTimeout(() => setToast(null), 7000);
+    });
+    return () => {
+      void off.then((stop) => stop());
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   // Распознанная речь идёт в агента, а не в поле ввода: человек
   // говорит «открой chrome» и ждёт действия, а не текста.
@@ -3484,6 +3604,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             {tab === "settings" && profile && (
               <>
                 <Settings profile={profile} onChange={setProfile} />
+                <Permissions />
                 <EnginePanel />
                 <RuntimePanel />
                 <РазмерШрифта
@@ -3508,6 +3629,12 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
           <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
         </footer>
+        {toast && (
+          <div className="app-toast" role="status">
+            <b>{t("Готово")}</b>
+            <span>{toast}</span>
+          </div>
+        )}
       </div>
     </main>
   );

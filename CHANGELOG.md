@@ -22,9 +22,13 @@
 
 ### Changed
 
+- Settings now has a Permissions panel: execution mode, approval mode and checkboxes for risky
+  capabilities. Previously they could only be set during onboarding, so `apps.launch` stayed
+  disabled with no way to enable it later.
 - Push-to-talk hotkey is now `Ctrl+G`; an old saved `Ctrl+Alt+M` is treated as the new default.
 - App launching can find almost any installed program: Windows `App Paths`, Start Menu shortcuts
   (including `.lnk` launch) and a cached walk of the install folders.
+- A toast appears when an agent request finishes, showing the answer or the stop reason.
 
 ### Fixed
 
