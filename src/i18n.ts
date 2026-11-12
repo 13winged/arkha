@@ -301,6 +301,8 @@ const EN: Record<string, string> = {
   "Обычный": "Normal",
   "Жёсткий": "Hard",
   "Тест скорости": "Speed test",
+  "Тест скорости модели": "Model speed test",
+  "Модель выбирается в разделе": "Choose the model in",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",
   "токенов": "tokens",

@@ -2436,7 +2436,7 @@ function ModelDock({
           disabled={!model.running || benchBusy}
           onClick={() => void runBench()}
         >
-          {benchBusy ? t("Тестируем…") : t("Тест скорости")}
+          {benchBusy ? t("Тестируем…") : t("Тест скорости модели")}
         </button>
         {bench && (
           <span className="model-dock-bench-result">
@@ -2444,6 +2444,14 @@ function ModelDock({
           </span>
         )}
         {benchError && <span className="error">{benchError}</span>}
+        {/* Памятка рядом с кнопкой: человек ищет выбор модели здесь, а
+            он живёт в отдельном окне «Модели». */}
+        <p className="model-dock-hint">
+          {t("Модель выбирается в разделе")}{" "}
+          <button type="button" className="link" onClick={() => void invoke("models_open_window")}>
+            {t("Модели")}
+          </button>
+        </p>
       </div>
       <div className="model-dock-voice">
         <div className="model-dock-kicker">// AUDIO.SUBSYSTEM</div>

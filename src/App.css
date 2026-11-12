@@ -3742,6 +3742,28 @@ kbd.cap,
   letter-spacing: 0.04em;
 }
 
+.model-dock-hint {
+  margin: 2px 0 0;
+  color: var(--cp-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.model-dock-hint .link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-text-dim);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.model-dock-hint .link:hover {
+  color: var(--cp-neon-green);
+}
+
 .model-dock-account-name {
   overflow: hidden;
   color: var(--cp-text-dim);

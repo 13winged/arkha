@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0-15] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- The speed test is called "Model speed test" and now carries a reminder under it: the model is
+  chosen in the Models section, with a link that opens that window.
+
 ## [1.3.0-14] - 2026-11-12
 
 Тестовая сборка. Не релиз.
