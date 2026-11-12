@@ -84,7 +84,15 @@ pub fn obs_dashboard(limit: Option<usize>) -> Result<DashboardSummary, String> {
     }
 
     let avg_latency_ms = if latencies.is_empty() {
-        None
+        // Спаны старых записей могли не нести latency_ms, а метрика
+        // пишется всегда. Берём среднее из метрик, если оно есть.
+        conn.query_row(
+            "SELECT AVG(value), COUNT(*) FROM obs_metrics WHERE name = 'latency_ms'",
+            [],
+            |row| Ok((row.get::<_, Option<f64>>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .ok()
+        .and_then(|(average, count)| if count > 0 { average } else { None })
     } else {
         Some(latencies.iter().sum::<f64>() / latencies.len() as f64)
     };

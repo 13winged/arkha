@@ -728,6 +728,7 @@ pub async fn chat(
     request_id: Option<u64>,
 ) -> Result<u64, String> {
     crate::auth::require_authenticated()?;
+    let started = std::time::Instant::now();
     let base = sidecar.base_url()?;
     let user = crate::settings::settings_get()?.user;
     let mut messages = messages;
@@ -940,7 +941,97 @@ pub async fn chat(
         },
     );
 
+    record_chat_observability(prompt_tokens, completion_tokens, tok_s, started.elapsed());
+
     Ok(request_id)
+}
+
+/// Записать один обмен в наблюдение.
+///
+/// Дашборд до этого показывал нули: таблицы `obs_*` существовали, но
+/// чат в них ничего не писал. Ошибки записи здесь намеренно
+/// проглатываются: сломанная телеметрия не должна ломать ответ,
+/// который уже показан человеку.
+fn record_chat_observability(
+    prompt_tokens: Option<u32>,
+    completion_tokens: Option<u32>,
+    tok_s: Option<f32>,
+    elapsed: std::time::Duration,
+) {
+    use crate::memory::{observability, sqlite};
+
+    let Ok(roots) = crate::user_data::current_roots() else {
+        return;
+    };
+    let Ok(conn) = sqlite::open(&roots.memory_db) else {
+        return;
+    };
+
+    let latency = elapsed.as_millis() as f64;
+    let tokens = f64::from(completion_tokens.unwrap_or(0));
+    let tags = serde_json::json!({ "source": "chat" });
+
+    let Ok(trace) = observability::start_trace(&conn, "chat", &tags) else {
+        return;
+    };
+
+    let _ = observability::record_metric(
+        &conn,
+        "tokens_used",
+        tokens,
+        Some("tokens"),
+        &tags,
+        Some(&trace),
+        None,
+    );
+    let _ = observability::record_metric(
+        &conn,
+        "latency_ms",
+        latency,
+        Some("ms"),
+        &tags,
+        Some(&trace),
+        None,
+    );
+    if let Some(prompt) = prompt_tokens {
+        let _ = observability::record_metric(
+            &conn,
+            "prompt_tokens",
+            f64::from(prompt),
+            Some("tokens"),
+            &tags,
+            Some(&trace),
+            None,
+        );
+    }
+    if let Some(speed) = tok_s {
+        let _ = observability::record_metric(
+            &conn,
+            "tok_per_second",
+            f64::from(speed),
+            Some("tok/s"),
+            &tags,
+            Some(&trace),
+            None,
+        );
+    }
+
+    if let Ok(span) = observability::start_span(
+        &conn,
+        &trace,
+        "chat.turn",
+        &serde_json::json!({ "prompt_tokens": prompt_tokens }),
+        &tags,
+        None,
+    ) {
+        let output = serde_json::json!({
+            "tokens": tokens,
+            "latency_ms": latency,
+            "tok_per_second": tok_s,
+        });
+        let _ = observability::end_span(&conn, &span, &output, "ok", None);
+    }
+    let _ = observability::end_trace(&conn, &trace, "ok", None);
 }
 
 /// Склеивает части одного вызова инструмента, приходящие потоком.

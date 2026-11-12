@@ -3596,6 +3596,55 @@ kbd.cap,
   padding-left: 2px;
 }
 
+.msg-text {
+  white-space: pre-wrap;
+}
+
+.msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cp-line);
+}
+
+.msg-speak {
+  padding: 4px 8px;
+  border: 1px solid var(--cp-line);
+  background: transparent;
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.msg-speak:hover:not(:disabled) {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+}
+
+.msg-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.msg-speed select {
+  padding: 2px 6px;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text-dim);
+  font: inherit;
+}
+
 .model-panel {
   width: min(720px, 100%);
   margin-left: auto;

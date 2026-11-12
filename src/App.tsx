@@ -1191,6 +1191,8 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentView[]>([]);
+  const [speechSpeed, setSpeechSpeed] = useState(1);
+  const [speaking, setSpeaking] = useState<number | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
 
@@ -1290,13 +1292,50 @@ function Chat({ model, hidden }: { model: ModelStatus; hidden?: boolean }) {
     }
   }
 
+  async function speak(index: number, text: string) {
+    setSpeaking(index);
+    setNotice(null);
+    try {
+      await invoke("voice_say", { text, speed: speechSpeed });
+    } catch (reason) {
+      setNotice(String(reason));
+    } finally {
+      setSpeaking(null);
+    }
+  }
+
   return (
     <section className="chat chat-panel" style={hidden ? { display: "none" } : undefined}>
       <div className="cyber-window-topline" aria-hidden="true">[ ARKHA // MODEL CHAT ] ---- CONTEXT LINK ---- [ ONLINE ]</div>
       <h2>Чат с моделью</h2>
       <div className="messages">
         {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.role}`}>{m.content || "…"}</div>
+          <div key={i} className={`msg ${m.role}`}>
+            <div className="msg-text">{m.content || "…"}</div>
+            {m.role === "assistant" && m.content.trim() && (
+              <div className="msg-actions">
+                <button
+                  type="button"
+                  className="msg-speak"
+                  disabled={speaking !== null}
+                  onClick={() => void speak(i, m.content)}
+                >
+                  {speaking === i ? t("Озвучиваем…") : t("Озвучить")}
+                </button>
+                <label className="msg-speed" title={t("скорость")}>
+                  <span>{t("скорость")}</span>
+                  <select
+                    value={speechSpeed}
+                    onChange={(event) => setSpeechSpeed(Number(event.currentTarget.value))}
+                  >
+                    {[0.75, 1, 1.25, 1.5].map((value) => (
+                      <option key={value} value={value}>{value}×</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+          </div>
         ))}
         <div ref={bottom} />
       </div>

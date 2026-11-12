@@ -334,6 +334,8 @@ const EN: Record<string, string> = {
   "Проверить": "Test",
   "Проверяем…": "Testing…",
   "контекст": "context",
+  "Озвучиваем…": "Speaking…",
+  "Озвучить": "Speak",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",
   "токенов": "tokens",
