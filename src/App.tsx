@@ -1757,6 +1757,8 @@ function ModelLibrary() {
   const [error, setError] = useState<string | null>(null);
   const [importPath, setImportPath] = useState("");
   const [importing, setImporting] = useState(false);
+  const [probing, setProbing] = useState<string | null>(null);
+  const [probeNote, setProbeNote] = useState<string | null>(null);
 
   const refresh = () => {
     invoke<LocalModel[]>("models_list")
@@ -1777,6 +1779,21 @@ function ModelLibrary() {
       setError(String(reason));
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function probe(name: string) {
+    setProbing(name);
+    setError(null);
+    setProbeNote(null);
+    try {
+      const result = await invoke<{ tokS: number; context: number }>("model_probe", { name });
+      setModels(await invoke<LocalModel[]>("models_list"));
+      setProbeNote(`${name}: ${result.tokS.toFixed(1)} ${t("ток/с")}, ${t("контекст")} ${result.context}`);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setProbing(null);
     }
   }
 
@@ -1828,6 +1845,7 @@ function ModelLibrary() {
         </button>
       </div>
       {error && <p className="error">{error}</p>}
+      {probeNote && <p className="muted">{probeNote}</p>}
       {!models && !error && <p className="muted">{t("Сканируем папку моделей…")}</p>}
       {models && models.length === 0 && <p className="muted">{t("GGUF-моделей пока нет")}</p>}
       <div className="model-library-list">
@@ -1855,14 +1873,24 @@ function ModelLibrary() {
               <div className="runtime-path" title={active.path}>{active.path}</div>
               <div className="model-family-footer">
                 <span className="runtime-meta">{gib(active.sizeBytes)} · {active.supported ? t("рецепт найден") : t("вне каталога, параметры профиля")}</span>
-                <button
-                  type="button"
-                  className={`model-select ${active.active ? "selected" : ""}`}
-                  disabled={active.active}
-                  onClick={() => void select(active.name)}
-                >
-                  {active.active ? t("выбрана") : t("выбрать")}
-                </button>
+                <div className="model-family-actions">
+                  <button
+                    type="button"
+                    className="chip"
+                    disabled={probing !== null}
+                    onClick={() => void probe(active.name)}
+                  >
+                    {probing === active.name ? t("Проверяем…") : t("Проверить")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`model-select ${active.active ? "selected" : ""}`}
+                    disabled={active.active}
+                    onClick={() => void select(active.name)}
+                  >
+                    {active.active ? t("выбрана") : t("выбрать")}
+                  </button>
+                </div>
               </div>
             </article>
           );

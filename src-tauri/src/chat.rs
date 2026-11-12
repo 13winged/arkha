@@ -587,6 +587,134 @@ pub async fn model_bench(sidecar: State<'_, SidecarState>) -> Result<BenchResult
     })
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProbeResult {
+    pub tok_s: f32,
+    pub context: u32,
+    pub kv_cache: String,
+    pub recipe: String,
+}
+
+/// Подобрать рецепт для модели: запустить, измерить, сохранить.
+///
+/// Запускает отдельную копию сайдкара на свободном порту: проверять
+/// модель при работающей другой нельзя, порт уже занят. После замера
+/// процесс гасится, а параметры и скорость сохраняются в
+/// `recipes.user.json` и попадают в каталог при следующей загрузке.
+#[tauri::command]
+pub async fn model_probe(
+    sidecar: State<'_, SidecarState>,
+    name: String,
+) -> Result<ProbeResult, String> {
+    crate::auth::require_authenticated()?;
+    if sidecar.with(|_| ()).is_ok() {
+        return Err("остановите запущенную модель: проверка поднимает свою копию".into());
+    }
+
+    let tier = crate::profile::detect_and_persist().effective();
+    let (recipe, tok_s) = tauri::async_runtime::spawn_blocking(move || {
+        probe_blocking(tier, &name)
+    })
+    .await
+    .map_err(|error| format!("проверка оборвалась: {error}"))??;
+
+    model_manager::save_user_recipe(tier, &recipe)?;
+
+    Ok(ProbeResult {
+        tok_s,
+        context: recipe.context,
+        kv_cache: recipe.kv_cache.clone(),
+        recipe: recipe.name.clone(),
+    })
+}
+
+fn probe_blocking(
+    tier: crate::profile::Tier,
+    name: &str,
+) -> Result<(model_manager::Recipe, f32), String> {
+    let catalog = model_manager::Catalog::load()?;
+    let path = model_manager::models_dir().join(name);
+    if !path.is_file() {
+        return Err(format!("модель не найдена: {}", path.display()));
+    }
+
+    let template = catalog.for_tier(tier).first();
+    let mut recipe = model_manager::Recipe {
+        name: format!("{name} (автоподбор)"),
+        file: name.to_string(),
+        kv_cache: template
+            .map(|recipe| recipe.kv_cache.clone())
+            .unwrap_or_else(|| "q8_0".to_string()),
+        context: template.map(|recipe| recipe.context).unwrap_or(16_384),
+        full_gpu: template.map(|recipe| recipe.full_gpu).unwrap_or(false),
+        verified: false,
+        tok_s: None,
+        note: Some("параметры профиля, скорость измерена проверкой".into()),
+        measured_on: None,
+    };
+
+    let sidecar = model_manager::start(&recipe, &path, 18_081)?;
+    let tok_s = measure_blocking(&sidecar.base_url())?;
+    drop(sidecar);
+
+    // Скорость измерена коротким прогоном, а не медианой на полном
+    // контексте. Рецепт сохраняется и работает, но `verified`
+    // остаётся false: иначе он вытеснил бы измеренные рецепты
+    // каталога в рекомендациях.
+    recipe.tok_s = Some(tok_s);
+    Ok((recipe, tok_s))
+}
+
+fn measure_blocking(base: &str) -> Result<f32, String> {
+    let started = std::time::Instant::now();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(180))
+        .build()
+        .map_err(|error| format!("не удалось создать HTTP-клиент: {error}"))?;
+
+    let response = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "messages": [{
+                "role": "user",
+                "content": "Перечисли числа от 1 до 24 через запятую, без пояснений."
+            }],
+            "max_tokens": 64,
+            "temperature": 0.0,
+            "stream": false,
+        }))
+        .send()
+        .map_err(|error| format!("запрос к модели не ушёл: {error}"))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().unwrap_or_default();
+        return Err(format!(
+            "модель ответила {status}: {}",
+            body.chars().take(300).collect::<String>()
+        ));
+    }
+
+    let body: serde_json::Value = response
+        .json()
+        .map_err(|error| format!("ответ модели не разобран: {error}"))?;
+    let completion = body
+        .get("usage")
+        .and_then(|usage| usage.get("completion_tokens"))
+        .and_then(|value| value.as_u64())
+        .unwrap_or(0) as f32;
+    let elapsed = started.elapsed().as_secs_f32().max(0.001);
+
+    body.get("timings")
+        .and_then(|timings| timings.get("predicted_per_second"))
+        .and_then(|value| value.as_f64())
+        .map(|value| value as f32)
+        .filter(|value| *value > 0.0)
+        .or_else(|| (completion > 0.0).then(|| completion / elapsed))
+        .ok_or_else(|| "модель не сообщила ни токенов, ни времени".to_string())
+}
+
 /// Отправляет сообщение и стримит ответ.
 ///
 /// Останавливается по флагу отмены: пользователь ждёт до 15 секунд

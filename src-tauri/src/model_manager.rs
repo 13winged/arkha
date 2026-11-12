@@ -48,6 +48,48 @@ pub struct ProfileRecipes {
     pub recipes: Vec<Recipe>,
 }
 
+/// Рецепт, подобранный на этой машине. Хранится отдельно от каталога:
+/// каталог обновляется с приложением, а этот файл — нет.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct UserRecipeEntry {
+    tier: String,
+    recipe: Recipe,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct UserRecipeStore {
+    #[serde(default)]
+    recipes: Vec<UserRecipeEntry>,
+}
+
+/// Сохранить подобранный рецепт для профиля.
+///
+/// Один файл — один рецепт на файл модели: повторная проверка заменяет
+/// прошлый результат, а не копит дубли.
+pub fn save_user_recipe(tier: Tier, recipe: &Recipe) -> Result<(), String> {
+    let path = Catalog::user_recipes_path();
+    let mut store = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<UserRecipeStore>(&text).ok())
+        .unwrap_or_default();
+
+    store
+        .recipes
+        .retain(|entry| !(entry.tier == tier.as_str() && entry.recipe.file == recipe.file));
+    store.recipes.push(UserRecipeEntry {
+        tier: tier.as_str().to_string(),
+        recipe: recipe.clone(),
+    });
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(&store).map_err(|error| error.to_string())?;
+    let temp = path.with_extension("json.tmp");
+    std::fs::write(&temp, text).map_err(|error| error.to_string())?;
+    std::fs::rename(&temp, &path).map_err(|error| error.to_string())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlamaCppPin {
     pub repo: String,
@@ -190,8 +232,10 @@ impl Catalog {
             if path.exists() {
                 let text = std::fs::read_to_string(&path)
                     .map_err(|e| format!("не удалось прочитать {}: {e}", path.display()))?;
-                return serde_json::from_str(&text)
-                    .map_err(|e| format!("не удалось разобрать {}: {e}", path.display()));
+                let mut catalog: Self = serde_json::from_str(&text)
+                    .map_err(|e| format!("не удалось разобрать {}: {e}", path.display()))?;
+                catalog.merge_user_recipes();
+                return Ok(catalog);
             }
         }
         Err(format!(
@@ -202,6 +246,38 @@ impl Catalog {
                 .collect::<Vec<_>>()
                 .join(", ")
         ))
+    }
+
+    /// Путь к рецептам, подобранным на этой машине.
+    pub fn user_recipes_path() -> PathBuf {
+        config_dir().join("recipes.user.json")
+    }
+
+    /// Добавить сохранённые рецепты в каталог.
+    ///
+    /// Файл пользовательский и может быть испорчен: ошибка чтения не
+    /// должна ломать запуск приложения, поэтому она молча
+    /// пропускается — каталог остаётся базовым.
+    fn merge_user_recipes(&mut self) {
+        let Ok(text) = std::fs::read_to_string(Self::user_recipes_path()) else {
+            return;
+        };
+        let Ok(store) = serde_json::from_str::<UserRecipeStore>(&text) else {
+            return;
+        };
+        for entry in store.recipes {
+            let Some(profile) = self.profiles.get_mut(&entry.tier) else {
+                continue;
+            };
+            match profile
+                .recipes
+                .iter_mut()
+                .find(|recipe| recipe.file == entry.recipe.file)
+            {
+                Some(existing) => *existing = entry.recipe,
+                None => profile.recipes.push(entry.recipe),
+            }
+        }
     }
 
     fn candidate_paths() -> Vec<PathBuf> {
