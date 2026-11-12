@@ -77,6 +77,8 @@ pub fn run() {
             auth::auth_profile_delete,
             documents_commands::docs_cli_status,
             documents_commands::docs_cli_install,
+            documents_commands::docs_launcher_status,
+            documents_commands::docs_launcher_download,
             legacy_migration::legacy_migration_preview,
             legacy_migration::legacy_migration_import,
             legacy_migration::legacy_migration_skip,

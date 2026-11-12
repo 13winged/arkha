@@ -72,6 +72,29 @@ pub async fn docs_cli_install(app: AppHandle, name: String) -> Result<Vec<CliVie
     Ok(all_views())
 }
 
+#[tauri::command]
+pub async fn docs_launcher_download(app: AppHandle) -> Result<String, String> {
+    crate::auth::require_authenticated()?;
+    let path = crate::documents::launcher::download(move |received, total| {
+        let _ = app.emit(
+            "docs://cli-progress",
+            serde_json::json!({
+                "app": "launcher",
+                "received": received,
+                "total": total,
+            }),
+        );
+    })
+    .await?;
+    Ok(path.display().to_string())
+}
+
+#[tauri::command]
+pub fn docs_launcher_status() -> Result<Option<String>, String> {
+    crate::auth::require_authenticated()?;
+    Ok(crate::documents::launcher::downloaded().map(|path| path.display().to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

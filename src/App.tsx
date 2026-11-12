@@ -782,6 +782,42 @@ interface DocsCliView {
 }
 
 /**
+ * Что это за программа — человеческими словами.
+ *
+ * «Аналог Word» говорит больше, чем «читает docx»: человек уже знает,
+ * чего ждать от Word. Точные форматы стоят рядом, чтобы не обещать
+ * лишнего.
+ */
+const DOCS_CLI_PURPOSE: Record<string, string> = {
+  wordcraft: "Аналог Word: читает и создаёт docx, odt, rtf, md, txt.",
+  pdfcraft: "Аналог Acrobat: читает PDF, включая сканы и OCR.",
+  gridcraft: "Аналог Excel: читает xlsx и csv, показывает значения ячеек.",
+  deckcraft: "Аналог PowerPoint: читает pptx и текст слайдов.",
+};
+
+/**
+ * Остальные приложения ArtCraft.
+ *
+ * ArkHa их не использует: инструментов для фото, звука и видео у него
+ * нет. Список нужен, чтобы человек видел всю линейку и знал, чем она
+ * является. Ставит и обновляет их официальный Launcher, а не мы.
+ */
+const OTHER_APPS: { title: string; purpose: string }[] = [
+  { title: "PhotoCraft", purpose: "Аналог Photoshop: обработка фотографий." },
+  { title: "VectorCraft", purpose: "Аналог Illustrator: векторная графика." },
+  { title: "LightCraft", purpose: "Аналог Lightroom: неразрушающая обработка фото." },
+  { title: "EffectCraft", purpose: "Аналог After Effects: моушн-графика и композитинг." },
+  { title: "AniCraft", purpose: "Аналог Animate: 2D-анимация." },
+  { title: "DesignCraft", purpose: "Аналог InDesign: вёрстка и макеты страниц." },
+  { title: "FigCraft", purpose: "Аналог Figma: интерфейсы и прототипы." },
+  { title: "TextureCraft", purpose: "Аналог Substance Painter: текстурная роспись 3D." },
+  { title: "MaterialCraft", purpose: "Аналог Substance Designer: материалы на нодах." },
+  { title: "SoundCraft", purpose: "Аналог Ableton: цифровая звуковая станция." },
+  { title: "FilmCraft", purpose: "Аналог Premiere Pro: нелинейный видеомонтаж." },
+  { title: "CADCraft", purpose: "Аналог AutoCAD: черчение и CAD." },
+];
+
+/**
  * Подгрузка CLI документов.
  *
  * Загрузка вынесена из инструментов наружу: 120 МБ, скачанные внутри
@@ -793,12 +829,17 @@ function DocumentsCli() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ app: string; received: number; total: number } | null>(null);
+  const [launcherPath, setLauncherPath] = useState<string | null>(null);
+  const [launcherBusy, setLauncherBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
     invoke<DocsCliView[]>("docs_cli_status")
       .then((list) => { if (alive) setItems(list); })
       .catch((reason) => { if (alive) setError(String(reason)); });
+    invoke<string | null>("docs_launcher_status")
+      .then((path) => { if (alive) setLauncherPath(path); })
+      .catch(() => undefined);
     const off = listen<{ app: string; received: number; total: number }>("docs://cli-progress", (event) => {
       setProgress(event.payload);
     });
@@ -821,10 +862,28 @@ function DocumentsCli() {
     }
   }
 
+  async function downloadLauncher() {
+    setLauncherBusy(true);
+    setError(null);
+    try {
+      setLauncherPath(await invoke<string>("docs_launcher_download"));
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setLauncherBusy(false);
+      setProgress(null);
+    }
+  }
+
   const percent = progress && progress.total > 0
     ? Math.min(100, (progress.received / progress.total) * 100)
     : null;
-  const current = progress ? items.find((item) => item.app === progress.app) : undefined;
+  const current = progress
+    ? items.find((item) => item.app === progress.app)
+    : undefined;
+  const progressTitle = progress?.app === "launcher"
+    ? "ArtCraft Launcher"
+    : current?.title ?? progress?.app;
 
   return (
     <section className="panel">
@@ -836,9 +895,12 @@ function DocumentsCli() {
         {items.map((item) => (
           <li key={item.app} className="docs-cli-row">
             <div className="docs-cli-copy">
-              <strong>{item.title}</strong>
-              <span className="muted"> {item.version} · {item.downloadMb} {t("МБ")}</span>
-              {item.installed && <span className="docs-cli-ok"> {t("установлен")}</span>}
+              <div className="docs-cli-title">
+                <strong>{item.title}</strong>
+                <span className="muted"> {item.version} · {item.downloadMb} {t("МБ")}</span>
+                {item.installed && <span className="docs-cli-ok"> {t("установлен")}</span>}
+              </div>
+              <span className="docs-cli-purpose">{t(DOCS_CLI_PURPOSE[item.app] ?? "")}</span>
             </div>
             {!item.installed && (
               <button
@@ -858,12 +920,37 @@ function DocumentsCli() {
             <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
           </div>
           <p className="muted">
-            {t("Загружаем")} {current?.title ?? progress.app}: {(progress.received / 1048576).toFixed(0)}
+            {t("Загружаем")} {progressTitle}: {(progress.received / 1048576).toFixed(0)}
             {progress.total > 0 ? ` / ${(progress.total / 1048576).toFixed(0)}` : ""} {t("МБ")}
           </p>
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+
+      <h3>{t("Другие приложения ArtCraft")}</h3>
+      <p className="muted">
+        {t("ArkHa их пока не использует. Поставить и обновлять их можно официальным ArtCraft Launcher.")}
+      </p>
+      <ul className="docs-cli-list">
+        {OTHER_APPS.map((app) => (
+          <li key={app.title} className="docs-cli-row static">
+            <div className="docs-cli-copy">
+              <div className="docs-cli-title"><strong>{app.title}</strong></div>
+              <span className="docs-cli-purpose">{t(app.purpose)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="docs-cli-launcher">
+        <button type="button" disabled={launcherBusy} onClick={() => void downloadLauncher()}>
+          {launcherBusy
+            ? t("Скачиваем…")
+            : launcherPath
+              ? t("Скачать ArtCraft Launcher заново")
+              : t("Скачать ArtCraft Launcher")}
+        </button>
+        {launcherPath && <span className="muted">{t("Установщик сохранён в «Загрузки». Запустите его, чтобы поставить приложения.")}</span>}
+      </div>
     </section>
   );
 }

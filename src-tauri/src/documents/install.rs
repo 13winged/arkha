@@ -440,7 +440,7 @@ fn download(url: &str, expected: &str, destination: &Path) -> Result<(), String>
 
 /// Асинхронная загрузка с отчётом. Хеш считается по дороге и
 /// проверяется до распаковки — как и в синхронной версии.
-async fn download_with_progress<F>(
+pub(crate) async fn download_with_progress<F>(
     url: &str,
     expected: &str,
     destination: &Path,

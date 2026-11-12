@@ -2553,16 +2553,42 @@ button:disabled {
 }
 
 .docs-cli-copy {
+  display: grid;
+  gap: 2px;
   min-width: 0;
+}
+
+.docs-cli-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .docs-cli-copy strong {
   color: var(--cp-text);
 }
 
+.docs-cli-purpose {
+  color: var(--cp-text-dim);
+  font-size: 0.85em;
+}
+
 .docs-cli-ok {
   color: var(--cp-neon-green);
   font-size: 0.85em;
+}
+
+.docs-cli-row.static {
+  justify-content: flex-start;
+}
+
+.docs-cli-launcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .problems {

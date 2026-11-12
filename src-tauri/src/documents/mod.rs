@@ -8,6 +8,7 @@
 // (`tools`). Подключение к реестру — в `tools::built`.
 
 pub mod install;
+pub mod launcher;
 pub mod mcp;
 pub mod tools;
 

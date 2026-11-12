@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0-3] - 2026-11-12
+
+Тестовая сборка для проверки документов. Не релиз.
+
+### Added
+
+- Every document CLI now says what it is: WordCraft is a Word counterpart, PdfCraft an Acrobat
+  counterpart, GridCraft an Excel counterpart, DeckCraft a PowerPoint counterpart.
+- Catalog of the other ArtCraft applications with their purpose, plus a one-click download of the
+  official ArtCraft Launcher installer into Downloads.
+
+### Verification
+
+- 372 Rust library tests pass; 3 hardware-dependent tests remain ignored.
+- ArtCraft Launcher 0.19.2 downloaded by the app, size and SHA-256 matched the pinned values.
+
 ## [1.3.0-2] - 2026-11-11
 
 Тестовая сборка для проверки документов. Не релиз.

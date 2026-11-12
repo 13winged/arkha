@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use arkha_lib::documents::install::{self, App};
+use arkha_lib::documents::launcher;
 use arkha_lib::documents::mcp::{Mcp, PROTOCOL};
 
 /// Какой CLI проверяем. Имя файла — единственное, что известно
@@ -207,6 +208,24 @@ fn гейт_документов_остановка_не_оставляет_пр
     assert!(after.is_err(), "остановленный CLI всё ещё отвечает");
 
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// Официальный Launcher: 10 МБ, закреплённый хеш. Скачивается в
+/// настоящие «Загрузки», поэтому по умолчанию не гоняется.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "скачивает установщик ArtCraft Launcher"]
+async fn гейт_документов_launcher_скачивается() {
+    let mut events: Vec<(u64, u64)> = Vec::new();
+    let path = launcher::download(|received, total| events.push((received, total)))
+        .await
+        .expect("загрузка Launcher");
+
+    let size = std::fs::metadata(&path).expect("файл установщика").len();
+    assert_eq!(size, launcher::BYTES, "размер не совпал");
+    assert!(!events.is_empty(), "не пришло ни одного события прогресса");
+    let last = *events.last().expect("последнее событие");
+    assert_eq!(last.0, launcher::BYTES, "прогресс не дошёл до конца");
+    println!("установщик: {} ({} байт)", path.display(), size);
 }
 
 /// Скачивание по требованию. Сеть и десятки мегабайт, поэтому по
