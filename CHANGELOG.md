@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.0-11] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- RAM and VRAM are two centred rows, each `label / bar / percent`.
+- Glitch: normal and hard no longer move text vertically. Both keep horizontal RGB fringing to the
+  right; hard is stronger (6 px, 0.7 s, saturated copies plus vertical streaks).
+
 ## [1.3.0-10] - 2026-11-12
 
 Тестовая сборка. Не релиз.
