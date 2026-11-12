@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.0-12] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- Removed the duplicated profile/model status from the top strip; it now sits in the right dock
+  immediately under the model, with speed when the model runs.
+- RAM and VRAM use six discrete squares instead of a bar.
+
 ## [1.3.0-11] - 2026-11-12
 
 Тестовая сборка. Не релиз.

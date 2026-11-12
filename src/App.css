@@ -2942,28 +2942,30 @@ button:disabled {
 
 .mem-item {
   display: grid;
-  grid-template-columns: 3.2em 48px 3.2em;
+  grid-template-columns: 3.2em auto 3.2em;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-/* Полоса памяти. Отдельные классы, а не общий `.bar`: тот — декоративная
-   линейка без ширины и заливки, из-за него индикаторы схлопывались. */
-.mem-bar {
-  display: block;
-  width: 48px;
-  height: 4px;
-  background: rgba(0, 255, 65, 0.12);
-  border: 1px solid var(--cp-line);
+/* Шесть квадратов вместо полосы: заполнение видно сразу, и оно не
+   зависит от ширины колонки. */
+.mem-cells {
+  display: inline-flex;
+  gap: 3px;
 }
 
-.mem-fill {
-  display: block;
-  height: 100%;
+.mem-cell {
+  width: 11px;
+  height: 12px;
+  border: 1px solid var(--cp-line);
+  background: transparent;
+}
+
+.mem-cell.on {
   background: var(--cp-neon-green);
-  box-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
-  transition: width var(--поворот);
+  border-color: var(--cp-neon-green);
+  box-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
 }
 
 /* В узком левом докбаре те же две строки, но уже. */
@@ -2972,12 +2974,13 @@ button:disabled {
 }
 
 .sidebar-footer .mem-item {
-  grid-template-columns: 3em 40px 3em;
+  grid-template-columns: 2.8em auto 2.8em;
   gap: 6px;
 }
 
-.sidebar-footer .mem-bar {
-  width: 40px;
+.sidebar-footer .mem-cell {
+  width: 8px;
+  height: 10px;
 }
 
 .mem-label {
@@ -3692,6 +3695,33 @@ kbd.cap,
   margin-top: auto;
   padding-top: 14px;
   border-top: 1px solid var(--cp-line-2);
+}
+
+.model-dock-meta {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cp-line-2);
+}
+
+.model-dock-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.model-dock-line .res-label {
+  color: var(--cp-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.model-dock-line .res-val {
+  font-family: var(--cp-font-mono);
+  font-size: 0.78rem;
 }
 
 .model-dock-account-name {

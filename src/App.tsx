@@ -2379,16 +2379,38 @@ function ModelDock({
   onChange,
   session,
   onLogout,
+  profile,
 }: {
   model: ModelStatus;
   onChange: (next: ModelStatus) => void;
   session: AuthSession;
   onLogout: () => void;
+  profile: ProfileView | null;
 }) {
   return (
     <aside className="model-dock" aria-label="Состояние модели">
       <div className="model-dock-kicker">// MODEL.NODE // STATIC LINK</div>
       <ModelBar model={model} onChange={onChange} />
+      {/* Состояние профиля и модели — здесь, под самой моделью. В шапке
+          они дублировались и занимали место у полосы памяти. */}
+      <div className="model-dock-meta">
+        <div className="model-dock-line">
+          <span className="res-label">{t("профиль")}</span>
+          <span className="res-val gold">{profile ? profile.effective : "…"}</span>
+        </div>
+        <div className="model-dock-line">
+          <span className="res-label">{t("модель")}</span>
+          <span className={`res-val ${model.running ? "ok" : "muted"}`}>
+            {model.running ? (model.recipe ?? t("запущена")) : t("не запущена")}
+          </span>
+        </div>
+        {model.running && model.tok_s !== null && model.tok_s !== undefined && (
+          <div className="model-dock-line">
+            <span className="res-label">{t("скорость")}</span>
+            <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
+          </div>
+        )}
+      </div>
       <div className="model-dock-voice">
         <div className="model-dock-kicker">// AUDIO.SUBSYSTEM</div>
         <VoiceToggle />
@@ -2772,17 +2794,26 @@ function MemoryBar() {
     ? null
     : Math.min(100, Math.round(((mem.vramUsedMb ?? 0) * 100) / mem.vramTotalMb));
 
+  // Шесть квадратов вместо полосы: заполнение читается с одного взгляда
+  // и не зависит от длины полосы в узком докбаре.
+  const квадраты = (percent: number) =>
+    Array.from({ length: 6 }, (_, index) => index < Math.ceil((percent / 100) * 6));
+
   return (
     <span className="mem">
       <span className="mem-item" title={`оперативная память: ${гиг(mem.ramUsedMb)} из ${гиг(mem.ramTotalMb)} ГиБ`}>
         <span className="mem-label">{t("ОЗУ")}</span>
-        <span className="mem-bar"><span className="mem-fill" style={{ width: `${ram}%` }} /></span>
+        <span className="mem-cells" aria-hidden="true">
+          {квадраты(ram).map((on, index) => <span key={index} className={on ? "mem-cell on" : "mem-cell"} />)}
+        </span>
         <span className="mem-num">{ram}%</span>
       </span>
       {vram !== null && (
         <span className="mem-item" title={`видеопамять: ${гиг(mem.vramUsedMb ?? 0)} из ${гиг(mem.vramTotalMb ?? 0)} ГиБ`}>
           <span className="mem-label">VRAM</span>
-          <span className="mem-bar"><span className="mem-fill" style={{ width: `${vram}%` }} /></span>
+          <span className="mem-cells" aria-hidden="true">
+            {квадраты(vram).map((on, index) => <span key={index} className={on ? "mem-cell on" : "mem-cell"} />)}
+          </span>
           <span className="mem-num">{vram}%</span>
         </span>
       )}
@@ -3227,22 +3258,6 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
       <div className="app-main">
         <header className="app-header">
           <div className="res-strip">
-            <span className="res">
-              <span className="res-label">{t("профиль")}</span>
-              <span className="res-val gold">{profile ? profile.effective : "…"}</span>
-            </span>
-            <span className="res">
-              <span className="res-label">{t("модель")}</span>
-              <span className={`res-val ${model.running ? "ok" : "muted"}`}>
-                {model.running ? (model.recipe ?? t("запущена")) : t("не запущена")}
-              </span>
-            </span>
-            {model.running && model.tok_s !== null && model.tok_s !== undefined && (
-              <span className="res">
-                <span className="res-label">{t("скорость")}</span>
-                <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
-              </span>
-            )}
             <MemoryBar />
           </div>
         </header>
@@ -3280,7 +3295,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             {tab === "skills" && <SkillsPanel />}
             {tab === "dashboard" && <Dashboard />}
           </section>
-          <ModelDock model={model} onChange={setModel} session={session} onLogout={onLogout} />
+          <ModelDock model={model} onChange={setModel} session={session} onLogout={onLogout} profile={profile} />
         </div>
 
         <footer className="app-footer">
