@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.0] - 2026-11-12
+
+### Added
+
+- Documents through pinned ArtCraft command-line tools over MCP: `docs.read`, `docs.info` and
+  `docs.write` for docx, pdf, xlsx and pptx.
+- Separate CLI download with progress in Settings → Documents; tools never download on their own.
+- Documents tab, OpenCode skills from `%USERPROFILE%\.agents\skills`, and a fully customisable
+  sidebar with drag-and-drop reordering.
+- Observability: token budget ring, live CPU/RAM/VRAM cards and a two-minute graph, plus a model
+  speed test in the right dock.
+
+### Changed
+
+- ArtCraft-style surfaces: square corners, flat panels, grouped sidebar, model status under the
+  model, memory shown as discrete cells.
+- Glitch levels: off, soft, normal and hard; normal and hard keep the error horizontal, hard adds
+  vertical streaks.
+
+### Fixed
+
+- CPU reading in observability, model selection for models without a recipe, stale quant selection
+  after changing the repository, duplicated memory indicator, chat hint position and the white
+  onboarding input.
+
 ## [1.3.0-18] - 2026-11-12
 
 Тестовая сборка. Не релиз.
