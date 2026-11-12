@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0-16] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Fixed
+
+- Switching the repository now clears the file list and the selected file, so downloading cannot ask
+  for a file that exists only in the previous repository. A missing selection is reported before the
+  request is sent.
+
+### Changed
+
+- The chosen quant is explicit: pulsing green frame, `selected` badge, and a line with the selected
+  file name above the download button.
+
 ## [1.3.0-15] - 2026-11-12
 
 Тестовая сборка. Не релиз.

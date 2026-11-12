@@ -2000,16 +2000,37 @@ function Downloader({ model }: { model: ModelStatus }) {
     setState({ kind: "meta" });
     try {
       const list = await invoke<RemoteFile[]>("repo_files", { repo });
-      setFiles(list.filter((f) => f.path.endsWith(".gguf")));
+      const gguf = list.filter((f) => f.path.endsWith(".gguf"));
+      setFiles(gguf);
+      // Выбор привязан к репозиторию: файл с тем же именем в другом
+      // репозитории — другой файл. Если его нет в новом списке, выбор
+      // снимается, иначе скачивание попросит несуществующий файл.
+      setPicked((current) => current && gguf.some((f) => f.path === current) ? current : null);
       setState({ kind: "idle" });
     } catch (e) {
       setFiles(null);
+      setPicked(null);
       setState({ kind: "error", message: String(e) });
     }
   }
 
+  /** Смена репозитория сбрасывает список и выбор. */
+  function changeRepo(next: string) {
+    setRepo(next);
+    setFiles(null);
+    setPicked(null);
+    if (state.kind === "error") setState({ kind: "idle" });
+  }
+
   async function start() {
     if (!picked) return;
+    if (!files?.some((f) => f.path === picked)) {
+      setState({
+        kind: "error",
+        message: t("Выбранного файла нет в текущем списке. Нажмите «показать файлы» и выберите файл заново."),
+      });
+      return;
+    }
     setState({ kind: "meta" });
     try {
       await invoke<string>("download_model", { repo, file: picked });
@@ -2037,7 +2058,7 @@ function Downloader({ model }: { model: ModelStatus }) {
         <input
           className="app-input"
           value={repo}
-          onChange={(e) => setRepo(e.currentTarget.value)}
+          onChange={(e) => changeRepo(e.currentTarget.value)}
           placeholder={t("начни набирать: gemma, qwen, llama…")}
           aria-label={t("Репозиторий")}
         />
@@ -2055,7 +2076,7 @@ function Downloader({ model }: { model: ModelStatus }) {
             <li key={h.repo}>
               <button
                 type="button"
-                onClick={() => { setRepo(h.repo); setHits(null); }}
+                onClick={() => { changeRepo(h.repo); setHits(null); }}
               >
                 <span className="hint-family">{h.family}</span>
                 <span className="hint-repo">{h.repo}</span>
@@ -2076,20 +2097,27 @@ function Downloader({ model }: { model: ModelStatus }) {
 
       {files && files.length > 0 && (
         <ul className="files">
-          {files.map((f) => (
-            <li key={f.path}>
-              <button
-                type="button"
-                className={picked === f.path ? "file active" : "file"}
-                onClick={() => setPicked(f.path)}
-              >
-                <span className="file-name">
-                  {f.path.split("/").pop()}
-                </span>
-                <span className="muted">{gib(f.size)}</span>
-              </button>
-            </li>
-          ))}
+          {files.map((f) => {
+            const chosen = picked === f.path;
+            return (
+              <li key={f.path}>
+                <button
+                  type="button"
+                  className={chosen ? "file active" : "file"}
+                  aria-pressed={chosen}
+                  onClick={() => setPicked(f.path)}
+                >
+                  <span className="file-name">
+                    {f.path.split("/").pop()}
+                  </span>
+                  <span className="file-side">
+                    {chosen && <span className="file-chosen">{t("выбрано")}</span>}
+                    <span className="muted">{gib(f.size)}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -2122,9 +2150,14 @@ function Downloader({ model }: { model: ModelStatus }) {
       )}
 
       {picked && (
-        <button className="app-send" onClick={start}
-          disabled={state.kind === "busy" || state.kind === "meta"}>{t("Скачать")}
-        </button>
+        <>
+          <p className="file-selected-line">
+            {t("Выбран")}: <b>{picked.split("/").pop()}</b>
+          </p>
+          <button className="app-send" onClick={start}
+            disabled={state.kind === "busy" || state.kind === "meta"}>{t("Скачать")}
+          </button>
+        </>
       )}
 
       {hosts && (

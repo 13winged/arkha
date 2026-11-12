@@ -2738,8 +2738,55 @@ button:disabled {
 }
 
 .file.active {
-  color: var(--gold-lit);
-  background: rgba(178, 141, 32, 0.08);
+  color: var(--cp-neon-green);
+  background: linear-gradient(90deg, rgba(0, 255, 65, 0.16), rgba(0, 255, 65, 0.02) 65%, transparent);
+  box-shadow: inset 3px 0 0 var(--cp-neon-green), inset 0 0 0 1px rgba(0, 255, 65, 0.35);
+  /* Пульсация вместо статичной подсветки: выбор видно боковым зрением,
+     как рамку выбранного предмета в игре. */
+  animation: file-pick 1.8s ease-in-out infinite;
+}
+
+@keyframes file-pick {
+  0%, 100% {
+    box-shadow: inset 3px 0 0 var(--cp-neon-green), inset 0 0 0 1px rgba(0, 255, 65, 0.3),
+      0 0 0 rgba(0, 255, 65, 0);
+  }
+  50% {
+    box-shadow: inset 3px 0 0 var(--cp-neon-green), inset 0 0 0 1px rgba(0, 255, 65, 0.65),
+      0 0 16px rgba(0, 255, 65, 0.22);
+  }
+}
+
+.file-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-chosen {
+  padding: 2px 6px;
+  border: 1px solid rgba(0, 255, 65, 0.5);
+  color: var(--cp-neon-green);
+  font-size: 0.66em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  animation: chosen-in 220ms ease-out;
+}
+
+@keyframes chosen-in {
+  from { opacity: 0; transform: translateX(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.file-selected-line {
+  margin: 12px 0 8px;
+  color: var(--cp-text-dim);
+  font-size: 0.82em;
+}
+
+.file-selected-line b {
+  color: var(--cp-neon-green);
+  font-family: var(--cp-font-mono);
 }
 
 .file-name {
