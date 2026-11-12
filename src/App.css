@@ -3320,6 +3320,7 @@ kbd.cap,
 
 .app-header {
   position: relative;
+  min-height: 26px;
   background: linear-gradient(180deg, rgba(0, 255, 65, 0.045), transparent);
   border-bottom: 1px solid var(--cp-line);
 }

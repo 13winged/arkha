@@ -3256,11 +3256,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
 
       {/* Основной контент */}
       <div className="app-main">
-        <header className="app-header">
-          <div className="res-strip">
-            <MemoryBar />
-          </div>
-        </header>
+        <header className="app-header" aria-hidden="true"></header>
 
         <div className="app-workspace">
           <section className="app-body cp-draft-frame">

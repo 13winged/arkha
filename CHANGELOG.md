@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0-13] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- Removed the duplicated RAM/VRAM indicator from the top strip: memory lives only in the bottom-left
+  sidebar. The top strip keeps the system label and is now slim.
+
 ## [1.3.0-12] - 2026-11-12
 
 Тестовая сборка. Не релиз.
