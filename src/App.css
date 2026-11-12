@@ -1,4 +1,4 @@
-﻿/* ArkHa — интерфейс.
+/* ArkHa — интерфейс.
  *
  * Язык взят с экрана меню NieR:Automata. Источник — статья
  * «UI Design in NieR:Automata» с официального блога PlatinumGames,
@@ -173,6 +173,7 @@
 .cp-corner--br { bottom: 0; right: 0; border-left: none; border-top: none; }
 
 /* Углы панели в розовом режиме aggressive */
+.glitch-hard .cp-corner,
 .glitch-aggressive .cp-corner {
   border-color: var(--cp-neon-pink);
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
@@ -216,6 +217,7 @@
 }
 
 /* Глитч усиливает рамку */
+.glitch-hard .cp-draft-frame::before,
 .glitch-aggressive .cp-draft-frame::before {
   border-color: var(--cp-neon-pink);
   animation: cp-shake 2s infinite linear alternate-reverse;
@@ -227,6 +229,8 @@
 
 /* Анимация шума (случайное мерцание сканлиний) — только в режиме глитча */
 .glitch-subtle .cp-scanlines,
+.glitch-normal .cp-scanlines,
+.glitch-hard .cp-scanlines,
 .glitch-aggressive .cp-scanlines {
   animation: cp-scan 6s linear infinite, cp-scan-flicker 0.15s infinite alternate;
 }
@@ -243,6 +247,8 @@
 
 /* Тряска основного текста — работает когда выбран режим глитча */
 .glitch-subtle .cp-glitch,
+.glitch-normal .cp-glitch,
+.glitch-hard .cp-glitch,
 .glitch-aggressive .cp-glitch {
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
@@ -259,6 +265,10 @@
    Требуют атрибута data-glitch-text на элементе. */
 .glitch-subtle .cp-glitch::before,
 .glitch-subtle .cp-glitch::after,
+.glitch-normal .cp-glitch::before,
+.glitch-normal .cp-glitch::after,
+.glitch-hard .cp-glitch::before,
+.glitch-hard .cp-glitch::after,
 .glitch-aggressive .cp-glitch::before,
 .glitch-aggressive .cp-glitch::after {
   content: attr(data-glitch-text);
@@ -273,6 +283,8 @@
 }
 
 .glitch-subtle .cp-glitch::before,
+.glitch-normal .cp-glitch::before,
+.glitch-hard .cp-glitch::before,
 .glitch-aggressive .cp-glitch::before {
   color: var(--cp-neon-red);
   left: var(--cp-glitch-intensity);
@@ -285,6 +297,8 @@
 }
 
 .glitch-subtle .cp-glitch::after,
+.glitch-normal .cp-glitch::after,
+.glitch-hard .cp-glitch::after,
 .glitch-aggressive .cp-glitch::after {
   color: var(--cp-neon-pink);
   left: calc(var(--cp-glitch-intensity) * -1);
@@ -297,29 +311,33 @@
 /* steps(1) вместо плавной интерполяции: сигнал не «плывёт», а
    перескакивает. Плавный сдвиг читался как дрожание текста. */
 @keyframes cp-glitch-red {
-  0%, 100% { clip-path: inset(12% 0 76% 0); transform: translate(-1px, 0); }
-  14% { clip-path: inset(44% 0 48% 0); transform: translate(-3px, 0); }
-  28% { clip-path: inset(6% 0 88% 0); transform: translate(-2px, 0); }
-  42% { clip-path: inset(70% 0 22% 0); transform: translate(-4px, 0); }
-  56% { clip-path: inset(28% 0 64% 0); transform: translate(-2px, 0); }
-  70% { clip-path: inset(56% 0 36% 0); transform: translate(-3px, 0); }
-  85% { clip-path: inset(18% 0 74% 0); transform: translate(-1px, 0); }
+  0%, 100% { clip-path: inset(12% 0 76% 0); transform: translate(calc(var(--cp-glitch-intensity) * -0.3), 0); }
+  14% { clip-path: inset(44% 0 48% 0); transform: translate(calc(var(--cp-glitch-intensity) * -1), 0); }
+  28% { clip-path: inset(6% 0 88% 0); transform: translate(calc(var(--cp-glitch-intensity) * -0.6), 0); }
+  42% { clip-path: inset(70% 0 22% 0); transform: translate(calc(var(--cp-glitch-intensity) * -1.3), 0); }
+  56% { clip-path: inset(28% 0 64% 0); transform: translate(calc(var(--cp-glitch-intensity) * -0.6), 0); }
+  70% { clip-path: inset(56% 0 36% 0); transform: translate(calc(var(--cp-glitch-intensity) * -1), 0); }
+  85% { clip-path: inset(18% 0 74% 0); transform: translate(calc(var(--cp-glitch-intensity) * -0.3), 0); }
 }
 
 @keyframes cp-glitch-pink {
-  0%, 100% { clip-path: inset(66% 0 18% 0); transform: translate(1px, 0); }
-  18% { clip-path: inset(32% 0 60% 0); transform: translate(3px, 0); }
-  34% { clip-path: inset(82% 0 6% 0); transform: translate(2px, 0); }
-  48% { clip-path: inset(20% 0 72% 0); transform: translate(4px, 0); }
-  62% { clip-path: inset(58% 0 34% 0); transform: translate(2px, 0); }
-  78% { clip-path: inset(8% 0 84% 0); transform: translate(3px, 0); }
-  92% { clip-path: inset(72% 0 16% 0); transform: translate(1px, 0); }
+  0%, 100% { clip-path: inset(66% 0 18% 0); transform: translate(calc(var(--cp-glitch-intensity) * 0.3), 0); }
+  18% { clip-path: inset(32% 0 60% 0); transform: translate(calc(var(--cp-glitch-intensity) * 1), 0); }
+  34% { clip-path: inset(82% 0 6% 0); transform: translate(calc(var(--cp-glitch-intensity) * 0.6), 0); }
+  48% { clip-path: inset(20% 0 72% 0); transform: translate(calc(var(--cp-glitch-intensity) * 1.3), 0); }
+  62% { clip-path: inset(58% 0 34% 0); transform: translate(calc(var(--cp-glitch-intensity) * 0.6), 0); }
+  78% { clip-path: inset(8% 0 84% 0); transform: translate(calc(var(--cp-glitch-intensity) * 1), 0); }
+  92% { clip-path: inset(72% 0 16% 0); transform: translate(calc(var(--cp-glitch-intensity) * 0.3), 0); }
 }
 
 /* Заголовки тоже трясутся, без правки каждого в App.tsx */
 .glitch-subtle h2,
+.glitch-normal h2,
+.glitch-hard h2,
 .glitch-aggressive h2,
 .glitch-subtle h3,
+.glitch-normal h3,
+.glitch-hard h3,
 .glitch-aggressive h3 {
   animation: cp-shake var(--cp-glitch-dur) infinite linear alternate-reverse;
 }
@@ -367,23 +385,59 @@
   box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
-/* Режимы интенсивности — класс прямо на корне (.glitch-subtle или .glitch-aggressive).
-   Значения намеренно тихие: эффект должен читаться как сбой сигнала,
-   а не мешать читать. */
+/* Режимы интенсивности — класс прямо на корне (.glitch-subtle,
+   .glitch-normal, .glitch-hard). Значения подобраны так, чтобы разница
+   читалась глазом, но текст оставался текстом. */
 .glitch-subtle {
-  --cp-glitch-dur: 8s;
+  --cp-glitch-dur: 10s;
   --cp-glitch-intensity: 1px;
 }
 
-.glitch-aggressive {
-  --cp-glitch-dur: 1.2s;
-  --cp-glitch-intensity: 2px;
+.glitch-normal {
+  --cp-glitch-dur: 3s;
+  --cp-glitch-intensity: 3px;
 }
 
-/* Режим по умолчанию — анимации отключены */
-.glitch-on:not(.glitch-subtle):not(.glitch-aggressive) {
+.glitch-hard,
+.glitch-aggressive {
+  --cp-glitch-dur: 0.9s;
+  --cp-glitch-intensity: 5px;
+}
+
+/* Режим по умолчанию — как обычный. */
+.glitch-on:not(.glitch-subtle):not(.glitch-normal):not(.glitch-hard):not(.glitch-aggressive) {
   --cp-glitch-dur: 3s;
-  --cp-glitch-intensity: 2px;
+  --cp-glitch-intensity: 3px;
+}
+
+/* Чем жёстче режим, тем заметнее хроматическая копия. */
+.glitch-normal .cp-glitch::before,
+.glitch-normal .cp-glitch::after {
+  opacity: 0.7;
+}
+
+.glitch-hard .cp-glitch::before,
+.glitch-aggressive .cp-glitch::before,
+.glitch-hard .cp-glitch::after,
+.glitch-aggressive .cp-glitch::after {
+  opacity: 0.85;
+}
+
+/* Жёсткий режим добавляет вертикальный «дождь» из тонких полос:
+   именно он делает сбой похожим на помеху, а не на лёгкое дрожание. */
+.glitch-hard .cp-scanlines,
+.glitch-aggressive .cp-scanlines {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 255, 65, 0.07) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(90deg, rgba(255, 0, 255, 0.05) 0 1px, transparent 1px 13px);
+  background-size: 100% 100%;
+  animation: cp-rain 1.1s linear infinite;
+  opacity: 0.9;
+}
+
+@keyframes cp-rain {
+  from { background-position: 0 -60px, 0 -160px; }
+  to { background-position: 0 60px, 0 160px; }
 }
 
 /* ---------------------------------------------------------------
@@ -2893,8 +2947,37 @@ button:disabled {
 
 .mem-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 7px;
+}
+
+/* Полоса памяти. Отдельные классы, а не общий `.bar`: тот — декоративная
+   линейка без ширины и заливки, из-за него индикаторы схлопывались. */
+.mem-bar {
+  display: inline-block;
+  width: 48px;
+  height: 4px;
+  background: rgba(0, 255, 65, 0.12);
+  border: 1px solid var(--cp-line);
+}
+
+.mem-fill {
+  display: block;
+  height: 100%;
+  background: var(--cp-neon-green);
+  box-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
+  transition: width var(--поворот);
+}
+
+/* В узком левом докбаре два индикатора не помещаются в строку. */
+.sidebar-footer .mem {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 0;
+}
+
+.sidebar-footer .mem-bar {
+  width: 36px;
 }
 
 .mem-label {

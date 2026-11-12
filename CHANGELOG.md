@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0-10] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Fixed
+
+- RAM and VRAM indicators collapsed because they reused the decorative `.bar` class, which has no
+  width or fill. They now have their own bar and fill and wrap in the narrow sidebar.
+
+### Changed
+
+- Four glitch levels: off, soft, normal, hard. Normal is more visible than before, hard adds a
+  vertical streak overlay and stronger chromatic split; the old `aggressive` value reads as hard.
+
 ## [1.3.0-9] - 2026-11-12
 
 Тестовая сборка. Не релиз.

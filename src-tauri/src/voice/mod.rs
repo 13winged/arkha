@@ -426,18 +426,19 @@ pub fn voice_theme_settings() -> Result<devices::Тема, ГолосОшибк�
 }
 
 /// Команда: сохранить режим глитча.
-/// Допустимые значения: `none`, `subtle`, `aggressive`. Любое другое
-/// значение считается неверным и отвергается с текстом, чтобы
-/// интерфейс не отправил в CSS мусор.
+/// Допустимые значения: `none`, `subtle`, `normal`, `hard` и старое
+/// `aggressive` (считается жёстким). Любое другое значение считается
+/// неверным и отвергается с текстом, чтобы интерфейс не отправил в CSS
+/// мусор.
 #[tauri::command]
 pub fn voice_theme_set(глитч: Option<String>) -> Result<devices::Тема, ГолосОшибка> {
     crate::auth::require_authenticated()?;
     let тема = devices::Тема { глитч };
 
     if let Some(режим) = &тема.глитч {
-        if !matches!(режим.as_str(), "none" | "subtle" | "aggressive") {
+        if !matches!(режим.as_str(), "none" | "subtle" | "normal" | "hard" | "aggressive") {
             return Err(ошибка(format!(
-                "неизвестный режим глитча «{режим}»: допустимы none, subtle, aggressive"
+                "неизвестный режим глитча «{режим}»: допустимы none, subtle, normal, hard"
             )));
         }
     }

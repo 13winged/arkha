@@ -2610,12 +2610,16 @@ function AudioSettings({
     );
   }
 
-  /** Переключатель режима глитча: три кнопки, активная подсвечена. */
+  /** Переключатель режима глитча: четыре уровня, активный подсвечен. */
   function переключательГлитча(текущий: string | null) {
+    // Старое значение `aggressive` считаем жёстким: иначе после
+    // обновления ни одна кнопка не выглядела бы выбранной.
+    const выбранный = текущий === "aggressive" ? "hard" : текущий;
     const режимы: Array<[string, string]> = [
       ["none", t("Выкл")],
-      ["subtle", t("Тонко")],
-      ["aggressive", t("Агрессивно")],
+      ["subtle", t("Мягкий")],
+      ["normal", t("Обычный")],
+      ["hard", t("Жёсткий")],
     ];
     return (
       <div className="glitch-toggle">
@@ -2625,7 +2629,7 @@ function AudioSettings({
             <button
               key={значение}
               type="button"
-              className={`glitch-btn${текущий === значение ? " glitch-btn-active" : ""}`}
+              className={`glitch-btn${выбранный === значение ? " glitch-btn-active" : ""}`}
               disabled={busy}
               onClick={() => установитьГлитч(значение)}
             >
@@ -2772,13 +2776,13 @@ function MemoryBar() {
     <span className="mem">
       <span className="mem-item" title={`оперативная память: ${гиг(mem.ramUsedMb)} из ${гиг(mem.ramTotalMb)} ГиБ`}>
         <span className="mem-label">{t("ОЗУ")}</span>
-        <span className="bar"><span className="fill" style={{ width: `${ram}%` }} /></span>
+        <span className="mem-bar"><span className="mem-fill" style={{ width: `${ram}%` }} /></span>
         <span className="mem-num">{ram}%</span>
       </span>
       {vram !== null && (
         <span className="mem-item" title={`видеопамять: ${гиг(mem.vramUsedMb ?? 0)} из ${гиг(mem.vramTotalMb ?? 0)} ГиБ`}>
           <span className="mem-label">VRAM</span>
-          <span className="bar"><span className="fill" style={{ width: `${vram}%` }} /></span>
+          <span className="mem-bar"><span className="mem-fill" style={{ width: `${vram}%` }} /></span>
           <span className="mem-num">{vram}%</span>
         </span>
       )}

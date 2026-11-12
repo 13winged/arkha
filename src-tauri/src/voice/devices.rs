@@ -113,7 +113,8 @@ pub fn выбранный_вывод() -> Option<String> {
 /// а не выбор оборудования.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Тема {
-    /// Режим глитча: `none`, `subtle` или `aggressive`.
+    /// Режим глитча: `none`, `subtle`, `normal`, `hard`
+    /// (старое `aggressive` считается жёстким).
     /// `None` — отключено, работает как раньше.
     #[serde(default)]
     pub глитч: Option<String>,
