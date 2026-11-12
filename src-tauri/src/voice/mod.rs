@@ -300,7 +300,16 @@ pub fn voice_hotkey_enable(
     г: tauri::State<'_, Голос>,
 ) -> Result<String, ГолосОшибка> {
     crate::auth::require_authenticated()?;
-    let канал = hotkey::поставить().map_err(ошибка)?;
+
+    // Сохранённое сочетание важнее умолчания. Старое умолчание
+    // `Ctrl+Alt+M` заменяем на новое: иначе после обновления человек
+    // продолжал бы нажимать старую комбинацию, не понимая почему.
+    let сохранённая = devices::настройки().горячая_клавиша;
+    let сочетание = match сохранённая {
+        Some(value) if !value.eq_ignore_ascii_case("Ctrl+Alt+M") => value,
+        _ => hotkey::умолчание().to_string(),
+    };
+    let канал = hotkey::поставить_с(&сочетание).map_err(ошибка)?;
 
     std::thread::Builder::new()
         .name("диктовка".to_string())

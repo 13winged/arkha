@@ -302,7 +302,7 @@ mod tests {
         let выбор = Аудио {
             микрофон: Some("{0.0.1.00000000}.{микро}".to_string()),
             вывод: Some("{0.0.2.00000000}.{динамик}".to_string()),
-            горячая_клавиша: Some("Ctrl+Alt+M".to_string()),
+            горячая_клавиша: Some("Ctrl+G".to_string()),
         };
         let текст = serde_json::to_string_pretty(&выбор).expect("сериализация");
         std::fs::write(&куда, &текст).expect("запись");

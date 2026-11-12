@@ -20,6 +20,12 @@
   text. Enabling voice now arms the hotkey; disabling it removes the hook. App launching also looks in
   the Windows `App Paths` registry, so names like `chrome` resolve to their install folder.
 
+### Changed
+
+- Push-to-talk hotkey is now `Ctrl+G`; an old saved `Ctrl+Alt+M` is treated as the new default.
+- App launching can find almost any installed program: Windows `App Paths`, Start Menu shortcuts
+  (including `.lnk` launch) and a cached walk of the install folders.
+
 ### Fixed
 
 - Observability was empty because nothing wrote to it. Chat now records a trace, a span and metrics

@@ -10,7 +10,9 @@
 // работает.
 
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use super::{Tool, ToolError, ToolOutput, ToolSpec};
 use crate::permissions::Settings;
@@ -84,7 +86,6 @@ pub fn запрещено(запреты: &[String], имя: &str, полный_
 }
 
 /// Найти программу в реестре Windows.
-///
 /// `App Paths` — штатное место, куда установщики прописывают полный
 /// путь: Chrome, Edge, Office и большинство обычных программ лежат не
 /// в корне `Program Files`, а в подпапках, и простой перебор папок их
@@ -123,6 +124,190 @@ fn из_app_paths(имя_файла: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Привести имя к сравнимому виду: без `.exe`, без регистра и без
+/// пробелов/дефисов. «Google Chrome», «google-chrome.exe» и «chrome»
+/// должны находить одну и ту же программу.
+fn нормализовать(значение: &str) -> String {
+    let base = значение.trim().trim_matches('"');
+    let base = base
+        .strip_suffix(".exe")
+        .or_else(|| base.strip_suffix(".EXE"))
+        .unwrap_or(base);
+    base.chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(|character| character.to_lowercase())
+        .collect()
+}
+
+fn стартовые_меню() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        dirs.push(
+            PathBuf::from(appdata)
+                .join("Microsoft")
+                .join("Windows")
+                .join("Start Menu")
+                .join("Programs"),
+        );
+    }
+    if let Some(program_data) = std::env::var_os("ProgramData") {
+        dirs.push(
+            PathBuf::from(program_data)
+                .join("Microsoft")
+                .join("Windows")
+                .join("Start Menu")
+                .join("Programs"),
+        );
+    }
+    dirs
+}
+
+fn собрать_ярлыки(dir: &Path, глубина: usize, out: &mut Vec<(String, PathBuf)>) {
+    if глубина > 4 {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            собрать_ярлыки(&path, глубина + 1, out);
+        } else if path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("lnk"))
+        {
+            if let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) {
+                out.push((нормализовать(stem), path));
+            }
+        }
+    }
+}
+
+/// Ярлыки меню «Пуск», прочитанные один раз за процесс.
+fn ярлыки() -> &'static Vec<(String, PathBuf)> {
+    static ЯРЛЫКИ: OnceLock<Vec<(String, PathBuf)>> = OnceLock::new();
+    ЯРЛЫКИ.get_or_init(|| {
+        let mut all = Vec::new();
+        for dir in стартовые_меню() {
+            собрать_ярлыки(&dir, 0, &mut all);
+        }
+        all.sort_by(|left, right| left.1.cmp(&right.1));
+        all
+    })
+}
+
+fn из_меню_пуск(имя: &str) -> Option<PathBuf> {
+    let key = нормализовать(имя);
+    if key.is_empty() {
+        return None;
+    }
+    let mut candidates: Vec<(u8, &PathBuf)> = Vec::new();
+    for (name, path) in ярлыки() {
+        let score = if name == &key {
+            0
+        } else if name.ends_with(&key) {
+            1
+        } else if name.contains(&key) {
+            2
+        } else {
+            continue;
+        };
+        candidates.push((score, path));
+    }
+    candidates.sort_by_key(|(score, path)| (*score, path.as_os_str().len()));
+    candidates.first().map(|(_, path)| (*path).clone())
+}
+
+fn обойти(dir: &Path, глубина: usize, index: &mut HashMap<String, Vec<PathBuf>>) {
+    if глубина > 4 {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_dir() {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
+            if matches!(
+                name.as_str(),
+                "windowsapps" | "installer" | "temp" | "windows defender" | "$recycle.bin"
+            ) {
+                continue;
+            }
+            обойти(&path, глубина + 1, index);
+        } else if file_type.is_file()
+            && path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
+        {
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or_default();
+            let lower = stem.to_lowercase();
+            if lower.contains("unins")
+                || lower.contains("setup")
+                || lower.contains("update")
+                || lower.contains("crash")
+                || lower.contains("vc_redist")
+            {
+                continue;
+            }
+            let key = нормализовать(stem);
+            if !key.is_empty() {
+                index.entry(key).or_default().push(path);
+            }
+        }
+    }
+}
+
+/// Все .exe из папок установки, собранные один раз за процесс.
+fn индекс_приложений() -> &'static HashMap<String, Vec<PathBuf>> {
+    static ИНДЕКС: OnceLock<HashMap<String, Vec<PathBuf>>> = OnceLock::new();
+    ИНДЕКС.get_or_init(|| {
+        let mut index = HashMap::new();
+        for root in папки_поиска() {
+            обойти(&root, 0, &mut index);
+        }
+        index
+    })
+}
+
+fn из_индекса(имя: &str) -> Option<PathBuf> {
+    let key = нормализовать(имя);
+    if key.is_empty() {
+        return None;
+    }
+    let mut candidates: Vec<(u8, &PathBuf)> = Vec::new();
+    for (name, paths) in индекс_приложений() {
+        let score = if name == &key {
+            0
+        } else if name.ends_with(&key) {
+            1
+        } else if name.contains(&key) {
+            2
+        } else {
+            continue;
+        };
+        for path in paths {
+            candidates.push((score, path));
+        }
+    }
+    candidates.sort_by_key(|(score, path)| (*score, path.as_os_str().len()));
+    candidates.first().map(|(_, path)| (*path).clone())
 }
 
 /// Найти исполняемый файл по имени.
@@ -170,8 +355,21 @@ pub fn найти(имя: &str) -> Result<PathBuf, ToolError> {
         return Ok(путь);
     }
 
+    // Ярлык из меню «Пуск» знает, где лежит программа, даже если
+    // установщик спрятал её в три подпапки.
+    if let Some(путь) = из_меню_пуск(имя) {
+        return Ok(путь);
+    }
+
+    // Последний шанс: обход папок установки. Дорого, поэтому только
+    // после всего остального и с кэшем на процесс.
+    if let Some(путь) = из_индекса(имя) {
+        return Ok(путь);
+    }
+
     Err(ToolError::Missing(format!(
-        "программа «{имя}» не найдена. Искали в: {} и в App Paths реестра",
+        "программа «{имя}» не найдена. Искали в: {}, в App Paths реестра, \
+         в меню «Пуск» и в папках установки",
         папки_поиска()
             .iter()
             .map(|п| п.display().to_string())
@@ -226,7 +424,28 @@ impl Tool for Запустить {
             )));
         }
 
-        match std::process::Command::new(&путь).spawn() {
+        // Ярлык запускается через `start`: двойной щелчок по нему в
+        // Проводнике делает ровно это. Прямой запуск .lnk не работает.
+        let ярлык = путь
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("lnk"));
+
+        let запуск = if ярлык {
+            let mut command = std::process::Command::new("cmd");
+            command.args(["/C", "start", "", &путь.to_string_lossy()]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                command.creation_flags(CREATE_NO_WINDOW);
+            }
+            command.spawn()
+        } else {
+            std::process::Command::new(&путь).spawn()
+        };
+
+        match запуск {
             Ok(_) => Ok(ToolOutput::changed(
                 format!("запущено: {}", путь.display()),
                 format!("запущено: {}", путь.display()),
@@ -242,6 +461,15 @@ impl Tool for Запустить {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// «Google Chrome», «google-chrome.exe» и «chrome» должны
+    /// приводиться к сравнимому виду.
+    #[test]
+    fn имена_сравниваются_без_регистра_пробелов_и_расширения() {
+        assert_eq!(нормализовать("Google Chrome.exe"), "googlechrome");
+        assert_eq!(нормализовать("google-chrome.EXE"), "googlechrome");
+        assert_eq!(нормализовать(" chrome "), "chrome");
+    }
 
     /// Запрет по имени и по пути — обе проверки нужны.
     ///

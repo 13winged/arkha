@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex};
 
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, VIRTUAL_KEY, VK_CONTROL, VK_M, VK_MENU,
+    GetAsyncKeyState, VIRTUAL_KEY, VK_CONTROL, VK_G,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, KBDLLHOOKSTRUCT, SetWindowsHookExW,
@@ -53,9 +53,15 @@ pub enum Событие {
 /// Канал событий: хук пишет, команда приложения читает.
 static КАНАЛ: Mutex<Option<Sender<Событие>>> = Mutex::new(None);
 
-/// Умолчание: Ctrl + Alt + M. `M` — первая буква «микрофон», и
-/// русская раскладка даёт ту же клавишу, поэтому работает в обоих.
-const УМОЛЧАНИЕ: &str = "Ctrl+Alt+M";
+/// Умолчание: Ctrl + G. `G` — «говорить»; одной модификаторной
+/// клавиши мало, а три клавиши нажимать неудобно.
+const УМОЛЧАНИЕ: &str = "Ctrl+G";
+
+/// Комбинация по умолчанию. Нужна интерфейсу и миграции старых
+/// настроек, где стояло `Ctrl+Alt+M`.
+pub fn умолчание() -> &'static str {
+    УМОЛЧАНИЕ
+}
 
 /// Жив ли хук.
 pub fn включён() -> bool {
@@ -75,7 +81,7 @@ pub fn поставить() -> Result<Receiver<Событие>, String> {
 }
 
 /// Поставить хук на указанное сочетание.
-fn поставить_с(сочетание: &str) -> Result<Receiver<Событие>, String> {
+pub fn поставить_с(сочетание: &str) -> Result<Receiver<Событие>, String> {
     СЛЕДИМ.store(клавишу_из(сочетание)?, Ordering::SeqCst);
     НАЖАТА.store(false, Ordering::SeqCst);
 
@@ -126,7 +132,7 @@ pub fn сменить(сочетание: &str) -> Result<(), String> {
 
 /// Разобрать сочетание и достать из него клавишу.
 ///
-/// Поддерживается ровно одно сочетание — `Ctrl+Alt+M`. Не
+/// Поддерживается ровно одно сочетание — `Ctrl+G`. Не
 /// «хоть что-нибудь похожее», а одно: любая другая раскладка
 /// сочетаний требует своей таблицы и своей проверки, а
 /// неполная таблица хуже её отсутствия. Неизвестное сочетание —
@@ -135,7 +141,7 @@ pub fn сменить(сочетание: &str) -> Result<(), String> {
 fn клавишу_из(сочетание: &str) -> Result<u32, String> {
     let норма = сочетание.trim().replace(' ', "").replace('+', "+");
     if норма.eq_ignore_ascii_case(УМОЛЧАНИЕ) {
-        return Ok(VK_M.0 as u32);
+        return Ok(VK_G.0 as u32);
     }
     Err(format!(
         "сочетание «{сочетание}» не поддерживается, доступно пока только {УМОЛЧАНИЕ}"
@@ -167,10 +173,10 @@ unsafe extern "system" fn обработать(code: i32, wparam: WPARAM, lparam
         return дальше();
     }
 
-    // Нажатие засчитывается только с обоими модификаторами. Без
-    // этой проверки клавиша `M` срабатывала бы сама по себе и
-    // перехватывала бы набор текста.
-    let с_модификаторами = unsafe { зажат(VK_CONTROL) && зажат(VK_MENU) };
+    // Нажатие засчитывается только с Ctrl. Без этой проверки
+    // клавиша `G` срабатывала бы сама по себе и перехватывала набор
+    // текста.
+    let с_модификаторами = unsafe { зажат(VK_CONTROL) };
     match событие {
         Событие::Нажата => {
             if !с_модификаторами {
@@ -275,15 +281,15 @@ mod tests {
     /// толку.
     #[test]
     fn пустое_берёт_умолчание() {
-        assert_eq!(клавишу_из(УМОЛЧАНИЕ).unwrap(), VK_M.0 as u32);
+        assert_eq!(клавишу_из(УМОЛЧАНИЕ).unwrap(), VK_G.0 as u32);
     }
 
     /// Регистр и лишние пробелы не должны ломать настройку:
-    /// человек набрал `ctrl + alt + m`.
+    /// человек набрал `ctrl + g`.
     #[test]
     fn настройка_не_чувствительна_к_регистру_и_пробелам() {
-        assert!(клавишу_из("ctrl+alt+m").is_ok());
-        assert!(клавишу_из("Ctrl + Alt + M").is_ok());
+        assert!(клавишу_из("ctrl+g").is_ok());
+        assert!(клавишу_из("Ctrl + G").is_ok());
     }
 
     /// Неизвестное сочетание — ошибка с текстом. Молчание здесь
@@ -292,7 +298,7 @@ mod tests {
     #[test]
     fn неизвестное_сочетание_даёт_ошибку() {
         let о = клавишу_из("Ctrl+Shift+Z").unwrap_err();
-        assert!(о.contains("Ctrl+Alt+M"), "{о}");
+        assert!(о.contains("Ctrl+G"), "{о}");
     }
 
     /// Хук и канал — глобальное состояние, поэтому проверять их
