@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0-9] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Fixed
+
+- Dragging menu items now works: Tauri's native drag-and-drop handler intercepted HTML5 dragging
+  inside the WebView. Disabled it for the main window, since ArkHa does not accept dropped files.
+
 ## [1.3.0-8] - 2026-11-12
 
 Тестовая сборка. Не релиз.
