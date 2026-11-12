@@ -73,8 +73,8 @@
   --blue-lit: #5aa6ea;
   --ok: #6f9c78;
 
-  --срез: 6px;
-  --радиус: 2px;
+  --срез: 0px;
+  --радиус: 0px;
 
   /* Движение. Кидзима просил анимацию «влажную», а не сухую:
      слегка длиннее и с мягким затуханием, чтобы переход читался
@@ -277,11 +277,11 @@
   color: var(--cp-neon-red);
   left: var(--cp-glitch-intensity);
   text-shadow: 1px 0 var(--cp-neon-pink);
-  /* Вертикальная полоса слева, а не горизонтальный срез: эффект
-     читается как сбой колонки, а не как порванная строка. */
-  clip-path: inset(0 74% 0 0);
-  opacity: 0.55;
-  animation: cp-glitch-red var(--cp-glitch-dur) infinite linear alternate-reverse;
+  /* Горизонтальная полоса — «срыв строки» нетраннера: узкая, ходит по
+     высоте и дёргается по горизонтали. */
+  clip-path: inset(12% 0 76% 0);
+  opacity: 0.5;
+  animation: cp-glitch-red var(--cp-glitch-dur) infinite steps(1, end);
 }
 
 .glitch-subtle .cp-glitch::after,
@@ -289,24 +289,31 @@
   color: var(--cp-neon-pink);
   left: calc(var(--cp-glitch-intensity) * -1);
   text-shadow: -1px 0 var(--cp-neon-green);
-  clip-path: inset(0 0 0 70%);
-  opacity: 0.55;
-  animation: cp-glitch-pink var(--cp-glitch-dur) infinite linear alternate-reverse;
+  clip-path: inset(66% 0 18% 0);
+  opacity: 0.5;
+  animation: cp-glitch-pink var(--cp-glitch-dur) infinite steps(1, end);
 }
 
+/* steps(1) вместо плавной интерполяции: сигнал не «плывёт», а
+   перескакивает. Плавный сдвиг читался как дрожание текста. */
 @keyframes cp-glitch-red {
-  0%, 100% { clip-path: inset(0 74% 0 0); transform: translate(-1px, 0); }
-  25% { clip-path: inset(0 82% 0 0); transform: translate(-1px, -2px); }
-  50% { clip-path: inset(0 66% 0 6%); transform: translate(0, 2px); }
-  75% { clip-path: inset(0 78% 0 0); transform: translate(-1px, -1px); }
+  0%, 100% { clip-path: inset(12% 0 76% 0); transform: translate(-1px, 0); }
+  14% { clip-path: inset(44% 0 48% 0); transform: translate(-3px, 0); }
+  28% { clip-path: inset(6% 0 88% 0); transform: translate(-2px, 0); }
+  42% { clip-path: inset(70% 0 22% 0); transform: translate(-4px, 0); }
+  56% { clip-path: inset(28% 0 64% 0); transform: translate(-2px, 0); }
+  70% { clip-path: inset(56% 0 36% 0); transform: translate(-3px, 0); }
+  85% { clip-path: inset(18% 0 74% 0); transform: translate(-1px, 0); }
 }
 
 @keyframes cp-glitch-pink {
-  0%, 100% { clip-path: inset(0 0 0 70%); transform: translate(1px, 0); }
-  20% { clip-path: inset(0 0 0 62%); transform: translate(1px, 2px); }
-  40% { clip-path: inset(4% 0 0 74%); transform: translate(0, -2px); }
-  60% { clip-path: inset(0 0 8% 68%); transform: translate(1px, 1px); }
-  80% { clip-path: inset(0 0 0 76%); transform: translate(0, -1px); }
+  0%, 100% { clip-path: inset(66% 0 18% 0); transform: translate(1px, 0); }
+  18% { clip-path: inset(32% 0 60% 0); transform: translate(3px, 0); }
+  34% { clip-path: inset(82% 0 6% 0); transform: translate(2px, 0); }
+  48% { clip-path: inset(20% 0 72% 0); transform: translate(4px, 0); }
+  62% { clip-path: inset(58% 0 34% 0); transform: translate(2px, 0); }
+  78% { clip-path: inset(8% 0 84% 0); transform: translate(3px, 0); }
+  92% { clip-path: inset(72% 0 16% 0); transform: translate(1px, 0); }
 }
 
 /* Заголовки тоже трясутся, без правки каждого в App.tsx */
@@ -536,7 +543,18 @@ body {
   color: var(--cp-neon-green);
   border-color: var(--cp-neon-green);
   background: rgba(0, 255, 65, 0.1);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+  box-shadow: inset 2px 0 0 var(--cp-neon-green);
+  text-shadow: none;
+}
+
+/* Окна (RAG, выбор агента) не вкладки: они не бывают активными,
+   поэтому стоят тише остальных. */
+.sidebar-window {
+  color: var(--cp-muted);
+}
+
+.sidebar-window:hover {
+  color: var(--cp-text-dim);
 }
 
 .sidebar-icon {
@@ -1099,25 +1117,40 @@ body {
    --------------------------------------------------------------- */
 
 h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 14px;
-  font-family: var(--cp-font-display);
-  font-size: calc(var(--кегль, 14px) * 0.929);
-  font-weight: 700;
-  letter-spacing: 0.3em;
+  font-family: var(--cp-font-mono);
+  font-size: calc(var(--кегль, 14px) * 0.78);
+  font-weight: 400;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--cp-neon-green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.6), 0 0 14px rgba(0, 255, 65, 0.3);
+  color: var(--cp-text-dim);
+}
+
+/* Квадрат слева — единственный акцент заголовка. Раньше здесь было
+   свечение в шесть пикселей: на каждой панели оно складывалось в
+   сплошную зелёную дымку. */
+h2::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  background: var(--cp-neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
 }
 
 h3 {
-  margin: 0 0 10px;
+  margin: 18px 0 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cp-line);
   font-family: var(--cp-font-mono);
-  font-size: calc(var(--кегль, 14px) * 0.857);
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-size: calc(var(--кегль, 14px) * 0.72);
+  font-weight: 400;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--cp-neon-pink);
-  text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
+  color: var(--cp-muted);
 }
 
 .muted {
@@ -1171,20 +1204,6 @@ h3 {
    Панели
    --------------------------------------------------------------- */
 
-/* Заголовок секции как у ArtCraft: маленькая разреженная строка с
-   линейкой сверху. Цвет тихий — акцент остаётся за содержимым. */
-.panel h3 {
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--cp-line);
-  color: var(--cp-text-dim);
-  font-family: var(--cp-font-mono);
-  font-size: calc(var(--кегль, 14px) * 0.72);
-  font-weight: 400;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .panel {
   max-width: 1160px;
   position: relative;
@@ -1194,7 +1213,6 @@ h3 {
   border: 1px solid var(--cp-line);
   border-radius: 0;
   clip-path: polygon(var(--срез) 0, 100% 0, 100% calc(100% - var(--срез)), calc(100% - var(--срез)) 100%, 0 100%, 0 var(--срез));
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
 }
 
 .panel + .panel {
@@ -2032,7 +2050,7 @@ button[type="button"]:not(.tab):not(.cap):not(.pick):not(.wide-opt) {
   background: rgba(0, 255, 65, 0.08);
   border-color: var(--cp-neon-green);
   color: var(--cp-neon-green);
-  box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.18);
 }
 
 .app-send:disabled,
@@ -2198,7 +2216,7 @@ button:disabled {
   letter-spacing: 0;
   text-transform: none;
   cursor: pointer;
-  clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+  clip-path: none;
   transition: background var(--ход), border-color var(--ход), box-shadow var(--ход);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
 }
@@ -3489,7 +3507,7 @@ kbd.cap,
 .panel h2,
 .panel h3,
 .sector-head {
-  text-shadow: 0 0 9px rgba(0, 255, 65, 0.28);
+  text-shadow: none;
 }
 
 button,
@@ -3534,8 +3552,8 @@ details[open] summary {
 }
 
 .app-footer {
-  background: linear-gradient(90deg, rgba(0, 255, 65, 0.035), var(--cp-bg-2));
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+  background: var(--cp-bg-2);
+  box-shadow: none;
 }
 
 .app-footer .hint {

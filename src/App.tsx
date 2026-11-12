@@ -2999,6 +2999,26 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
             )}
             </Fragment>
           ))}
+          {/* Отдельные окна: RAG и выбор агента. Они не вкладки, поэтому
+              стоят ниже и без активного состояния. */}
+          <button
+            type="button"
+            className="sidebar-item sidebar-window"
+            onClick={() => void invoke("rag_open_window")}
+            title={t("Открыть RAG")}
+          >
+            <span className="sidebar-icon" aria-hidden="true">▣</span>
+            {!sidebarCollapsed && <span className="sidebar-label">{t("RAG")}</span>}
+          </button>
+          <button
+            type="button"
+            className="sidebar-item sidebar-window"
+            onClick={() => void invoke("agent_select_open_window")}
+            title={t("Открыть выбор агента")}
+          >
+            <span className="sidebar-icon" aria-hidden="true">◆</span>
+            {!sidebarCollapsed && <span className="sidebar-label">{t("Агент")}</span>}
+          </button>
         </nav>
         {!sidebarCollapsed && (
           <div className="sidebar-agent-select">
@@ -3106,8 +3126,6 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           <span className="hint"><kbd className="cap">Enter</kbd> отправить</span>
           <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
           <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
-          <span className="hint"><button type="button" onClick={() => invoke("rag_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>📚 RAG</button></span>
-          <span className="hint"><button type="button" onClick={() => invoke("agent_select_open_window")} style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}>🤖 Агент</button></span>
         </footer>
       </div>
     </main>

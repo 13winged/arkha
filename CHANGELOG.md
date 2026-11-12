@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0-5] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Changed
+
+- RAG and agent windows moved from the footer to the left sidebar, without emoji.
+- Whole interface follows the ArtCraft-style surface: square corners, hairline borders, small
+  uppercase section labels with a single green marker instead of glowing headings.
+- Glitch is horizontal again, netrunner-style: narrow bands jump between rows in discrete steps with
+  chromatic split; smoother than the first version but no flicker storm.
+
 ## [1.3.0-4] - 2026-11-12
 
 Тестовая сборка для проверки документов. Не релиз.
