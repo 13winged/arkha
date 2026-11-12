@@ -224,12 +224,15 @@ export default function Agent({
     setЖдёт(null);
     try {
       await invoke("agent_decide", { decision: решение });
+      // После разрешения работа продолжается: индикатор «работает»
+      // не должен остаться погашенным до конца запроса.
+      if (решение !== "отказ") setКрутится(true);
     } catch (e) {
       setПричина(String(e));
     }
   }
 
-  async function отправить(текст: string) {
+  async function отправить(текст: string, голосом = false) {
     const text = текст.trim();
     if (!text || крутится) return;
 
@@ -243,7 +246,7 @@ export default function Agent({
     setAttachments([]);
 
     try {
-      await invoke<number>("agent_chat", { messages: сообщения });
+      await invoke<number>("agent_chat", { messages: сообщения, voice: голосом });
     } catch (e) {
       setКрутится(false);
       setПричина(String(e));
@@ -260,7 +263,7 @@ export default function Agent({
   useEffect(() => {
     if (!voiceCommand || voiceCommand.id === последняяГолосовая.current) return;
     последняяГолосовая.current = voiceCommand.id;
-    void отправить(voiceCommand.text);
+    void отправить(voiceCommand.text, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceCommand]);
 
@@ -441,9 +444,15 @@ export default function Agent({
       </div>
 
       {ждёт && !ждёт.отвечено && (
-        <div className="agent-pending">
-          <b>Нужно ваше решение</b>
-          <p>{ждёт.pending.reason}</p>
+        <div className="agent-pending" role="alertdialog" aria-live="assertive">
+          <div className="agent-pending-head">
+            <b>Нужно ваше решение</b>
+            <span>{ждёт.pending.capability}</span>
+          </div>
+          <p className="agent-pending-question">
+            Разрешить: {название(ждёт.pending.tool)}?
+          </p>
+          <p className="agent-pending-reason">{ждёт.pending.reason}</p>
           <p className="muted">
             Инструмент: {название(ждёт.pending.tool)} (
             {ждёт.pending.capability})
@@ -456,16 +465,19 @@ export default function Agent({
               говорит именно об этом, а не «разрешить всё» — потому
               что разрешить всё нельзя.
             */}
-            <button type="button" onClick={() => решить("один-раз")}>
-              только этот раз
+            <button type="button" className="agent-allow" onClick={() => решить("один-раз")}>
+              разрешить
             </button>
-            <button type="button" onClick={() => решить("всю-задачу")}>
-              на всю задачу
+            <button type="button" className="agent-allow-task" onClick={() => решить("всю-задачу")}>
+              разрешить на всю задачу
             </button>
             <button type="button" className="agent-deny" onClick={() => решить("отказ")}>
               запретить
             </button>
           </div>
+          <p className="muted agent-pending-hint">
+            Если вопросы не нужны: Настройки → Разрешения → «не спрашивать».
+          </p>
         </div>
       )}
 

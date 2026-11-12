@@ -342,6 +342,8 @@ const EN: Record<string, string> = {
   "спрашивать, когда меняет": "ask when it changes something",
   "спрашивать всегда": "always ask",
   "Действия требуют включения: чтение работает без галочек.": "Actions must be enabled; reading works without checkboxes.",
+  "Если выбрано «спрашивать, когда меняет», перед запуском появится окно подтверждения — нажмите «разрешить».": "With \"ask when it changes something\", a confirmation appears before launch — press \"allow\".",
+  "Голосовой запуск программы выполняется без окна, если включена галочка «запуск программы» и режим не «спрашивать всегда».": "A voice app launch runs without a dialog when \"launch programs\" is checked and the mode is not \"always ask\".",
   "Готово": "Done",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",

@@ -60,6 +60,7 @@ pub fn run() {
     // функции «открыть ссылку в браузере» в приложении не было, а
     // вес крейта оставался. Убран вместе с зависимостями.
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .manage(auth::AuthState::default())
         .manage(model_manager::SidecarState::new())
         .manage(chat::ModelState::new())

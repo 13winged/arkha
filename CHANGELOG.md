@@ -19,12 +19,22 @@
 - Voice commands: speech recognized by push-to-talk is sent to the agent instead of only being shown as
   text. Enabling voice now arms the hotkey; disabling it removes the hook. App launching also looks in
   the Windows `App Paths` registry, so names like `chrome` resolve to their install folder.
+- A Windows notification appears when an agent request finishes, so the result is visible even when the
+  window is minimised or covered by another app.
 
 ### Changed
 
 - Settings now has a Permissions panel: execution mode, approval mode and checkboxes for risky
   capabilities. Previously they could only be set during onboarding, so `apps.launch` stayed
   disabled with no way to enable it later.
+- Permission changes apply immediately: the running agent uses the updated settings instead of a copy
+  read at login.
+- The approval prompt is a highlighted card with clear **allow** and **deny** buttons. A decision applies
+  to one question only.
+- A disabled capability or dry-run no longer asks for approval: the tool reports the real reason instead
+  of the user denying a question that could not be executed anyway.
+- A voice app launch does not stop at the approval dialog when `apps.launch` is enabled and the mode is
+  not "always ask"; the spoken command is treated as the confirmation.
 - Push-to-talk hotkey is now `Ctrl+G`; an old saved `Ctrl+Alt+M` is treated as the new default.
 - App launching can find almost any installed program: Windows `App Paths`, Start Menu shortcuts
   (including `.lnk` launch) and a cached walk of the install folders.
@@ -34,6 +44,8 @@
 
 - Observability was empty because nothing wrote to it. Chat now records a trace, a span and metrics
   (tokens used, prompt tokens, latency, tokens per second); average latency falls back to metrics.
+- An approval decision was not cleared after it was used, so one "deny" was silently reused for the next
+  call in the same run; the model saw two denials while the user answered once.
 
 ## [1.3.0] - 2026-11-12
 

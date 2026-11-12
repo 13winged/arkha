@@ -81,6 +81,7 @@ rusqlite = { version = "0.31", features = ["bundled", "backup"] }
 sysinfo = "0.32"
 lopdf = "0.34"
 docx-rs = "0.4"
+tauri-plugin-notification = "2.8.1"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]

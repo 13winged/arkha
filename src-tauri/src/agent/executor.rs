@@ -583,13 +583,19 @@ impl<'a> Agent<'a> {
                     level: format!("{:?}", уровень),
                 });
                 if let Some(вопрос) = вопрос {
-                    if crate::agent::approvals::спрашивать(
-                        &capability,
-                        &args,
-                        &self.settings,
-                        &self.разрешения,
-                    )
-                    .is_some()
+                    // Спрашивать имеет смысл только о том, что вообще
+                    // разрешено. Выключенная возможность или dry-run
+                    // всё равно не выполнятся, и вопрос с ответом «да»
+                    // только вводил бы человека в заблуждение.
+                    let можно_выполнять = self.settings.allows(&capability).allowed;
+                    if можно_выполнять
+                        && crate::agent::approvals::спрашивать(
+                            &capability,
+                            &args,
+                            &self.settings,
+                            &self.разрешения,
+                        )
+                        .is_some()
                     {
                         match self.спросить(вопрос) {
                             crate::agent::approvals::Решение::Отказ => {

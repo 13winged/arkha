@@ -3554,6 +3554,123 @@ kbd.cap,
   opacity: 0.82;
 }
 
+/* Вопрос о подтверждении. Раньше у этого блока не было стилей:
+   он выглядел как ещё одна строка журнала, и человек проходил мимо
+   кнопок. Теперь это отдельная заметная карточка. */
+.agent-pending {
+  margin: 14px 0 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--cp-neon-pink);
+  background:
+    linear-gradient(135deg, rgba(255, 0, 255, 0.09), transparent 60%),
+    var(--cp-bg-2);
+  box-shadow: 0 0 24px rgba(255, 0, 255, 0.22), inset 0 0 18px rgba(0, 0, 0, 0.6);
+  animation: pending-in 180ms ease-out;
+}
+
+.agent-pending-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.agent-pending-head b {
+  color: var(--cp-neon-pink);
+  font-family: var(--cp-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.agent-pending-head span {
+  color: var(--cp-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 0.68rem;
+}
+
+.agent-pending-question {
+  margin: 0 0 6px;
+  color: var(--cp-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.agent-pending-reason {
+  margin: 0 0 8px;
+  color: var(--cp-text-dim);
+  font-size: 0.86rem;
+}
+
+.agent-pending pre {
+  max-height: 120px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border: 1px solid var(--cp-line);
+  background: var(--cp-bg);
+  color: var(--cp-text-dim);
+  font-size: 0.74rem;
+}
+
+.agent-decide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agent-decide button {
+  padding: 8px 12px;
+  border: 1px solid var(--cp-line-2);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font-family: var(--cp-font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.agent-decide .agent-allow {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-neon-green);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.2);
+}
+
+.agent-decide .agent-allow:hover {
+  background: rgba(0, 255, 65, 0.12);
+}
+
+.agent-decide .agent-allow-task {
+  border-color: var(--cp-neon-green);
+  color: var(--cp-text-dim);
+}
+
+.agent-decide .agent-allow-task:hover {
+  background: rgba(0, 255, 65, 0.07);
+}
+
+.agent-decide .agent-deny {
+  border-color: var(--cp-neon-red);
+  color: var(--cp-neon-red);
+}
+
+.agent-decide .agent-deny:hover {
+  background: rgba(255, 0, 0, 0.12);
+}
+
+.agent-pending-hint {
+  margin: 10px 0 0;
+  font-size: 0.74rem;
+}
+
+@keyframes pending-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
 .chat-panel .messages {
   padding: 16px;
   margin-bottom: 18px;

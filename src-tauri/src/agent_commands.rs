@@ -18,14 +18,15 @@
 // между ними — вся разница между рабочим агентом и сломанным.
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 use crate::agent::approvals;
 use crate::agent::executor::{Agent, CallRecord, Message, Outcome, PendingApproval};
 use crate::agent::live::Sidecar;
 use crate::chat;
 use crate::model_manager::SidecarState;
-use crate::permissions::Settings;
+use crate::permissions::{ApprovalMode, Settings};
 
 const EVENT_CALL: &str = "agent:call";
 const EVENT_PENDING: &str = "agent:pending";
@@ -223,7 +224,16 @@ impl SettingsState {
     }
 
     pub fn reload_for_active_user(&self) -> Result<(), String> {
-        let loaded = Settings::load()?;
+        self.replace(Settings::load()?)
+    }
+
+    /// Заменить действующие настройки.
+    ///
+    /// Нужно не только при входе: человек меняет галочку в настройках
+    /// и ждёт, что она подействует сразу. Без этого агент продолжал
+    /// работать с копией, прочитанной при запуске, и отказывал,
+    /// хотя в файле уже стояло разрешение.
+    pub fn replace(&self, loaded: Settings) -> Result<(), String> {
         *self.0.lock().map_err(|_| "settings lock poisoned".to_string())? = loaded;
         Ok(())
     }
@@ -242,6 +252,8 @@ pub fn agent_chat(
     sidecar: State<'_, SidecarState>,
     settings: State<'_, SettingsState>,
     messages: Vec<Incoming>,
+    // Запрос пришёл из голосовой команды, а не из набранного текста.
+    voice: Option<bool>,
 ) -> Result<u64, String> {
     crate::auth::require_authenticated()?;
     let base = sidecar.base_url()?;
@@ -249,6 +261,14 @@ pub fn agent_chat(
     chat::reset_cancel();
 
     let s = settings.0.lock().expect("settings lock poisoned").clone();
+    // Голос — это уже явное указание человека, и держать его перед
+    // кнопкой «разрешить» значит ломать сам сценарий: руки заняты,
+    // окно может быть свёрнуто. Поэтому запуск программы по голосу
+    // не спрашивает, но только если возможность включена (её всё
+    // равно проверит инструмент) и режим не «спрашивать всегда».
+    let голосом_без_вопроса =
+        voice.unwrap_or(false) && s.executor == crate::permissions::Executor::Live
+            && s.approval_mode != ApprovalMode::Confirm;
 
     // Параметры выборки — из каталога, как и в чате. Значения по
     // умолчанию секретаря: температура 0.3, чтобы он выполнял, а не
@@ -304,6 +324,7 @@ pub fn agent_chat(
             app: app.clone(),
             request_id,
             handle,
+            голосом_без_вопроса,
         };
         let _ = app.emit(
             EVENT_CONTEXT,
@@ -366,6 +387,29 @@ fn report(app: &AppHandle, out: &Outcome, агент: &Agent, request_id: u64) {
             сжатие: агент.сжатие_текст.clone(),
         },
     );
+
+    // Системное уведомление, а не только плашка в окне: человек мог
+    // свернуть приложение или уйти в другую программу, и тогда конец
+    // запроса иначе остаётся незамеченным. Когда окно на переднем
+    // плане, достаточно плашки — второй раз то же самое не шлём.
+    let окно_активно = app
+        .get_webview_window("main")
+        .and_then(|окно| окно.is_focused().ok())
+        .unwrap_or(false);
+    if !окно_активно {
+        let текст = if out.answer.trim().is_empty() {
+            out.stop_reason.clone()
+        } else {
+            out.answer.clone()
+        };
+        let кратко: String = текст.chars().take(180).collect();
+        let _ = app
+            .notification()
+            .builder()
+            .title("ArkHa — готово")
+            .body(кратко)
+            .show();
+    }
 }
 
 /// Текущий цикл агента. Один: диалог один, и «стоп» должен знать,
@@ -437,22 +481,36 @@ impl РешениеWait {
         &self,
         отмена: &std::sync::atomic::AtomicBool,
     ) -> approvals::Решение {
+        self.ждать_до(отмена, std::time::Duration::from_secs(600))
+    }
+
+    /// То же ожидание, но со своим сроком. Отдельная функция нужна
+    /// тестам: ждать шестьсот секунд в проверке нельзя.
+    fn ждать_до(
+        &self,
+        отмена: &std::sync::atomic::AtomicBool,
+        срок: std::time::Duration,
+    ) -> approvals::Решение {
         let г = self.значение.lock().expect("решение lock poisoned");
         // Пока ждём, условие проверяется на каждом пробуждении: и при
         // ответе, и при отмене, и по таймауту.
         let ждать = |значение: &mut Option<approvals::Решение>| {
             отмена.load(std::sync::atomic::Ordering::SeqCst) || значение.is_some()
         };
-        let (г, _) = self
+        let (mut г, _) = self
             .будка
-            .wait_timeout_while(г, std::time::Duration::from_secs(600), ждать)
+            .wait_timeout_while(г, срок, ждать)
             .expect("ожидание решения");
-        match г.as_ref() {
-            Some(&р) => р,
+        // `take`, а не `as_ref`: ответ относится к одному вопросу.
+        // Иначе отказ, полученный на первом вызове, молча применялся
+        // бы ко всем следующим — модель видела два «запрещено
+        // пользователем» подряд, хотя человек отвечал один раз.
+        match г.take() {
+            Some(р) => р,
             // Ни ответа, ни явной отмены — просто вышли по таймауту.
             // Тот же исход: не разрешено.
             None => {
-                eprintln!("подтверждение не получено за 600 секунд, считаем отказом");
+                eprintln!("подтверждение не получено за {} секунд, считаем отказом", срок.as_secs());
                 approvals::Решение::Отказ
             }
         }
@@ -464,10 +522,15 @@ struct ИзИнтерфейса {
     app: AppHandle,
     request_id: u64,
     handle: AgentHandle,
+    /// Голосовой запуск программы не спрашивает подтверждения.
+    голосом_без_вопроса: bool,
 }
 
 impl crate::agent::executor::Спрашивающий for ИзИнтерфейса {
     fn спросить(&mut self, вопрос: &PendingApproval) -> approvals::Решение {
+        if self.голосом_без_вопроса && вопрос.capability == "apps.launch" {
+            return approvals::Решение::ОдинРаз;
+        }
         let _ = self.app.emit(
             EVENT_PENDING,
             PendingEvent {
@@ -475,6 +538,20 @@ impl crate::agent::executor::Спрашивающий for ИзИнтерфейс
                 pending: вопрос.clone(),
             },
         );
+        // Вопрос мог прийти, когда окно свёрнуто или закрыто другим
+        // приложением. Тогда человек его просто не увидит и ответит
+        // «ничего», то есть отказ. Мигание в панели задач и системное
+        // уведомление дают шанс узнать, что от него ждут ответа.
+        if let Some(окно) = self.app.get_webview_window("main") {
+            let _ = окно.request_user_attention(Some(tauri::UserAttentionType::Critical));
+        }
+        let _ = self
+            .app
+            .notification()
+            .builder()
+            .title("ArkHa: нужно подтверждение")
+            .body(вопрос.reason.chars().take(180).collect::<String>())
+            .show();
         self.handle.решение.ждать(&self.handle.cancel)
     }
 }
@@ -564,6 +641,41 @@ mod tests {
         assert_eq!(msg.role, "tool");
         assert!(msg.tool_call_id.is_none());
         assert!(msg.tool_calls.is_none());
+    }
+
+    /// Ответ на подтверждение относится к одному вопросу. Раньше он
+    /// оставался в очереди, и следующий вызов получал тот же «отказ»
+    /// без нового вопроса — в журнале это выглядело как два запрета
+    /// подряд.
+    #[test]
+    fn решение_на_подтверждение_не_повторяется() {
+        let ожидание = РешениеWait::новый();
+        let отмена = std::sync::atomic::AtomicBool::new(false);
+        ожидание.отдать(approvals::Решение::ВсюЗадачу);
+        assert_eq!(
+            ожидание.ждать_до(&отмена, std::time::Duration::from_millis(50)),
+            approvals::Решение::ВсюЗадачу
+        );
+        // Второго ответа нет: ожидание обязано истечь, а не выдать
+        // прошлое разрешение.
+        assert_eq!(
+            ожидание.ждать_до(&отмена, std::time::Duration::from_millis(50)),
+            approvals::Решение::Отказ
+        );
+    }
+
+    /// Галочка в настройках должна действовать сразу, а не после
+    /// перезапуска: агент читает действующую копию из состояния.
+    #[test]
+    fn смена_настроек_видна_сразу() {
+        let состояние = SettingsState::new();
+        let mut новые = Settings::default();
+        новые.executor = crate::permissions::Executor::Live;
+        состояние.replace(новые).unwrap();
+        assert_eq!(
+            состояние.0.lock().unwrap().executor,
+            crate::permissions::Executor::Live
+        );
     }
 }
 

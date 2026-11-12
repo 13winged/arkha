@@ -194,6 +194,7 @@ pub fn permission_capabilities() -> Result<Vec<CapabilityToggle>, String> {
 /// Включить или выключить возможность. Вызывает человек, не агент.
 #[tauri::command]
 pub fn permission_set_capability(
+    state: tauri::State<'_, crate::agent_commands::SettingsState>,
     id: String,
     enabled: bool,
 ) -> Result<Vec<CapabilityToggle>, String> {
@@ -207,11 +208,18 @@ pub fn permission_set_capability(
         .capabilities
         .insert(id, CapabilityRule { enabled, mode: None });
     crate::onboarding::save(&settings)?;
+    // Действующая копия обновляется сразу. Иначе галочка сохранялась
+    // бы в файл, а агент до перезапуска работал по старой и отвечал
+    // «выключено в настройках разрешений».
+    state.replace(settings.clone())?;
     capabilities_from(&settings)
 }
 
 #[tauri::command]
-pub fn permission_set_executor(value: String) -> Result<SettingsView, String> {
+pub fn permission_set_executor(
+    state: tauri::State<'_, crate::agent_commands::SettingsState>,
+    value: String,
+) -> Result<SettingsView, String> {
     crate::auth::require_authenticated()?;
     let mut settings = Settings::load()?;
     settings.executor = match value.as_str() {
@@ -220,11 +228,15 @@ pub fn permission_set_executor(value: String) -> Result<SettingsView, String> {
         other => return Err(format!("неизвестный режим выполнения: {other}")),
     };
     crate::onboarding::save(&settings)?;
+    state.replace(settings.clone())?;
     Ok(view(&settings))
 }
 
 #[tauri::command]
-pub fn permission_set_approval(value: String) -> Result<SettingsView, String> {
+pub fn permission_set_approval(
+    state: tauri::State<'_, crate::agent_commands::SettingsState>,
+    value: String,
+) -> Result<SettingsView, String> {
     crate::auth::require_authenticated()?;
     let mut settings = Settings::load()?;
     settings.approval_mode = match value.as_str() {
@@ -234,10 +246,12 @@ pub fn permission_set_approval(value: String) -> Result<SettingsView, String> {
         other => return Err(format!("неизвестный режим подтверждений: {other}")),
     };
     crate::onboarding::save(&settings)?;
+    state.replace(settings.clone())?;
     Ok(view(&settings))
 }
 
-pub fn view(s: &Settings) -> SettingsView {    // Предупреждение не оценочное суждение, а конкретное следствие
+pub fn view(s: &Settings) -> SettingsView {
+    // Предупреждение не оценочное суждение, а конкретное следствие
     // режима: пользователь должен понимать, что именно он разрешил.
     let warning = match s.executor {
         Executor::Live => Some(
