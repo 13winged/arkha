@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0-14] - 2026-11-12
+
+Тестовая сборка. Не релиз.
+
+### Fixed
+
+- Observability showed no CPU: the frontend expected snake_case fields while the command serialises
+  camelCase, and two snapshots are now taken around sysinfo's minimum interval so the value is real
+  instead of zero. The duplicate command registration is gone.
+
+### Added
+
+- Speed test button under the model in the right dock: one short request to the running model,
+  showing approximate tokens per second from llama-server timings (fallback: tokens over elapsed
+  time).
+
 ## [1.3.0-13] - 2026-11-12
 
 Тестовая сборка. Не релиз.

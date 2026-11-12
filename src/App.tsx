@@ -2387,6 +2387,24 @@ function ModelDock({
   onLogout: () => void;
   profile: ProfileView | null;
 }) {
+  const [bench, setBench] = useState<{ tokS: number; tokens: number } | null>(null);
+  const [benchBusy, setBenchBusy] = useState(false);
+  const [benchError, setBenchError] = useState<string | null>(null);
+
+  async function runBench() {
+    setBenchBusy(true);
+    setBenchError(null);
+    setBench(null);
+    try {
+      const result = await invoke<{ tokS: number; completionTokens: number }>("model_bench");
+      setBench({ tokS: result.tokS, tokens: result.completionTokens });
+    } catch (reason) {
+      setBenchError(String(reason));
+    } finally {
+      setBenchBusy(false);
+    }
+  }
+
   return (
     <aside className="model-dock" aria-label="Состояние модели">
       <div className="model-dock-kicker">// MODEL.NODE // STATIC LINK</div>
@@ -2410,6 +2428,22 @@ function ModelDock({
             <span className="res-val">{model.tok_s.toFixed(1)} ток/с</span>
           </div>
         )}
+      </div>
+      <div className="model-dock-bench">
+        <button
+          type="button"
+          className="docs-btn"
+          disabled={!model.running || benchBusy}
+          onClick={() => void runBench()}
+        >
+          {benchBusy ? t("Тестируем…") : t("Тест скорости")}
+        </button>
+        {bench && (
+          <span className="model-dock-bench-result">
+            {bench.tokS.toFixed(1)} {t("ток/с")} · {bench.tokens} {t("токенов")}
+          </span>
+        )}
+        {benchError && <span className="error">{benchError}</span>}
       </div>
       <div className="model-dock-voice">
         <div className="model-dock-kicker">// AUDIO.SUBSYSTEM</div>

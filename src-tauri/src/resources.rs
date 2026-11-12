@@ -153,9 +153,14 @@ pub struct CpuLoad {
 }
 
 /// Прочитать загрузку CPU через sysinfo.
+///
+/// Между двумя замерами нужна пауза: sysinfo считает загрузку как
+/// разницу между снимками, и первый же вызов после старта всегда даёт
+/// ноль. Поэтому берём снимок, ждём минимальный интервал и берём второй.
 pub fn cpu_load() -> CpuLoad {
     use sysinfo::System;
     let mut system = System::new_all();
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     system.refresh_cpu_usage();
     let load = if system.cpus().is_empty() {
         0.0

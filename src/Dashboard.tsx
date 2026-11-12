@@ -39,8 +39,8 @@ interface TokenBudget {
 }
 
 interface CpuLoad {
-  load_percent: number;
-  logical_cores: number;
+  loadPercent: number;
+  logicalCores: number;
 }
 
 interface DashboardSummary {
@@ -51,7 +51,7 @@ interface DashboardSummary {
   traces: TraceView[];
 }
 
-// CPU monitoring removed (GetSystemTimes not available in windows crate 0.62)
+// CPU приходит из `resources::cpu_load_сейчас` (camelCase, как и память).
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -118,8 +118,9 @@ export default function Dashboard() {
     try {
       const data = await invoke<CpuLoad>("cpu_load_сейчас");
       setCpu(data);
-    } catch (e) {
-      setError(String(e));
+    } catch {
+      // Нет загрузки CPU — не повод прятать весь дашборд.
+      setCpu(null);
     }
   }, []);
 
@@ -211,9 +212,9 @@ export default function Dashboard() {
         <div className="panel" style={{ flex: "1", minWidth: "120px" }}>
           <strong>CPU</strong>
           <div style={{ fontSize: "2em" }}>
-            {cpu ? `${cpu.load_percent}%` : "—"}
+            {cpu ? `${cpu.loadPercent}%` : "—"}
           </div>
-          {cpu && <div style={{ fontSize: "0.8em", opacity: 0.7 }}>{cpu.logical_cores} ядер</div>}
+          {cpu && <div style={{ fontSize: "0.8em", opacity: 0.7 }}>{cpu.logicalCores} ядер</div>}
         </div>
       </div>
 

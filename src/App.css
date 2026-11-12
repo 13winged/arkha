@@ -3725,6 +3725,23 @@ kbd.cap,
   font-size: 0.78rem;
 }
 
+.model-dock-bench {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.model-dock-bench .docs-btn {
+  width: 100%;
+}
+
+.model-dock-bench-result {
+  color: var(--cp-text-dim);
+  font-family: var(--cp-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
 .model-dock-account-name {
   overflow: hidden;
   color: var(--cp-text-dim);

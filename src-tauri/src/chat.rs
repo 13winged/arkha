@@ -469,6 +469,96 @@ pub fn stop_generation() -> Result<(), String> {
 // Стрим
 // ---------------------------------------------------------------------------
 
+/// Результат короткого замера скорости модели.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchResult {
+    pub tok_s: f32,
+    pub completion_tokens: u32,
+    pub prompt_tokens: u32,
+    pub elapsed_ms: u64,
+}
+
+/// Приблизительная скорость модели прямо сейчас.
+///
+/// Один короткий запрос к уже запущенному сайдкару. Скорость берём из
+/// `timings`, которые считает сам llama-server; если их нет — делим
+/// число токенов на время ответа. Число приблизительное по построению:
+/// 64 токена, один прогон, без прогрева, — и подписано именно так,
+/// чтобы его не приняли за паспортную цифру.
+#[tauri::command]
+pub async fn model_bench(sidecar: State<'_, SidecarState>) -> Result<BenchResult, String> {
+    crate::auth::require_authenticated()?;
+    let base = sidecar.base_url()?;
+    let started = std::time::Instant::now();
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("не удалось создать HTTP-клиент: {e}"))?;
+
+    let payload = serde_json::json!({
+        "messages": [{
+            "role": "user",
+            "content": "Перечисли числа от 1 до 24 через запятую, без пояснений."
+        }],
+        "max_tokens": 64,
+        "temperature": 0.0,
+        "stream": false,
+    });
+
+    let resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("запрос к модели не ушёл: {e}"))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "модель ответила {status}: {}",
+            body.chars().take(300).collect::<String>()
+        ));
+    }
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("ответ модели не разобран: {e}"))?;
+
+    let usage = body.get("usage");
+    let completion = usage
+        .and_then(|u| u.get("completion_tokens"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
+    let prompt = usage
+        .and_then(|u| u.get("prompt_tokens"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
+    let elapsed = started.elapsed();
+
+    let tok_s = body
+        .get("timings")
+        .and_then(|t| t.get("predicted_per_second"))
+        .and_then(|v| v.as_f64())
+        .map(|v| v as f32)
+        .filter(|v| *v > 0.0)
+        .or_else(|| {
+            let secs = elapsed.as_secs_f32();
+            (completion > 0 && secs > 0.0).then(|| completion as f32 / secs)
+        })
+        .ok_or_else(|| "модель не сообщила ни токенов, ни времени".to_string())?;
+
+    Ok(BenchResult {
+        tok_s,
+        completion_tokens: completion,
+        prompt_tokens: prompt,
+        elapsed_ms: elapsed.as_millis() as u64,
+    })
+}
+
 /// Отправляет сообщение и стримит ответ.
 ///
 /// Останавливается по флагу отмены: пользователь ждёт до 15 секунд
