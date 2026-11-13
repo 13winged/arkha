@@ -127,6 +127,7 @@ pub fn run() {
             agent_commands::agent_decide,
             agent_commands::agent_auto_approve,
             agent_commands::agent_auto_approve_state,
+            crate::tools::browser_cdp::browser_cdp_close,
             agent_commands::agent_reload_skills,
             agent_commands::agent_set_executor,
             agent_commands::agent_set_approval,
@@ -185,6 +186,12 @@ pub fn run() {
             rag_commands::rag_ask,
         ]);
 
-    app.run(tauri::generate_context!())
-        .expect("не удалось запустить приложение");
+    let app = app
+        .build(tauri::generate_context!())
+        .expect("не удалось собрать приложение");
+    app.run(|_app, event| {
+        if let tauri::RunEvent::Exit = event {
+            crate::tools::browser_cdp::закрыть();
+        }
+    });
 }

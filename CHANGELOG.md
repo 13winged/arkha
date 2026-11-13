@@ -25,6 +25,11 @@
   and `browser.scroll`. The page is read as an accessibility tree; clicking uses the accessibility
   action when available and a real mouse click at the element centre when it is not. Typing uses the
   field's value pattern or focus plus keyboard input, and can replace the old text.
+- CDP browser driver: `browser.cdp_navigate`, `browser.cdp_read_page`, `browser.cdp_click`,
+  `browser.cdp_type`, `browser.cdp_text`, `browser.cdp_wait` and `browser.cdp_state`. It launches
+  Chromium with a temporary profile, assigns stable DOM refs, waits for `DOMContentLoaded`, and
+  clicks/types through CDP without taking focus. Only `http`/`https` are allowed; the browser is
+  closed on logout and app exit.
 - `browser.text` returns the page's text blocks, and `browser.snapshot` now shows up to 300 elements:
   the previous limit cut the article exactly where the answer was, which made the agent scroll in a
   loop. Scrolling is capped at three calls per request.
@@ -58,6 +63,9 @@
   of the user denying a question that could not be executed anyway.
 - `browser.dom` is a side-effecting capability and now appears in the Permissions panel, so browser
   clicks and typing require an explicit checkbox.
+- Read-only tool calls may repeat up to six times with the same arguments; side-effecting repeats are
+  still blocked immediately. This lets the agent re-read a page after a click instead of being stuck
+  on "the same call was already made".
 - Push-to-talk hotkey is now `Ctrl+H`; saved `Ctrl+G` and `Ctrl+Alt+M` values migrate to it.
 - The agent panel has a session-wide **allow everything** checkbox next to **ask**. While it is on, the
   agent does not ask for confirmation; disabled capabilities and dry-run still deny actions. It resets

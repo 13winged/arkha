@@ -250,11 +250,11 @@
       "needs_tool_calling": true,
       "permission": "browser.dom",
       "verified": true,
-      "evidence": "Гейт browser_gate, 13.11.2026, Chrome: снимок нашёл поле и кнопку, ввод заменил текст, нажатие сменило заголовок вкладки",
+      "evidence": "Гейты browser_gate и browser_cdp_gate, 13.11.2026: снимок нашёл поле и кнопку, ввод заменил текст, нажатие сменило заголовок вкладки; CDP-драйвер прошёл тот же сценарий в headless Chrome",
       "refusal": "нужно открыть Chrome, Edge или Firefox и включить «Управление браузером» в разрешениях",
       "name_en": "Controlling the browser",
       "what_en": "Reads a page as a tree of elements, clicks buttons and links, types into fields",
-      "evidence_en": "Gate browser_gate, 13.11.2026, Chrome: snapshot found the field and button, typing replaced the text, clicking changed the tab title",
+      "evidence_en": "Gates browser_gate and browser_cdp_gate, 13.11.2026: snapshot found the field and button, typing replaced the text, clicking changed the tab title; the CDP driver passed the same scenario in headless Chrome",
       "refusal_en": "open Chrome, Edge or Firefox and enable \"Browser control\" in permissions"
     },
     {

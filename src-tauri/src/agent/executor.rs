@@ -42,6 +42,10 @@ use super::approvals::Решение;
 /// больше, чем нужно человеку, и заведомо меньше, чем нужно, чтобы
 /// зациклиться и съесть память.
 pub const MAX_TURNS: usize = 12;
+/// Сколько раз за задачу можно повторить один и тот же read-only
+/// вызов. Браузерный снимок после клика — нормальный повтор: страница
+/// изменилась, аргументы те же. Совсем без предела модель зациклится.
+const ПОВТОРОВ_ЧТЕНИЯ: usize = 6;
 pub const MAX_RUN_TIME: Duration = Duration::from_secs(600);
 pub const MAX_TOOL_TIME: Duration = Duration::from_secs(120);
 
@@ -275,8 +279,11 @@ pub struct Agent<'a> {
     registry: Registry,
     settings: Settings,
     /// Вызовы, уже выполненные в этом цикле: «инструмент + аргументы»
-    /// попарно. Повтор запрещаем.
+    /// попарно. Опасные повторы запрещены сразу, read-only — с пределом.
     done: Vec<(String, String)>,
+    /// Сколько раз повторяли read-only вызов. Отдельно от `done`,
+    /// потому что чтение после изменения страницы — не ошибка.
+    read_repeats: std::collections::HashMap<(String, String), usize>,
     pub calls: Vec<CallRecord>,
     /// Отмена пользователя. Проверяется на границе заходов и перед
     /// каждым вызовом инструмента: остановиться «между словами» нельзя,
@@ -326,6 +333,7 @@ impl<'a> Agent<'a> {
             registry,
             settings,
             done: Vec::new(),
+            read_repeats: std::collections::HashMap::new(),
             calls: Vec::new(),
             cancel,
             страховка_сработала: false,
@@ -622,22 +630,47 @@ impl<'a> Agent<'a> {
                     }
                 }
 
-                // Повтор того же вызова запрещён. Модель после отказа
-                // часто пробует снова то же самое, и без этого
-                // ограничения цикл съедает все шаги на одно и то же.
+                // Повтор того же вызова. Опасный вызов повторять нельзя
+                // сразу: модель после отказа часто пробует то же самое.
+                // Read-only — можно, но с пределом: снимок после клика
+                // имеет те же аргументы, а страница уже другая.
                 let key = (name.clone(), аргументы_как_текст(&args));
+                let side_effecting = self
+                    .registry
+                    .get(&name, &self.settings)
+                    .map(|инструмент| инструмент.spec(&self.settings).side_effecting)
+                    .unwrap_or(true);
                 if self.done.contains(&key) {
-                    let reason = "тот же вызов уже был, повтор запрещён";
-                    messages.push(Message::tool_result(&id, &name, reason));
-                    self.calls.push(CallRecord {
-                        tool: name,
-                        ok: false,
-                        summary: reason.into(),
-                        denied: true,
-                    });
-                    continue;
+                    if side_effecting {
+                        let reason = "тот же вызов уже был, повтор запрещён";
+                        messages.push(Message::tool_result(&id, &name, reason));
+                        self.calls.push(CallRecord {
+                            tool: name,
+                            ok: false,
+                            summary: reason.into(),
+                            denied: true,
+                        });
+                        continue;
+                    }
+                    let повторов = self.read_repeats.entry(key).or_insert(0);
+                    *повторов += 1;
+                    if *повторов > ПОВТОРОВ_ЧТЕНИЯ {
+                        let reason = format!(
+                            "этот инструмент уже прочитан {ПОВТОРОВ_ЧТЕНИЯ} раз за задачу. \
+                             Данных достаточно, ответь по ним или смени инструмент"
+                        );
+                        messages.push(Message::tool_result(&id, &name, &reason));
+                        self.calls.push(CallRecord {
+                            tool: name,
+                            ok: false,
+                            summary: reason,
+                            denied: true,
+                        });
+                        continue;
+                    }
+                } else {
+                    self.done.push(key);
                 }
-                self.done.push(key);
 
                 let tool_started = Instant::now();
                 let tool_result = self.registry.call(&name, &args, &self.settings);
@@ -1006,25 +1039,31 @@ mod tests {
         assert!(причина.content.contains("вне разрешённых папок"), "{}", причина.content);
     }
 
-    /// Повтор одного и того же вызова запрещён. Модель после отказа
-    /// любит попробовать снова то же самое.
+    /// Read-only повтор разрешён, но с пределом: снимок после клика —
+    /// нормальный повтор, а бесконечный цикл — нет.
     #[test]
-    fn повтор_того_же_вызова_запрещён() {
+    fn повтор_чтения_ограничен() {
         let root = TempRoot::new();
         let p = root.write("файл.txt", "данные".as_bytes());
         let аргументы = json!({"path": p.to_string_lossy()});
-        let mut m = Сценарий::нов(vec![
-            Сценарий::вызов("fs.read", аргументы.clone()),
-            Сценарий::вызов("fs.read", аргументы.clone()),
-            Сценарий::текст("Готово."),
-        ]);
+        let mut ходы = Vec::new();
+        for _ in 0..(ПОВТОРОВ_ЧТЕНИЯ + 2) {
+            ходы.push(Сценарий::вызов("fs.read", аргументы.clone()));
+        }
+        ходы.push(Сценарий::текст("Готово."));
+        let mut m = Сценарий::нов(ходы);
         let mut a = Agent::new(&mut m, настройки(&root));
-        let out = a.run(vec![Message::user("прочитай дважды")], 1);
+        let out = a.run(vec![Message::user("прочитай много раз")], 1);
 
-        assert_eq!(out.calls.len(), 2);
-        assert!(out.calls[0].ok, "первый вызов обязан состояться");
-        assert!(!out.calls[1].ok, "второй повтор должен быть отклонён");
-        assert!(out.calls[1].denied);
+        assert_eq!(out.calls.len(), ПОВТОРОВ_ЧТЕНИЯ + 2);
+        assert!(
+            out.calls[..=ПОВТОРОВ_ЧТЕНИЯ].iter().all(|вызов| вызов.ok),
+            "первые чтения должны пройти: {:?}",
+            out.calls
+        );
+        let последний = out.calls.last().expect("последний вызов");
+        assert!(!последний.ok, "лишний повтор должен быть отклонён");
+        assert!(последний.denied);
     }
 
     /// Перестановка ключей не должна обходить запрет на повтор.

@@ -34,6 +34,7 @@ use crate::permissions::{Decision, Settings};
 pub mod accessibility;
 pub mod apps;
 pub mod browser;
+pub mod browser_cdp;
 pub mod click_ref;
 pub mod control;
 pub mod fs;
@@ -257,6 +258,14 @@ fn built() -> Vec<Box<dyn Tool>> {
         Box::new(browser::Ввести),
         Box::new(browser::Клавиши),
         Box::new(browser::Прокрутить),
+        // CDP: DOM-уровень, стабильные ref и текст страницы.
+        Box::new(browser_cdp::CdpNavigate),
+        Box::new(browser_cdp::CdpReadPage),
+        Box::new(browser_cdp::CdpClick),
+        Box::new(browser_cdp::CdpType),
+        Box::new(browser_cdp::CdpText),
+        Box::new(browser_cdp::CdpWait),
+        Box::new(browser_cdp::CdpState),
         // Новые инструменты доступности (S6+): snapshot + click_ref
         Box::new(snapshot::SnapshotTool),
         Box::new(click_ref::ClickRef),

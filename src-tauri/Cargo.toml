@@ -82,6 +82,8 @@ sysinfo = "0.32"
 lopdf = "0.34"
 docx-rs = "0.4"
 tauri-plugin-notification = "2.8.1"
+tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+url = "2.5.8"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]

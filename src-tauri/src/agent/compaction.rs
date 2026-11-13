@@ -57,6 +57,7 @@ pub mod сторож {
         "files.delete",
         "apps.launch",
         "windows.control",
+        "browser.dom",
         "workflow.run",
     ];
 
