@@ -31,6 +31,7 @@
 | P0 | CDP-драйвер страницы: `read_page`, `left_click`, `get_page_text`, `navigate`, `wait` | `anthropics/claude-quickstarts/browser-toolset` | Python/TS | MIT | Порт на Rust |
 | P0 | Параллельные read-only инструменты, бюджеты, write gate, verifier | `anthropics/single-agent-loop-kit/reference_loop/loop.py` | Python | Apache-2.0 | Порт идей/кода на Rust |
 | P1 | Хуки `PreToolUse` / `PostToolUse` / `SessionStart`, политики инструментов | `anthropics/claude-agent-sdk-python/examples/hooks.py` | Python | MIT | Порт на Rust |
+| P1 | Browse MCP: настоящий Chrome с логинами | `anomalyco/browse` | TypeScript | MIT | Интеграция MCP, без порта |
 | P1 | Проверка навыков: дубликаты, выход за папку, обязательные поля | `anthropics/skills/spec`, `reference_loop.load_skills` | Python/спецификация | Apache-2.0 (spec/примеры) | Доработка `skills.rs` |
 | P2 | SessionStore и resume длинных задач | `anthropics/claude-agent-sdk-python` | Python | MIT | Порт на Rust |
 | P2 | Снимок экрана и координатные действия для canvas/remote-приложений | `anthropics/claude-quickstarts/computer-use-demo` | Python | MIT | Порт на Rust |
@@ -106,6 +107,17 @@
 - Пакет из 20 вызовов: 16 выполняются, 4 получают ошибку.
 - Превышение бюджета токенов останавливает цикл с внятной причиной.
 - Write-инструмент без подтверждения не выполняется.
+
+## P1-3. OpenCode Browse MCP
+
+**Статус:** сделано в 1.3.1 — `tools/browse.rs`, инструменты `browser.browse_execute`,
+`browser.browse_status`, `browser.browse_session`, гейт `browse_gate`.
+
+Browse (`anomalyco/browse`, MIT) — MCP-сервер + Chromium-расширение. В отличие от нашего
+CDP-драйвера, он работает в настоящем Chrome пользователя: с логинами, вкладками и расширениями.
+Интеграция не переписывает Browse: ArkHa использует существующий MCP-клиент и запускает
+`browse.exe mcp`. `execute` выполняется под `browser.dom` (L1, подтверждение), `status` — под
+`windows.read`. Живой гейт проверяет подключение и `page.goto('https://example.com')`.
 
 ## P1-1. Хуки и политики инструментов
 
