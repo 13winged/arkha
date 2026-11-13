@@ -341,7 +341,12 @@ impl Settings {
     /// нет, иначе «чтение документов» превратилось бы в «правку
     /// всего подряд».
     pub fn is_side_effecting(&self, capability: &str) -> bool {
-        capability.ends_with(".write")
+        // `browser.dom` не заканчивается на «опасный» суффикс, но
+        // меняет страницу: кликает, печатает, отправляет формы. Без
+        // этой строки он считался бы чтением и работал бы без
+        // галочки — ровно то, чего быть не должно.
+        capability == "browser.dom"
+            || capability.ends_with(".write")
             || capability.ends_with(".delete")
             || capability.ends_with(".launch")
             || capability.ends_with(".control")
@@ -358,6 +363,16 @@ mod tests {
         let s = Settings::default();
         assert_eq!(s.executor, Executor::DryRun);
         assert!(!s.cloud, "облако по умолчанию выключено");
+    }
+
+    /// Управление браузером кликает и печатает, значит это действие,
+    /// а не чтение. Без явной проверки `browser.dom` не попадал в
+    /// список опасных возможностей и работал без галочки.
+    #[test]
+    fn браузер_требует_явного_разрешения() {
+        let s = Settings::default();
+        assert!(s.is_side_effecting("browser.dom"));
+        assert!(!s.allows("browser.dom").allowed);
     }
 
     /// Агент не должен управлять интерфейсом, через который с ним

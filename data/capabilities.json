@@ -245,17 +245,17 @@
     {
       "id": "browser.dom",
       "name": "Управление браузером",
-      "what": "Читает страницу как дерево элементов, а не как картинка",
+      "what": "Читает страницу как дерево элементов, нажимает кнопки и ссылки, вводит текст в поля",
       "min_tier": "T1",
       "needs_tool_calling": true,
-      "permission": "web.fetch",
-      "verified": false,
-      "evidence": "",
-      "refusal": "управление браузером ещё не подключено",
+      "permission": "browser.dom",
+      "verified": true,
+      "evidence": "Гейт browser_gate, 13.11.2026, Chrome: снимок нашёл поле и кнопку, ввод заменил текст, нажатие сменило заголовок вкладки",
+      "refusal": "нужно открыть Chrome, Edge или Firefox и включить «Управление браузером» в разрешениях",
       "name_en": "Controlling the browser",
-      "what_en": "Reads a page as a tree of elements rather than as a picture",
-      "evidence_en": "",
-      "refusal_en": "browser control is not wired up yet"
+      "what_en": "Reads a page as a tree of elements, clicks buttons and links, types into fields",
+      "evidence_en": "Gate browser_gate, 13.11.2026, Chrome: snapshot found the field and button, typing replaced the text, clicking changed the tab title",
+      "refusal_en": "open Chrome, Edge or Firefox and enable \"Browser control\" in permissions"
     },
     {
       "id": "workflow.run",

@@ -21,6 +21,13 @@
   the Windows `App Paths` registry, so names like `chrome` resolve to their install folder.
 - A Windows notification appears when an agent request finishes, so the result is visible even when the
   window is minimised or covered by another app.
+- Browser control: `browser.open`, `browser.snapshot`, `browser.click`, `browser.type`, `browser.press`
+  and `browser.scroll`. The page is read as an accessibility tree; clicking uses the accessibility
+  action when available and a real mouse click at the element centre when it is not. Typing uses the
+  field's value pattern or focus plus keyboard input, and can replace the old text.
+- Mouse wheel: `windows.scroll` scrolls the focused or named window.
+- `windows.click` and `accessibility.click_ref` now fall back to a real mouse click when an element has
+  no accessibility invoke action, which is common for links and buttons inside web pages.
 
 ### Changed
 
@@ -33,6 +40,8 @@
   to one question only.
 - A disabled capability or dry-run no longer asks for approval: the tool reports the real reason instead
   of the user denying a question that could not be executed anyway.
+- `browser.dom` is a side-effecting capability and now appears in the Permissions panel, so browser
+  clicks and typing require an explicit checkbox.
 - A voice app launch does not stop at the approval dialog when `apps.launch` is enabled and the mode is
   not "always ask"; the spoken command is treated as the confirmation.
 - Push-to-talk hotkey is now `Ctrl+G`; an old saved `Ctrl+Alt+M` is treated as the new default.

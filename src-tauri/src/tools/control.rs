@@ -31,7 +31,8 @@ use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS,
     KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN,
-    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_VIRTUALDESK, MOUSEINPUT, VIRTUAL_KEY,
+    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL,
+    MOUSEINPUT, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumChildWindows, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
@@ -603,6 +604,82 @@ impl Tool for Кликнуть {
     }
 }
 
+/// Прокрутить окно колесом мыши.
+pub struct Прокрутить;
+
+impl Tool for Прокрутить {
+    fn spec(&self, _s: &Settings) -> ToolSpec {
+        ToolSpec {
+            id: "windows.scroll".into(),
+            capability: "windows.control".into(),
+            name: "Прокрутить окно".into(),
+            description: "Прокрутить окно вверх или вниз колесом мыши. Если окно \
+                          не названо — прокручивается то, где сейчас фокус. Для \
+                          страниц браузера удобнее browser.scroll."
+                .into(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "direction": { "type": "string", "enum": ["down", "up"], "description": "куда крутить" },
+                    "amount": { "type": "integer", "minimum": 1, "maximum": 10, "description": "сколько шагов, по умолчанию 3" },
+                    "title": { "type": "string", "description": "часть заголовка окна" }
+                },
+                "required": ["direction"]
+            }),
+            side_effecting: true,
+        }
+    }
+
+    fn call(&self, args: &Value, _s: &Settings) -> Result<ToolOutput, ToolError> {
+        let направление = args
+            .get("direction")
+            .and_then(|v| v.as_str())
+            .unwrap_or("down")
+            .to_lowercase();
+        let вниз = match направление.as_str() {
+            "down" | "вниз" => true,
+            "up" | "вверх" => false,
+            other => {
+                return Err(ToolError::BadArgs(format!(
+                    "неизвестное направление «{other}», нужно down или up"
+                )))
+            }
+        };
+        let шагов = args
+            .get("amount")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(3) as u32;
+
+        let (hwnd, заголовок_окна) = match args.get("title").and_then(|v| v.as_str()) {
+            Some(title) if !title.trim().is_empty() => {
+                let о = окно_для(title)?;
+                (HWND(о.hwnd as *mut _), о.заголовок)
+            }
+            _ => {
+                let hwnd = unsafe { GetForegroundWindow() };
+                if hwnd.0.is_null() {
+                    return Err(ToolError::Refused(
+                        "нет активного окна: нажми на окно, которое надо прокрутить".into(),
+                    ));
+                }
+                (hwnd, заголовок(hwnd))
+            }
+        };
+
+        let mut рамка = RECT::default();
+        unsafe { GetWindowRect(hwnd, &mut рамка) }
+            .map_err(|e| ToolError::Refused(format!("не удалось прочитать размеры окна: {e}")))?;
+        let центр = ((рамка.left + рамка.right) / 2, (рамка.top + рамка.bottom) / 2);
+        прокрутить_в(центр, вниз, шагов)?;
+
+        let слово = if вниз { "вниз" } else { "вверх" };
+        Ok(ToolOutput::changed(
+            format!("прокручено {слово} на {шагов}: «{заголовок_окна}»"),
+            format!("прокручено {слово}: «{заголовок_окна}»"),
+        ))
+    }
+}
+
 /// Нажать через дерево доступности, без перехвата фокуса.
 ///
 /// Отдельная функция, потому что у неё другой отказ и другой смысл.
@@ -621,11 +698,34 @@ fn нажать_через_доступность(
     match найденные.элементы.len() {
         1 => {
             let э = &найденные.элементы[0];
-            super::uia::нажать(э).map_err(ToolError::Refused)?;
-            Ok(ToolOutput::changed(
-                format!("нажато «{}» (это {}) в окне «{}»", э.текст, э.вид, заголовок_окна),
-                format!("нажато «{}» в «{}»", э.текст, заголовок_окна),
-            ))
+            match super::uia::нажать(э) {
+                Ok(()) => Ok(ToolOutput::changed(
+                    format!("нажато «{}» (это {}) в окне «{}»", э.текст, э.вид, заголовок_окна),
+                    format!("нажато «{}» в «{}»", э.текст, заголовок_окна),
+                )),
+                Err(о) => {
+                    // `InvokePattern` есть не у всего: у ссылок и
+                    // кнопок внутри страницы Chrome его иногда нет.
+                    // Тогда жмём настоящей мышью по центру элемента,
+                    // который нашла Windows. Координату не выдумываем:
+                    // она пришла из прямоугольника элемента.
+                    let Some(точка) = super::uia::центр(э) else {
+                        return Err(ToolError::Refused(format!(
+                            "{о}; у элемента нет видимых размеров, кликнуть мышью тоже нельзя"
+                        )));
+                    };
+                    клик_в_точку(точка).map_err(|e| {
+                        ToolError::Refused(format!("{о}; мышью тоже не вышло: {e}"))
+                    })?;
+                    Ok(ToolOutput::changed(
+                        format!(
+                            "нажато «{}» (это {}) мышью в окне «{}»",
+                            э.текст, э.вид, заголовок_окна
+                        ),
+                        format!("нажато «{}» мышью в «{}»", э.текст, заголовок_окна),
+                    ))
+                }
+            }
         }
         0 => {
             let обычные: Vec<String> =
@@ -668,8 +768,17 @@ fn нажать_через_доступность(
 
 /// Клик мышью в точку.
 fn кликнуть(э: &Элемент) -> Result<(), ToolError> {
-    let (абс_x, абс_y) = в_абсолютные(э.центр)?;
-    let mut событий: Vec<INPUT> = Vec::with_capacity(2);
+    клик_в_точку(э.центр)
+}
+
+/// Клик мышью по экранной координате.
+///
+/// Координата приходит не от модели, а из найденного элемента:
+/// прямоугольник берётся у Windows, центр считается здесь. Модель
+/// по-прежнему не может попросить «кликни в (300, 400)».
+pub fn клик_в_точку(точка: (i32, i32)) -> Result<(), ToolError> {
+    let (абс_x, абс_y) = в_абсолютные(точка)?;
+    let mut событий: Vec<INPUT> = Vec::with_capacity(3);
     for флаги in [
         MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
         MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
@@ -694,6 +803,51 @@ fn кликнуть(э: &Элемент) -> Result<(), ToolError> {
         return Err(ToolError::Refused(
             "система не приняла нажатие мыши".into(),
         ));
+    }
+    Ok(())
+}
+
+/// Прокрутить колесом в точке.
+///
+/// Колесо Windows доставляет тому окну, над которым стоит курсор,
+/// поэтому сначала ставим курсор в центр нужного окна. Иначе
+/// `windows.scroll` крутил бы список под случайным курсором, а
+/// человек видел бы «ничего не произошло».
+pub fn прокрутить_в(точка: (i32, i32), вниз: bool, шагов: u32) -> Result<(), ToolError> {
+    let (абс_x, абс_y) = в_абсолютные(точка)?;
+    let шагов = шагов.clamp(1, 10);
+    let расстояние = (120 * шагов) as i32;
+    let дельта = if вниз { -расстояние } else { расстояние };
+    let mut событий: Vec<INPUT> = Vec::with_capacity(2);
+    событий.push(INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx: абс_x,
+                dy: абс_y,
+                mouseData: 0,
+                dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    });
+    событий.push(INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx: 0,
+                dy: 0,
+                mouseData: дельта as u32,
+                dwFlags: MOUSEEVENTF_WHEEL,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    });
+    let отправлено = unsafe { SendInput(&событий, std::mem::size_of::<INPUT>() as i32) };
+    if отправлено as usize != событий.len() {
+        return Err(ToolError::Refused("система не приняла прокрутку".into()));
     }
     Ok(())
 }

@@ -37,11 +37,11 @@ use windows::Win32::System::Com::{
 };
 pub use windows::Win32::UI::Accessibility::{
     CUIAutomation8, IUIAutomation, IUIAutomationElement, IUIAutomationInvokePattern,
-    TreeScope_Descendants,
-    UIA_ButtonControlTypeId, UIA_CheckBoxControlTypeId, UIA_EditControlTypeId,
-    UIA_HyperlinkControlTypeId, UIA_InvokePatternId, UIA_ListItemControlTypeId,
-    UIA_MenuItemControlTypeId, UIA_RadioButtonControlTypeId, UIA_TabItemControlTypeId,
-    UIA_TextControlTypeId,
+    IUIAutomationValuePattern, TreeScope_Descendants,
+    UIA_ButtonControlTypeId, UIA_CheckBoxControlTypeId, UIA_DocumentControlTypeId,
+    UIA_EditControlTypeId, UIA_HyperlinkControlTypeId, UIA_InvokePatternId,
+    UIA_ListItemControlTypeId, UIA_MenuItemControlTypeId, UIA_RadioButtonControlTypeId,
+    UIA_TabItemControlTypeId, UIA_TextControlTypeId, UIA_ValuePatternId,
 };
 
 /// Типы элементов, которые имеет смысл нажимать или в которые писать.
@@ -219,9 +219,18 @@ pub fn найти(родитель: HWND, текст: &str) -> Найденны�
             let Ok(надпись) = (unsafe { элемент.CurrentName() }) else {
                 continue;
             };
-            let текст_элемента = надпись.to_string().trim().to_string();
+            let mut текст_элемента = надпись.to_string().trim().to_string();
             if текст_элемента.is_empty() {
-                continue;
+                // У поля ввода на странице часто нет подписи: имя в
+                // дереве доступности пустое, а значение и рамка есть.
+                // При перечислении (пустой игле) такое поле всё равно
+                // обязано попасть в снимок, иначе агенту некуда вводить
+                // текст. При поиске по подписи его по-прежнему нет:
+                // пустая строка не должна совпадать со всем подряд.
+                if !игла.is_empty() || код_вида != UIA_EditControlTypeId.0 {
+                    continue;
+                }
+                текст_элемента = "поле ввода".to_string();
             }
             if !игла.is_empty() && !текст_элемента.to_lowercase().contains(&игла) {
                 continue;
@@ -271,6 +280,43 @@ pub fn нажать(э: &Элемент) -> Result<(), String> {
     unsafe { шаблон.Invoke() }.map_err(|о| format!("приложение отклонило нажатие: {о}"))
 }
 
+/// Центр элемента в экранных координатах.
+///
+/// Нужен только как запасной путь: если `InvokePattern` нет, элемент
+/// всё равно можно нажать настоящей мышью. Координата берётся из
+/// прямоугольника, который вернула Windows, а не от модели.
+pub fn центр(э: &Элемент) -> Option<(i32, i32)> {
+    let р = &э.рамка;
+    if р.right > р.left && р.bottom > р.top {
+        Some(((р.left + р.right) / 2, (р.top + р.bottom) / 2))
+    } else {
+        None
+    }
+}
+
+/// Передать фокус элементу.
+///
+/// Нужно перед вводом текста в тех случаях, когда поле не принимает
+/// значение через `ValuePattern`: клавиши уходят в то, что в фокусе.
+pub fn сфокусировать(э: &Элемент) -> Result<(), String> {
+    unsafe { э.элемент.SetFocus() }
+        .map_err(|о| format!("элемент не принял фокус: {о}"))
+}
+
+/// Вставить текст в поле через `ValuePattern`.
+///
+/// Это первый путь для полей ввода: он не требует фокуса и не зависит
+/// от раскладки. Если поле шаблон не поддерживает, вызывающий код
+/// переходит к клику и набору с клавиатуры.
+pub fn установить_значение(э: &Элемент, текст: &str) -> Result<(), String> {
+    let шаблон: IUIAutomationValuePattern =
+        unsafe { э.элемент.GetCurrentPatternAs(UIA_ValuePatternId) }
+            .map_err(|о| format!("поле не принимает текст напрямую: {о}"))?;
+    let значение = windows::core::BSTR::from(текст);
+    unsafe { шаблон.SetValue(&значение) }
+        .map_err(|о| format!("поле отклонило текст: {о}"))
+}
+
 /// Подписи для отказа: что вообще нашлось.
 ///
 /// Отдельная функция, а не `найти(окно, "")` в вызывающем коде:
@@ -317,6 +363,41 @@ pub fn размер_дерева(родитель: HWND) -> i32 {
 /// разные вещи, и путать их в отказе нельзя.
 pub fn окно_живое(родитель: HWND) -> bool {
     размер_дерева(родитель) > 0
+}
+
+/// Появился ли на странице документ.
+///
+/// У Chrome дерево браузерной оболочки (кнопки, вкладки, адресная
+/// строка) доступно сразу, а содержимое страницы — только после того,
+/// как Chrome включит доступность. Без этой проверки `browser.snapshot`
+/// возвращал бы панель браузера вместо страницы и говорил «поле не
+/// найдено» на нормальной странице.
+pub fn есть_документ(родитель: HWND) -> bool {
+    let Some(авто) = Автоматизация::создать() else {
+        return false;
+    };
+    let Ok(корень) = (unsafe { авто.объект.ElementFromHandle(родитель) }) else {
+        return false;
+    };
+    let Ok(условие) = (unsafe { авто.объект.CreateTrueCondition() }) else {
+        return false;
+    };
+    let Ok(все) = (unsafe { корень.FindAll(TreeScope_Descendants, &условие) }) else {
+        return false;
+    };
+    let длина = unsafe { все.Length() }.unwrap_or(0).min(ПОТОЛОК_ЭЛЕМЕНТОВ);
+    for индекс in 0..длина {
+        let Ok(элемент) = (unsafe { все.GetElement(индекс) }) else {
+            continue;
+        };
+        if unsafe { элемент.CurrentControlType() }
+            .map(|код| код.0 == UIA_DocumentControlTypeId.0)
+            .unwrap_or(false)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]

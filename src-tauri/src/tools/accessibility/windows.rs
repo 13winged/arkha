@@ -99,9 +99,19 @@ impl Accessibility for WindowsAccessibility {
         }
 
         let el = &found.элементы[n - 1];
-        uia::нажать(el).map_err(|e| AccessibilityError::Platform(e))?;
-
-        Ok(())
+        match uia::нажать(el) {
+            Ok(()) => Ok(()),
+            Err(о) => {
+                // Как и в windows.click: у части элементов страницы нет
+                // InvokePattern. Тогда жмём мышью по центру элемента.
+                let Some(точка) = uia::центр(el) else {
+                    return Err(AccessibilityError::Platform(о));
+                };
+                crate::tools::control::клик_в_точку(точка).map_err(|е| {
+                    AccessibilityError::Platform(format!("{о}; мышью тоже не вышло: {е}"))
+                })
+            }
+        }
     }
 
     fn list_apps(&self) -> Result<Vec<String>, AccessibilityError> {

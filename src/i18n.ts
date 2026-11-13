@@ -344,6 +344,7 @@ const EN: Record<string, string> = {
   "Действия требуют включения: чтение работает без галочек.": "Actions must be enabled; reading works without checkboxes.",
   "Если выбрано «спрашивать, когда меняет», перед запуском появится окно подтверждения — нажмите «разрешить».": "With \"ask when it changes something\", a confirmation appears before launch — press \"allow\".",
   "Голосовой запуск программы выполняется без окна, если включена галочка «запуск программы» и режим не «спрашивать всегда».": "A voice app launch runs without a dialog when \"launch programs\" is checked and the mode is not \"always ask\".",
+  "Браузер: включите «Управление браузером», чтобы агент мог читать страницу, нажимать и вводить текст.": "Browser: enable \"Browser control\" so the agent can read the page, click and type.",
   "Готово": "Done",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",

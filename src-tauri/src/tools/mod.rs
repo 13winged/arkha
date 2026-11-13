@@ -33,6 +33,7 @@ use crate::permissions::{Decision, Settings};
 
 pub mod accessibility;
 pub mod apps;
+pub mod browser;
 pub mod click_ref;
 pub mod control;
 pub mod fs;
@@ -244,7 +245,17 @@ fn built() -> Vec<Box<dyn Tool>> {
         Box::new(control::Написать),
         Box::new(control::Нажать),
         Box::new(control::Кликнуть),
+        Box::new(control::Прокрутить),
         Box::new(apps::Запустить),
+        // Браузер: страница как дерево элементов плюс настоящие
+        // клики и ввод. Chrome/Edge рисуют интерфейс сами, поэтому
+        // обычный поиск дочерних окон у них не работает.
+        Box::new(browser::Открыть),
+        Box::new(browser::Снимок),
+        Box::new(browser::Нажать),
+        Box::new(browser::Ввести),
+        Box::new(browser::Клавиши),
+        Box::new(browser::Прокрутить),
         // Новые инструменты доступности (S6+): snapshot + click_ref
         Box::new(snapshot::SnapshotTool),
         Box::new(click_ref::ClickRef),
