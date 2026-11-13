@@ -89,6 +89,9 @@
   (tokens used, prompt tokens, latency, tokens per second); average latency falls back to metrics.
 - An approval decision was not cleared after it was used, so one "deny" was silently reused for the next
   call in the same run; the model saw two denials while the user answered once.
+- `browser.browse_execute` now checks the relay and the Chrome extension before running a scenario. A
+  stopped relay or a disconnected extension produces a clear instruction to open Chrome with the Browse
+  extension, instead of a raw "relay is not reachable" refusal.
 
 ## [1.3.0] - 2026-11-12
 

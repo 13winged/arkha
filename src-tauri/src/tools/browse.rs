@@ -148,8 +148,95 @@ fn ответ_текстом(reply: ToolReply, инструмент: &str) -> Re
     Ok(обрезано)
 }
 
+/// Что сказать, если relay не отвечает.
+const ПОДСКАЗКА_RELAY: &str = "Browse не отвечает: relay на 127.0.0.1:19988 не запущен. \
+     Relay поднимается сам при первом вызове; если этого не случилось, откройте Chrome \
+     с установленным расширением Browse или запустите `browse serve` для отладки.";
+
+/// Что сказать, если relay есть, а Chrome не подключён.
+const ПОДСКАЗКА_CHROME: &str = "Chrome с расширением Browse не подключён. Откройте Chrome, \
+     где установлено расширение Browse, — оно переподключится само, и повторите вызов.";
+
 fn объект() -> Map<String, Value> {
     Map::new()
+}
+
+/// Подключён ли браузер по тексту `status`.
+///
+/// Ответ Browse — JSON вида `{"status": {"connected": true, ...}}`.
+/// `None` означает «формат незнаком», и тогда execute не блокируется:
+/// пусть скажет своё, вместо того чтобы гадать.
+fn состояние_подключения(текст: &str) -> Option<bool> {
+    let значение: Value = serde_json::from_str(текст).ok()?;
+    значение.get("status")?.get("connected")?.as_bool()
+}
+
+/// Причина отказа — недоступный relay, а не ошибка сценария.
+fn это_ошибка_relay(текст: &str) -> bool {
+    let нижний = текст.to_lowercase();
+    нижний.contains("relay is not reachable") || нижний.contains("relay is not running")
+}
+
+/// Короткая выжимка из статуса: без простыни всего JSON.
+fn краткий_статус(текст: &str) -> String {
+    let Ok(значение) = serde_json::from_str::<Value>(текст) else {
+        return текст.trim().to_string();
+    };
+    let статус = значение.get("status");
+    let состояние = статус
+        .and_then(|с| с.get("pairingState"))
+        .and_then(|с| с.as_str())
+        .unwrap_or("неизвестно");
+    let шаг = статус
+        .and_then(|с| с.get("nextStep"))
+        .and_then(|с| с.as_str())
+        .unwrap_or("");
+    if шаг.is_empty() {
+        format!("Состояние: {состояние}.")
+    } else {
+        format!("Состояние: {состояние}. {шаг}")
+    }
+}
+
+/// Проверить связь до запуска сценария.
+///
+/// Без этого первый `execute` ждал бы таймаут и возвращал сырой текст
+/// вроде «relay is not reachable». Проверка дешёвая и локальная.
+fn проверить_подключение() -> Result<(), ToolError> {
+    match вызвать("status", json!({}), ТАЙМАУТ) {
+        Ok(ответ) => match подсказка_по_статусу(&ответ) {
+            Some(подсказка) => Err(ToolError::Refused(подсказка)),
+            None => Ok(()),
+        },
+        // MCP-процесс не поднялся: `вызвать` уже дал внятную причину.
+        Err(_) => Ok(()),
+    }
+}
+
+/// Что не так со связью по ответу `status`; `None` — можно работать.
+fn подсказка_по_статусу(ответ: &ToolReply) -> Option<String> {
+    if ответ.is_error {
+        return это_ошибка_relay(&ответ.text).then(|| ПОДСКАЗКА_RELAY.to_string());
+    }
+    match состояние_подключения(&ответ.text) {
+        Some(false) => Some(format!(
+            "{ПОДСКАЗКА_CHROME}\n\n{}",
+            краткий_статус(&ответ.text)
+        )),
+        // Незнакомый формат не блокирует execute: точную ошибку
+        // даст сам сценарий.
+        _ => None,
+    }
+}
+
+/// Заменить сырой отказ Browse на подсказку, если причина — связь.
+fn уточнить(ошибка: ToolError) -> ToolError {
+    match &ошибка {
+        ToolError::Refused(текст) if это_ошибка_relay(текст) => {
+            ToolError::Refused(ПОДСКАЗКА_RELAY.into())
+        }
+        _ => ошибка,
+    }
 }
 
 /// Аргументы MCP-инструмента `execute` из аргументов нашего инструмента.
@@ -286,8 +373,9 @@ impl Tool for BrowseExecute {
         } else {
             Duration::from_millis(бюджёт.max(30_000) + 30_000)
         };
-        let ответ = вызвать("execute", аргументы, таймаут)?;
-        let текст = ответ_текстом(ответ, "execute")?;
+        проверить_подключение()?;
+        let ответ = вызвать("execute", аргументы, таймаут).map_err(уточнить)?;
+        let текст = ответ_текстом(ответ, "execute").map_err(уточнить)?;
         Ok(ToolOutput::changed(
             текст,
             "browse.execute выполнен".to_string(),
@@ -518,5 +606,88 @@ mod tests {
         )
         .unwrap();
         assert!(обрезанный.contains("ответ Browse обрезан"));
+    }
+
+    #[test]
+    fn статус_подключения_читается() {
+        assert_eq!(
+            состояние_подключения(r#"{"status":{"connected":true}}"#),
+            Some(true)
+        );
+        assert_eq!(
+            состояние_подключения(r#"{"status":{"connected":false}}"#),
+            Some(false)
+        );
+        assert_eq!(состояние_подключения("{}"), None);
+        assert_eq!(состояние_подключения(r#"{"status":{}}"#), None);
+        assert_eq!(состояние_подключения("не json"), None);
+    }
+
+    #[test]
+    fn краткий_статус_берёт_шаг_и_состояние() {
+        let текст = concat!(
+            r#"{"status":{"pairingState":"paired-offline","#,
+            r#""nextStep":"Open the browser profile"}}"#
+        );
+        let краткий = краткий_статус(текст);
+        assert!(краткий.contains("paired-offline"), "{краткий}");
+        assert!(краткий.contains("Open the browser profile"), "{краткий}");
+        assert_eq!(краткий_статус("просто текст"), "просто текст");
+    }
+
+    #[test]
+    fn ошибка_relay_узнаётся_в_любом_регистре() {
+        assert!(это_ошибка_relay("BROWSE RELAY IS NOT REACHABLE"));
+        assert!(это_ошибка_relay("relay is not running"));
+        assert!(!это_ошибка_relay("element not found"));
+    }
+
+    #[test]
+    fn отказ_relay_заменяется_подсказкой() {
+        let сырой = ToolError::Refused(
+            "status: browse relay is not reachable at http://127.0.0.1:19988".into(),
+        );
+        match уточнить(сырой) {
+            ToolError::Refused(текст) => {
+                assert!(текст.contains("relay на 127.0.0.1:19988"), "{текст}")
+            }
+            другое => panic!("ожидался Refused, а не {другое:?}"),
+        }
+
+        let сценарная = ToolError::Refused("execute: page.goto упал".into());
+        match уточнить(сценарная) {
+            ToolError::Refused(текст) => assert_eq!(текст, "execute: page.goto упал"),
+            другое => panic!("ожидался Refused, а не {другое:?}"),
+        }
+    }
+
+    #[test]
+    fn подсказка_по_статусу_различает_три_случая() {
+        // Relay мёртв: status вернул ошибку с известной причиной.
+        let мёртв = ToolReply {
+            text: "browse relay is not reachable at http://127.0.0.1:19988".into(),
+            is_error: true,
+        };
+        let подсказка = подсказка_по_статусу(&мёртв).expect("должна быть подсказка");
+        assert!(подсказка.contains("relay на 127.0.0.1:19988"), "{подсказка}");
+
+        // Relay жив, Chrome не подключён.
+        let offline = ToolReply {
+            text: r#"{"status":{"connected":false,"pairingState":"paired-offline","nextStep":"Open the browser profile"}}"#
+                .into(),
+            is_error: false,
+        };
+        let подсказка = подсказка_по_статусу(&offline).expect("должна быть подсказка");
+        assert!(подсказка.contains("расширением Browse"), "{подсказка}");
+        assert!(подсказка.contains("paired-offline"), "{подсказка}");
+
+        // Всё подключено и чужая ошибка status не блокируют execute.
+        let готов = ToolReply {
+            text: r#"{"status":{"connected":true}}"#.into(),
+            is_error: false,
+        };
+        assert!(подсказка_по_статусу(&готов).is_none());
+        let иная = ToolReply { text: "timeout".into(), is_error: true };
+        assert!(подсказка_по_статусу(&иная).is_none());
     }
 }
