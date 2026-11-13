@@ -14,6 +14,8 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use serde_json::json;
@@ -21,6 +23,17 @@ use serde_json::json;
 use arkha_lib::permissions::Settings;
 use arkha_lib::tools::Tool;
 use arkha_lib::tools::browser;
+
+/// Три теста запускают Chrome. Параллельно они находят чужие окна и
+/// мешают друг другу, поэтому внутри файла идут по очереди.
+static СЕРИАЛ: Mutex<()> = Mutex::new(());
+/// У каждого запуска свой профиль: один и тот же путь при повторном
+/// тесте может быть ещё занят предыдущим Chrome.
+static СЧЁТЧИК: AtomicU64 = AtomicU64::new(0);
+
+fn сериал() -> MutexGuard<'static, ()> {
+    СЕРИАЛ.lock().unwrap_or_else(|ошибка| ошибка.into_inner())
+}
 
 const ДО: &str = "ArkHa Browser";
 const ТЕКСТ: &str = "Титан квест Release";
@@ -75,19 +88,35 @@ fn url_файла(путь: &Path) -> String {
 
 fn открыть() -> (Браузер, Профиль) {
     let exe = браузер().expect("не найден Chrome, Edge или Firefox");
-    let профиль = std::env::temp_dir().join(format!("arkha-browser-{}", std::process::id()));
+    let номер = СЧЁТЧИК.fetch_add(1, Ordering::SeqCst);
+    let профиль = std::env::temp_dir().join(format!(
+        "arkha-browser-{}-{номер}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&профиль);
+
+    let старые: Vec<isize> = arkha_lib::tools::windows::найти(ДО)
+        .into_iter()
+        .map(|окно| окно.hwnd)
+        .collect();
 
     let ребёнок = Command::new(&exe)
         .arg(format!("--user-data-dir={}", профиль.display()))
         .arg("--no-first-run")
         .arg("--no-default-browser-check")
+        .arg("--disable-background-networking")
+        .arg("--disable-extensions")
+        .arg("--disable-sync")
+        .arg("--disable-session-crashed-bubble")
+        .arg("--hide-crash-restore-bubble")
+        .arg("--force-renderer-accessibility")
+        .arg("--disable-renderer-backgrounding")
         .arg("--new-window")
         .arg(url_файла(&страница()))
         .spawn()
         .expect("не удалось запустить браузер");
 
-    if ждать_окна(ДО, 40).is_none() {
+    if ждать_нового_окна(ДО, &старые, 40).is_none() {
         let видимые = arkha_lib::tools::windows::видимые()
             .into_iter()
             .map(|о| о.заголовок)
@@ -101,12 +130,15 @@ fn открыть() -> (Браузер, Профиль) {
     (Браузер { ребёнок }, Профиль(профиль))
 }
 
-fn ждать_окна(часть: &str, секунд: u64) -> Option<isize> {
+/// Ждать окно, которого не было до запуска. Старое окно с тем же
+/// заголовком от предыдущего теста иначе принимается за новое, и тест
+/// читает чужую страницу.
+fn ждать_нового_окна(часть: &str, старые: &[isize], секунд: u64) -> Option<isize> {
     let край = Instant::now() + Duration::from_secs(секунд);
     loop {
         if let Some(окно) = arkha_lib::tools::windows::найти(часть)
             .into_iter()
-            .find(|окно| окно.видимое)
+            .find(|окно| окно.видимое && !старые.contains(&окно.hwnd))
         {
             return Some(окно.hwnd);
         }
@@ -135,6 +167,7 @@ fn ждать_заголовка(часть: &str, секунд: u64) -> bool {
 
 #[test]
 fn снимок_видит_поле_и_кнопку() {
+    let _сериал = сериал();
     let (_браузер, _профиль) = открыть();
     let s = Settings::default();
     let снимок = browser::Снимок
@@ -148,6 +181,7 @@ fn снимок_видит_поле_и_кнопку() {
 
 #[test]
 fn текст_страницы_читается() {
+    let _сериал = сериал();
     let (_браузер, _профиль) = открыть();
     let s = Settings::default();
     let текст = browser::Текст
@@ -160,6 +194,7 @@ fn текст_страницы_читается() {
 
 #[test]
 fn ввод_и_нажатие_меняют_страницу() {
+    let _сериал = сериал();
     let (_браузер, _профиль) = открыть();
     let s = Settings::default();
 

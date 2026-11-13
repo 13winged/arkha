@@ -152,6 +152,80 @@ fn объект() -> Map<String, Value> {
     Map::new()
 }
 
+/// Аргументы MCP-инструмента `execute` из аргументов нашего инструмента.
+/// Вынесено отдельно, чтобы проверять без запуска Browse.
+fn аргументы_выполнения(args: &Value) -> Result<Value, ToolError> {
+    let Some(code) = args.get("code").and_then(|значение| значение.as_str()) else {
+        return Err(ToolError::BadArgs("нет поля code".into()));
+    };
+    if code.trim().is_empty() {
+        return Err(ToolError::BadArgs("code пустой".into()));
+    }
+    let mut аргументы = объект();
+    аргументы.insert("code".into(), json!(code));
+    if let Some(значение) = args.get("timeout_ms").and_then(|з| з.as_u64()) {
+        аргументы.insert("timeoutMs".into(), json!(значение));
+    }
+    if let Some(значение) = args.get("session").and_then(|з| з.as_str()) {
+        аргументы.insert("session".into(), json!(значение));
+    }
+    if let Some(значение) = args.get("target_url").and_then(|з| з.as_str()) {
+        аргументы.insert("targetUrl".into(), json!(значение));
+    }
+    if let Some(значение) = args.get("target_index").and_then(|з| з.as_u64()) {
+        аргументы.insert("targetIndex".into(), json!(значение));
+    }
+    Ok(Value::Object(аргументы))
+}
+
+/// Имя MCP-инструмента сессии, его аргументы и меняет ли он состояние.
+fn аргументы_сессии(args: &Value) -> Result<(&'static str, Value, bool), ToolError> {
+    let Some(действие) = args.get("action").and_then(|з| з.as_str()) else {
+        return Err(ToolError::BadArgs("нет поля action".into()));
+    };
+    let id = args.get("id").and_then(|з| з.as_str());
+    match действие {
+        "list" => Ok(("session_list", json!({}), false)),
+        "new" => {
+            let mut аргументы = объект();
+            if let Some(id) = id {
+                аргументы.insert("id".into(), json!(id));
+            }
+            if let Some(значения) = args.get("allowed_origins").and_then(|з| з.as_array()) {
+                аргументы.insert("allowedOrigins".into(), Value::Array(значения.clone()));
+            }
+            if let Some(значение) = args.get("read_only").and_then(|з| з.as_bool()) {
+                аргументы.insert("readOnly".into(), json!(значение));
+            }
+            if let Some(значение) = args.get("browser").and_then(|з| з.as_str()) {
+                аргументы.insert("browser".into(), json!(значение));
+            }
+            Ok(("session_new", Value::Object(аргументы), true))
+        }
+        "use" => {
+            let id = id.ok_or_else(|| ToolError::BadArgs("для use нужен id".into()))?;
+            Ok(("session_use", json!({"id": id}), true))
+        }
+        "reset" => {
+            let mut аргументы = объект();
+            if let Some(id) = id {
+                аргументы.insert("id".into(), json!(id));
+            }
+            Ok(("session_reset", Value::Object(аргументы), true))
+        }
+        "delete" => {
+            let mut аргументы = объект();
+            if let Some(id) = id {
+                аргументы.insert("id".into(), json!(id));
+            }
+            Ok(("session_delete", Value::Object(аргументы), true))
+        }
+        другое => Err(ToolError::BadArgs(format!(
+            "неизвестное действие «{другое}», нужно list/new/use/reset/delete"
+        ))),
+    }
+}
+
 pub struct BrowseExecute;
 
 impl Tool for BrowseExecute {
@@ -202,28 +276,7 @@ impl Tool for BrowseExecute {
     }
 
     fn call(&self, args: &Value, _s: &Settings) -> Result<ToolOutput, ToolError> {
-        let Some(code) = args.get("code").and_then(|значение| значение.as_str()) else {
-            return Err(ToolError::BadArgs("нет поля code".into()));
-        };
-        if code.trim().is_empty() {
-            return Err(ToolError::BadArgs("code пустой".into()));
-        }
-
-        let mut аргументы = объект();
-        аргументы.insert("code".into(), json!(code));
-        if let Some(значение) = args.get("timeout_ms").and_then(|з| з.as_u64()) {
-            аргументы.insert("timeoutMs".into(), json!(значение));
-        }
-        if let Some(значение) = args.get("session").and_then(|з| з.as_str()) {
-            аргументы.insert("session".into(), json!(значение));
-        }
-        if let Some(значение) = args.get("target_url").and_then(|з| з.as_str()) {
-            аргументы.insert("targetUrl".into(), json!(значение));
-        }
-        if let Some(значение) = args.get("target_index").and_then(|з| з.as_u64()) {
-            аргументы.insert("targetIndex".into(), json!(значение));
-        }
-
+        let аргументы = аргументы_выполнения(args)?;
         let бюджёт = args
             .get("timeout_ms")
             .and_then(|з| з.as_u64())
@@ -233,7 +286,7 @@ impl Tool for BrowseExecute {
         } else {
             Duration::from_millis(бюджёт.max(30_000) + 30_000)
         };
-        let ответ = вызвать("execute", Value::Object(аргументы), таймаут)?;
+        let ответ = вызвать("execute", аргументы, таймаут)?;
         let текст = ответ_текстом(ответ, "execute")?;
         Ok(ToolOutput::changed(
             текст,
@@ -305,52 +358,7 @@ impl Tool for BrowseSession {
     }
 
     fn call(&self, args: &Value, _s: &Settings) -> Result<ToolOutput, ToolError> {
-        let Some(действие) = args.get("action").and_then(|з| з.as_str()) else {
-            return Err(ToolError::BadArgs("нет поля action".into()));
-        };
-        let id = args.get("id").and_then(|з| з.as_str());
-        let (имя, аргументы, изменение) = match действие {
-            "list" => ("session_list", json!({}), false),
-            "new" => {
-                let mut аргументы = объект();
-                if let Some(id) = id {
-                    аргументы.insert("id".into(), json!(id));
-                }
-                if let Some(значения) = args.get("allowed_origins").and_then(|з| з.as_array()) {
-                    аргументы.insert("allowedOrigins".into(), Value::Array(значения.clone()));
-                }
-                if let Some(значение) = args.get("read_only").and_then(|з| з.as_bool()) {
-                    аргументы.insert("readOnly".into(), json!(значение));
-                }
-                if let Some(значение) = args.get("browser").and_then(|з| з.as_str()) {
-                    аргументы.insert("browser".into(), json!(значение));
-                }
-                ("session_new", Value::Object(аргументы), true)
-            }
-            "use" => {
-                let id = id.ok_or_else(|| ToolError::BadArgs("для use нужен id".into()))?;
-                ("session_use", json!({"id": id}), true)
-            }
-            "reset" => {
-                let mut аргументы = объект();
-                if let Some(id) = id {
-                    аргументы.insert("id".into(), json!(id));
-                }
-                ("session_reset", Value::Object(аргументы), true)
-            }
-            "delete" => {
-                let mut аргументы = объект();
-                if let Some(id) = id {
-                    аргументы.insert("id".into(), json!(id));
-                }
-                ("session_delete", Value::Object(аргументы), true)
-            }
-            другое => {
-                return Err(ToolError::BadArgs(format!(
-                    "неизвестное действие «{другое}», нужно list/new/use/reset/delete"
-                )))
-            }
-        };
+        let (имя, аргументы, изменение) = аргументы_сессии(args)?;
         let ответ = вызвать(имя, аргументы, ТАЙМАУТ)?;
         let текст = ответ_текстом(ответ, имя)?;
         if изменение {
@@ -433,5 +441,82 @@ mod tests {
             )
             .unwrap_err();
         assert!(matches!(ошибка, ToolError::BadArgs(_)), "{ошибка:?}");
+    }
+
+    #[test]
+    fn аргументы_выполнения_не_добавляют_лишнего() {
+        let полный = аргументы_выполнения(&json!({
+            "code": "return 1",
+            "timeout_ms": 1000,
+            "session": "s1",
+            "target_url": "example.com",
+            "target_index": 2
+        }))
+        .unwrap();
+        let объект = полный.as_object().unwrap();
+        assert_eq!(объект["code"], "return 1");
+        assert_eq!(объект["timeoutMs"], 1000);
+        assert_eq!(объект["session"], "s1");
+        assert_eq!(объект["targetUrl"], "example.com");
+        assert_eq!(объект["targetIndex"], 2);
+        assert_eq!(объект.len(), 5);
+
+        let короткий = аргументы_выполнения(&json!({"code": "return 1"})).unwrap();
+        assert_eq!(короткий.as_object().unwrap().len(), 1);
+        assert!(аргументы_выполнения(&json!({"code": "  "})).is_err());
+    }
+
+    #[test]
+    fn сессии_переводятся_в_имена_mcp() {
+        let (имя, _, изменение) = аргументы_сессии(&json!({"action": "list"})).unwrap();
+        assert_eq!(имя, "session_list");
+        assert!(!изменение);
+
+        let (имя, аргументы, изменение) = аргументы_сессии(&json!({
+            "action": "new",
+            "id": "work",
+            "allowed_origins": ["example.com"],
+            "read_only": true,
+            "browser": "chrome"
+        }))
+        .unwrap();
+        assert_eq!(имя, "session_new");
+        assert!(изменение);
+        assert_eq!(аргументы["id"], "work");
+        assert_eq!(аргументы["allowedOrigins"][0], "example.com");
+        assert_eq!(аргументы["readOnly"], true);
+        assert_eq!(аргументы["browser"], "chrome");
+
+        let (имя, аргументы, _) = аргументы_сессии(&json!({"action": "use", "id": "work"})).unwrap();
+        assert_eq!(имя, "session_use");
+        assert_eq!(аргументы["id"], "work");
+
+        assert!(аргументы_сессии(&json!({"action": "use"})).is_err());
+        assert!(аргументы_сессии(&json!({"action": "??"})).is_err());
+    }
+
+    #[test]
+    fn ответ_browse_не_теряет_ошибку_и_режет_длинное() {
+        let ошибка = ответ_текстом(
+            ToolReply { text: "нет связи".into(), is_error: true },
+            "execute",
+        )
+        .unwrap_err();
+        assert!(matches!(ошибка, ToolError::Refused(_)), "{ошибка:?}");
+
+        let json = ответ_текстом(
+            ToolReply { text: "{\"a\":1}".into(), is_error: false },
+            "status",
+        )
+        .unwrap();
+        assert!(json.contains("\"a\": 1"), "{json}");
+
+        let длинный = "x".repeat(МАКСИМУМ_ВЫВОДА + 100);
+        let обрезанный = ответ_текстом(
+            ToolReply { text: длинный, is_error: false },
+            "execute",
+        )
+        .unwrap();
+        assert!(обрезанный.contains("ответ Browse обрезан"));
     }
 }
