@@ -445,6 +445,7 @@ pub fn auth_logout(app: AppHandle, auth: State<'_, AuthState>, token: String) ->
     let _ = crate::agent_commands::stop_agent();
     crate::agent_commands::сбросить_автоподтверждение();
     crate::tools::browser_cdp::закрыть();
+    crate::tools::browse::закрыть();
     crate::chat::stop_generation()?;
     crate::voice::hotkey::снять();
     crate::voice::stt::выключить(&app.state::<crate::voice::Голос>());

@@ -88,6 +88,12 @@ browser.type вводит текст в поле (target/ref и replace=true з�
 browser.cdp_read_page, browser.cdp_click, browser.cdp_type, browser.cdp_text, \
 browser.cdp_state: они работают через DOM и не зависят от фокуса окна. Если \
 CDP недоступен, используй browser.snapshot/browser.click/browser.type. \
+Если нужен настоящий Chrome с логинами и расширениями, используй \
+browser.browse_execute: сначала browser.browse_status, затем Playwright-код. \
+В коде осматривайся через `const s = await snapshot()`, действуй по `ref('e1')`, \
+проверяй `page.url()` и новый снимок. Если нужен человек (логин, 2FA, капча, \
+оплата) — `await handoff('что сделать')`, не решай капчу сам. Пароли не вставляй \
+в код. После задачи закрой сессию через browser.browse_session reset. \
 Не переключай окно браузера вручную через windows.focus: browser.* сам \
 находит нужное окно. Если браузер не открыт — сначала browser.open или \
 browser.cdp_navigate, потом чтение. Чтобы найти дату или цитату, читай \

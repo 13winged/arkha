@@ -35,6 +35,7 @@ pub mod accessibility;
 pub mod apps;
 pub mod browser;
 pub mod browser_cdp;
+pub mod browse;
 pub mod click_ref;
 pub mod control;
 pub mod fs;
@@ -266,6 +267,10 @@ fn built() -> Vec<Box<dyn Tool>> {
         Box::new(browser_cdp::CdpText),
         Box::new(browser_cdp::CdpWait),
         Box::new(browser_cdp::CdpState),
+        // OpenCode Browse: настоящий Chrome пользователя через MCP.
+        Box::new(browse::BrowseExecute),
+        Box::new(browse::BrowseStatus),
+        Box::new(browse::BrowseSession),
         // Новые инструменты доступности (S6+): snapshot + click_ref
         Box::new(snapshot::SnapshotTool),
         Box::new(click_ref::ClickRef),

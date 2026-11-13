@@ -119,10 +119,22 @@ impl<T: Transport> Session<T> {
     }
 
     pub(crate) fn call(&mut self, name: &str, args: Value) -> Result<ToolReply, String> {
+        self.call_timeout(name, args, CALL_TIMEOUT)
+    }
+
+    /// Тот же вызов, но со своим сроком: браузерные сценарии бывают
+    /// длиннее документов, а ждать 60 секунд и обрывать навигацию
+    /// нельзя.
+    pub(crate) fn call_timeout(
+        &mut self,
+        name: &str,
+        args: Value,
+        timeout: Duration,
+    ) -> Result<ToolReply, String> {
         let result = self.request(
             "tools/call",
             json!({ "name": name, "arguments": args }),
-            CALL_TIMEOUT,
+            timeout,
         )?;
         Ok(reply_from(result))
     }
@@ -328,6 +340,17 @@ impl Mcp {
 
     pub fn call(&mut self, name: &str, args: Value) -> Result<ToolReply, String> {
         self.session.call(name, args)
+    }
+
+    /// Вызов с явным сроком ожидания. Нужен браузеру: `execute` может
+    /// законно работать дольше документного таймаута.
+    pub fn call_timeout(
+        &mut self,
+        name: &str,
+        args: Value,
+        timeout: Duration,
+    ) -> Result<ToolReply, String> {
+        self.session.call_timeout(name, args, timeout)
     }
 
     pub fn stop(&mut self) {

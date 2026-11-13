@@ -192,6 +192,7 @@ pub fn run() {
     app.run(|_app, event| {
         if let tauri::RunEvent::Exit = event {
             crate::tools::browser_cdp::закрыть();
+            crate::tools::browse::закрыть();
         }
     });
 }

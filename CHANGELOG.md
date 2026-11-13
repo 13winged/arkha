@@ -30,6 +30,10 @@
   Chromium with a temporary profile, assigns stable DOM refs, waits for `DOMContentLoaded`, and
   clicks/types through CDP without taking focus. Only `http`/`https` are allowed; the browser is
   closed on logout and app exit.
+- OpenCode Browse integration: `browser.browse_execute` runs Playwright JavaScript in the user's real
+  Chrome (logins, extensions, tabs) through the installed Browse MCP server; `browser.browse_status`
+  reports relay/extension state and `browser.browse_session` manages sessions. `execute` is a
+  side-effecting `browser.dom` action and requires approval; `status` is read-only.
 - `browser.text` returns the page's text blocks, and `browser.snapshot` now shows up to 300 elements:
   the previous limit cut the article exactly where the answer was, which made the agent scroll in a
   loop. Scrolling is capped at three calls per request.
