@@ -88,6 +88,9 @@ browser.type вводит текст в поле (target/ref и replace=true з�
 browser.cdp_read_page, browser.cdp_click, browser.cdp_type, browser.cdp_text, \
 browser.cdp_state: они работают через DOM и не зависят от фокуса окна. Если \
 CDP недоступен, используй browser.snapshot/browser.click/browser.type. \
+browser.open только открывает адрес и не даёт управления страницей: для чтения \
+и кликов используй browser.browse_execute (реальный Chrome) или \
+browser.cdp_navigate (отдельный браузер). \
 Если нужен настоящий Chrome с логинами и расширениями, используй \
 browser.browse_execute: сначала browser.browse_status, затем Playwright-код. \
 В коде осматривайся через `const s = await snapshot()`, действуй по `ref('e1')`, \

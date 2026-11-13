@@ -161,8 +161,10 @@ impl Message {
             role: "user".into(),
             content: "Ты уже вызвал инструменты, но ничего не прочитал. Если для ответа \
                       нужны данные со страницы или файла — вызови чтение и только потом \
-                      отвечай: browser.cdp_read_page, browser.cdp_text, browser.snapshot, \
-                      browser.text, browser.browse_execute или fs.read. Если задача была \
+                      отвечай. Выбери тот же путь, которым открывал страницу: Browse — \
+                      browser.browse_execute с `await snapshot()` или `page.title()`; \
+                      CDP — browser.cdp_read_page или browser.cdp_text; обычное окно — \
+                      browser.snapshot или browser.text; файл — fs.read. Если задача была \
                       только действием — коротко подтверди результат, без обещаний \
                       «сейчас посмотрю»."
                 .into(),
