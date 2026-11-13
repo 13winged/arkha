@@ -70,6 +70,9 @@
 - Read-only tool calls may repeat up to six times with the same arguments; side-effecting repeats are
   still blocked immediately. This lets the agent re-read a page after a click instead of being stuck
   on "the same call was already made".
+- If a run used tools but read nothing, the agent gets one nudge to actually read a page or file before
+  finishing. This prevents a final answer like "I opened Yandex, now I'll take a snapshot" with no
+  snapshot and no data.
 - Push-to-talk hotkey is now `Ctrl+H`; saved `Ctrl+G` and `Ctrl+Alt+M` values migrate to it.
 - The agent panel has a session-wide **allow everything** checkbox next to **ask**. While it is on, the
   agent does not ask for confirmation; disabled capabilities and dry-run still deny actions. It resets
