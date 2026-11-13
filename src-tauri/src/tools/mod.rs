@@ -290,15 +290,13 @@ fn загрузить_навыки() -> crate::skills::Набор {
     if !user_dir.as_os_str().is_empty() && user_dir != crate::skills::папка_данных() {
         let custom = crate::skills::Набор::из_папки(&user_dir);
         for skill in custom.навыки {
-            if !result.навыки.iter().any(|existing| existing.name.eq_ignore_ascii_case(&skill.name)) {
-                result.навыки.push(skill);
-            }
+            result.добавить(skill);
         }
         result.сломанные.extend(custom.сломанные);
     }
     // Внешние навыки OpenCode: только чтение, ничего не копируем.
     // Свои и пользовательские навыки идут первыми: при совпадении имени
-    // выигрывает наш вариант.
+    // выигрывает наш вариант, а конфликт попадает в «сломанные».
     let внешние = crate::skills::папка_агентов();
     if внешние.is_dir() {
         // Из сотен внешних берём только явно включённые: пустой список
@@ -312,9 +310,7 @@ fn загрузить_навыки() -> crate::skills::Набор {
             if !выбран {
                 continue;
             }
-            if !result.навыки.iter().any(|existing| existing.name.eq_ignore_ascii_case(&skill.name)) {
-                result.навыки.push(skill);
-            }
+            result.добавить(skill);
         }
     }
     result.навыки.sort_by(|left, right| left.name.cmp(&right.name));

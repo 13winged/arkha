@@ -37,6 +37,10 @@
   already collected instead of returning an empty "did not finish" result.
 - The tool name and its result are separated by a space in the agent log.
 - Voice and recording errors are shown as a toast instead of being silently ignored.
+- Skills: two skills with the same name no longer silently overwrite each other; the second is reported
+  as broken. A skill file or `skill.json` that resolves outside its skill folder is refused.
+- `docs/32-заимствования-и-rust-порты.md`: audit of the browser-agent and Anthropic repositories, the
+  Yandex Search API, and the Rust port tasks. Eight issues were opened for the ports.
 - Mouse wheel: `windows.scroll` scrolls the focused or named window.
 - `windows.click` and `accessibility.click_ref` now fall back to a real mouse click when an element has
   no accessibility invoke action, which is common for links and buttons inside web pages.
