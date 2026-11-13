@@ -162,6 +162,12 @@ unsafe extern "system" fn обработать(code: i32, wparam: WPARAM, lparam
     if code != HC_ACTION as i32 {
         return дальше();
     }
+    // Хук остаётся в системе до конца процесса, но после выключения
+    // голоса он обязан молчать: иначе Ctrl+H продолжал бы начинать
+    // запись при выключенном распознавании.
+    if !ЖИВ.load(Ordering::SeqCst) {
+        return дальше();
+    }
     let событие = match wparam.0 as u32 {
         WM_KEYDOWN => Событие::Нажата,
         WM_KEYUP => Событие::Отпущена,
@@ -316,5 +322,53 @@ mod tests {
 
         снять();
         assert!(!включён());
+    }
+
+    /// Хук действительно видит Ctrl+H и присылает нажатие и отпускание.
+    ///
+    /// Синтетический ввод идёт через `SendInput`, то есть тем же
+    /// путём, что и настоящая клавиатура. Тест глобальный и шлёт
+    /// клавиши всей машине, поэтому помечен `ignore`: в обычном
+    /// прогоне ему нечего делать.
+    #[test]
+    #[ignore]
+    fn ctrl_h_приходит_в_канал() {
+        use windows::Win32::UI::Input::KeyboardAndMouse::{
+            INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput,
+        };
+
+        fn событие(код: u16, вверх: bool) -> INPUT {
+            INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VIRTUAL_KEY(код),
+                        wScan: 0,
+                        dwFlags: if вверх { KEYEVENTF_KEYUP } else { Default::default() },
+                        time: 0,
+                        dwExtraInfo: 0,
+                    },
+                },
+            }
+        }
+
+        let канал = поставить_с("Ctrl+H").expect("хук должен встать");
+        let ввод = [
+            событие(0x11, false), // Ctrl
+            событие(0x48, false), // H
+            событие(0x48, true),
+            событие(0x11, true),
+        ];
+        unsafe { SendInput(&ввод, std::mem::size_of::<INPUT>() as i32) };
+
+        let первое = канал
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("нажатие не пришло");
+        let второе = канал
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("отпускание не пришло");
+        assert!(matches!(первое, Событие::Нажата), "{первое:?}");
+        assert!(matches!(второе, Событие::Отпущена), "{второе:?}");
+        снять();
     }
 }

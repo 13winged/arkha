@@ -2982,6 +2982,7 @@ function VoiceToggle() {
   const [state, setState] = useState<VoiceState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<VoiceState>("voice_status")
@@ -2989,7 +2990,11 @@ function VoiceToggle() {
         setState(state);
         // Голос мог остаться включённым с прошлого запуска: клавишу
         // тогда нужно поставить заново, иначе говорить некуда.
-        if (state.on) void invoke("voice_hotkey_enable").catch(() => undefined);
+        if (state.on) {
+          void invoke<string>("voice_hotkey_enable")
+            .then(setHotkey)
+            .catch(() => undefined);
+        }
       })
       .catch(() => undefined);
   }, []);
@@ -3003,9 +3008,10 @@ function VoiceToggle() {
         // продолжит писать в микрофон после выключения голоса.
         await invoke("voice_hotkey_disable").catch(() => undefined);
         setState(await invoke<VoiceState>("voice_disable"));
+        setHotkey(null);
       } else {
         setState(await invoke<VoiceState>("voice_enable"));
-        await invoke<string>("voice_hotkey_enable");
+        setHotkey(await invoke<string>("voice_hotkey_enable"));
       }
     } catch (e) {
       setError(String(e));
@@ -3029,6 +3035,7 @@ function VoiceToggle() {
       >
         {busy ? "…" : state.on ? t("голос включён") : t("включить голос")}
       </button>
+      {state.on && hotkey && <span className="voice-key">{hotkey}</span>}
       {state.on && state.weightMb !== null && (
         <span className="voice-mb">{state.weightMb} МБ</span>
       )}
@@ -3409,9 +3416,17 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
     let alive = true;
     const off = listen<{ текст?: string; секунд?: number; был_звук?: boolean }>("голос-диктовка", (event) => {
       const text = (event.payload.текст ?? "").trim();
+      if (!alive || !text) return;
       // У ошибок записи текст есть, а звука не было: это сообщение
-      // для человека, а не команда агенту.
-      if (!alive || !text || event.payload.был_звук !== true) return;
+      // для человека, а не команда агенту. Раньше оно молча
+      // выбрасывалось, и «клавиша не работает» выглядело одинаково
+      // с «микрофон отключён» или «модель не загрузилась».
+      if (event.payload.был_звук !== true) {
+        setToast(text.slice(0, 220));
+        if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+        toastTimer.current = window.setTimeout(() => setToast(null), 7000);
+        return;
+      }
       setTab("agent");
       setVoiceCommand({ id: Date.now(), text });
     });

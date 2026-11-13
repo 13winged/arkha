@@ -25,6 +25,13 @@
   and `browser.scroll`. The page is read as an accessibility tree; clicking uses the accessibility
   action when available and a real mouse click at the element centre when it is not. Typing uses the
   field's value pattern or focus plus keyboard input, and can replace the old text.
+- `browser.text` returns the page's text blocks, and `browser.snapshot` now shows up to 300 elements:
+  the previous limit cut the article exactly where the answer was, which made the agent scroll in a
+  loop. Scrolling is capped at three calls per request.
+- Voice recording falls back to another active microphone when the saved device is gone; previously
+  it refused to record and the error was hidden.
+- The tool name and its result are separated by a space in the agent log.
+- Voice and recording errors are shown as a toast instead of being silently ignored.
 - Mouse wheel: `windows.scroll` scrolls the focused or named window.
 - `windows.click` and `accessibility.click_ref` now fall back to a real mouse click when an element has
   no accessibility invoke action, which is common for links and buttons inside web pages.

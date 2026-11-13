@@ -259,6 +259,7 @@ pub fn agent_chat(
     let base = sidecar.base_url()?;
     let request_id = chat::next_request_id();
     chat::reset_cancel();
+    crate::tools::browser::сбросить_прокрутки();
 
     let s = settings.0.lock().expect("settings lock poisoned").clone();
     // Голос — это уже явное указание человека, и держать его перед

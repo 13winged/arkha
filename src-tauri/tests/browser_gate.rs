@@ -147,6 +147,18 @@ fn снимок_видит_поле_и_кнопку() {
 }
 
 #[test]
+fn текст_страницы_читается() {
+    let (_браузер, _профиль) = открыть();
+    let s = Settings::default();
+    let текст = browser::Текст
+        .call(&json!({ "title": ДО }), &s)
+        .expect("текст страницы должен читаться");
+    println!("{}", текст.text);
+    assert!(текст.text.contains("ArkHa Browser"), "{}", текст.text);
+    assert!(текст.text.contains("Название"), "{}", текст.text);
+}
+
+#[test]
 fn ввод_и_нажатие_меняют_страницу() {
     let (_браузер, _профиль) = открыть();
     let s = Settings::default();

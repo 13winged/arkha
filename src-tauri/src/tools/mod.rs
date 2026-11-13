@@ -252,6 +252,7 @@ fn built() -> Vec<Box<dyn Tool>> {
         // обычный поиск дочерних окон у них не работает.
         Box::new(browser::Открыть),
         Box::new(browser::Снимок),
+        Box::new(browser::Текст),
         Box::new(browser::Нажать),
         Box::new(browser::Ввести),
         Box::new(browser::Клавиши),

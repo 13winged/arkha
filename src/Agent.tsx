@@ -454,7 +454,7 @@ export default function Agent({
           <div key={i} className={`agent-line agent-${р.роль}`}>
             {р.инструмент ? <b>{название(р.инструмент)}</b> : null}
             {р.роль === "отказ" && !р.инструмент ? <b>отказ</b> : null}
-            <span>{р.текст}</span>
+            <span> {р.текст}</span>
             {р.основание && (
               <span className="agent-basis">{р.основание}</span>
             )}

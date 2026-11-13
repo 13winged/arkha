@@ -3078,6 +3078,16 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.voice-key {
+  padding: 2px 6px;
+  border: 1px solid var(--cp-line-2);
+  color: var(--cp-neon-green);
+  font-family: var(--cp-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
 .voice-error {
   font-size: calc(var(--кегль, 14px) * 0.786);
   color: var(--red-lit);
