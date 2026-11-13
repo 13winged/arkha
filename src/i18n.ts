@@ -346,6 +346,7 @@ const EN: Record<string, string> = {
   "Голосовой запуск программы выполняется без окна, если включена галочка «запуск программы» и режим не «спрашивать всегда».": "A voice app launch runs without a dialog when \"launch programs\" is checked and the mode is not \"always ask\".",
   "Браузер: включите «Управление браузером», чтобы агент мог читать страницу, нажимать и вводить текст.": "Browser: enable \"Browser control\" so the agent can read the page, click and type.",
   "Готово": "Done",
+  "горячая клавиша записи": "push-to-talk hotkey",
   "Тестируем…": "Testing…",
   "ток/с": "tok/s",
   "токенов": "tokens",

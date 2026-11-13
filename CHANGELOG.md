@@ -30,6 +30,11 @@
   loop. Scrolling is capped at three calls per request.
 - Voice recording falls back to another active microphone when the saved device is gone; previously
   it refused to record and the error was hidden.
+- The voice hotkey is armed at startup even when the voice model is off, shows `Ctrl+H` next to the
+  voice button, and a **listening** indicator confirms that the key reached the app. Voice is saved as
+  enabled, so it starts automatically on the next launch.
+- When the agent hits the step limit, it makes one final no-tools request and answers from the data it
+  already collected instead of returning an empty "did not finish" result.
 - The tool name and its result are separated by a space in the agent log.
 - Voice and recording errors are shown as a toast instead of being silently ignored.
 - Mouse wheel: `windows.scroll` scrolls the focused or named window.

@@ -4374,6 +4374,24 @@ details[open] summary {
   animation: toast-in 180ms ease-out;
 }
 
+/* Индикатор записи: видно, что Ctrl+H дошёл до приложения */
+.app-listening {
+  position: fixed;
+  left: 50%;
+  bottom: 54px;
+  z-index: 6000;
+  padding: 8px 16px;
+  transform: translateX(-50%);
+  border: 1px solid var(--cp-neon-pink);
+  background: var(--cp-bg-2);
+  color: var(--cp-neon-pink);
+  font-family: var(--cp-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.25);
+  animation: toast-in 180ms ease-out;
+}
+
 .app-toast b {
   color: var(--cp-neon-green);
   font-family: var(--cp-font-mono);

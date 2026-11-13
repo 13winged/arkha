@@ -2985,19 +2985,42 @@ function VoiceToggle() {
   const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<VoiceState>("voice_status")
-      .then((state) => {
-        setState(state);
-        // Голос мог остаться включённым с прошлого запуска: клавишу
-        // тогда нужно поставить заново, иначе говорить некуда.
-        if (state.on) {
-          void invoke<string>("voice_hotkey_enable")
-            .then(setHotkey)
-            .catch(() => undefined);
+    let alive = true;
+    (async () => {
+      try {
+        const status = await invoke<VoiceState>("voice_status");
+        if (!alive) return;
+        setState(status);
+        // Клавиша ставится всегда, даже при выключенном голосе:
+        // нажатие должно сказать «голос выключен», а не промолчать.
+        setHotkey(await invoke<string>("voice_hotkey_enable"));
+        if (!status.on) {
+          const settings = await invoke<AppSettings>("settings_get");
+          if (!alive || !settings.voice.enabled) return;
+          setBusy(true);
+          setState(await invoke<VoiceState>("voice_enable"));
         }
-      })
-      .catch(() => undefined);
+      } catch (e) {
+        if (alive) setError(String(e));
+      } finally {
+        if (alive) setBusy(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  async function сохранитьГолос(enabled: boolean) {
+    try {
+      const settings = await invoke<AppSettings>("settings_get");
+      settings.voice.enabled = enabled;
+      settings.voice.auto_load = enabled;
+      await invoke("settings_save", { settings });
+    } catch {
+      // Текущий сеанс важнее записи: голос уже включён или выключен.
+    }
+  }
 
   const переключить = async () => {
     setBusy(true);
@@ -3008,10 +3031,11 @@ function VoiceToggle() {
         // продолжит писать в микрофон после выключения голоса.
         await invoke("voice_hotkey_disable").catch(() => undefined);
         setState(await invoke<VoiceState>("voice_disable"));
-        setHotkey(null);
+        await сохранитьГолос(false);
       } else {
         setState(await invoke<VoiceState>("voice_enable"));
         setHotkey(await invoke<string>("voice_hotkey_enable"));
+        await сохранитьГолос(true);
       }
     } catch (e) {
       setError(String(e));
@@ -3035,7 +3059,7 @@ function VoiceToggle() {
       >
         {busy ? "…" : state.on ? t("голос включён") : t("включить голос")}
       </button>
-      {state.on && hotkey && <span className="voice-key">{hotkey}</span>}
+      {hotkey && <span className="voice-key" title={t("горячая клавиша записи")}>{hotkey}</span>}
       {state.on && state.weightMb !== null && (
         <span className="voice-mb">{state.weightMb} МБ</span>
       )}
@@ -3393,6 +3417,7 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
   const [voiceCommand, setVoiceCommand] = useState<{ id: number; text: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const [listening, setListening] = useState(false);
 
   // Уведомление о завершении запроса агента. Человек мог отойти или
   // говорить в микрофон, поэтому конец работы должен быть виден сам,
@@ -3410,13 +3435,24 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
     };
   }, []);
 
+  // Индикатор «слушаю…»: он показывает, что клавиша действительно
+  // дошла до приложения, а не потерялась в хуке.
+  useEffect(() => {
+    const off = listen<boolean>("голос-слушаю", (event) => setListening(event.payload === true));
+    return () => {
+      void off.then((stop) => stop());
+    };
+  }, []);
+
   // Распознанная речь идёт в агента, а не в поле ввода: человек
   // говорит «открой chrome» и ждёт действия, а не текста.
   useEffect(() => {
     let alive = true;
     const off = listen<{ текст?: string; секунд?: number; был_звук?: boolean }>("голос-диктовка", (event) => {
+      if (!alive) return;
+      setListening(false);
       const text = (event.payload.текст ?? "").trim();
-      if (!alive || !text) return;
+      if (!text) return;
       // У ошибок записи текст есть, а звука не было: это сообщение
       // для человека, а не команда агенту. Раньше оно молча
       // выбрасывалось, и «клавиша не работает» выглядело одинаково
@@ -3653,6 +3689,11 @@ function Workspace({ session, onLogout }: { session: AuthSession; onLogout: () =
           <span className="hint"><kbd className="cap">Esc</kbd> остановить</span>
           <span className="hint dim">{t("всё считается на этой машине, облако выключено")}</span>
         </footer>
+        {listening && (
+          <div className="app-listening" role="status">
+            ● слушаю…
+          </div>
+        )}
         {toast && (
           <div className="app-toast" role="status">
             <b>{t("Готово")}</b>

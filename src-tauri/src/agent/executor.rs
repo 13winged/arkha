@@ -684,6 +684,35 @@ impl<'a> Agent<'a> {
             }
         }
 
+        // Шаги кончились, а ответа нет. Вместо пустого «не закончил»
+        // просим модель один раз ответить по тому, что уже собрано, и
+        // без инструментов. Это честнее: данные в переписке есть, и
+        // человеку нужен ответ, а не отчёт о лимите.
+        let финальная = {
+            let mut подсказка = messages.clone();
+            подсказка.push(Message::user(
+                "Ты сделал много шагов и не закончил. Ответь пользователю по тому, что \
+                 уже узнал из результатов инструментов, без новых вызовов. Если данных \
+                 не хватает — скажи, чего именно не хватило.",
+            ));
+            self.model.turn(&подсказка, &[], request_id)
+        };
+        if let Ok(итог) = финальная
+            && !итог.text.trim().is_empty()
+        {
+            messages.push(Message::assistant(итог.text.clone(), None));
+            return Outcome {
+                answer: итог.text,
+                calls: self.calls.clone(),
+                messages,
+                turns: MAX_TURNS,
+                stop_reason: "шаги закончились, ответ по собранным данным".into(),
+                основание: self.основание(),
+                была_страховка: self.страховка_сработала,
+                инструменты_были: !tools.is_empty(),
+            };
+        }
+
         Outcome {
             answer: String::new(),
             calls: self.calls.clone(),
@@ -1028,6 +1057,32 @@ mod tests {
         assert_eq!(out.turns, MAX_TURNS);
         assert!(out.stop_reason.contains("остановлено"), "{}", out.stop_reason);
         assert!(out.answer.is_empty());
+    }
+
+    /// После лимита шагов пользователь всё равно получает ответ по
+    /// уже собранным данным, а не пустую строку с рассказом о лимите.
+    #[test]
+    fn после_лимита_есть_ответ_по_собранному() {
+        let root = TempRoot::new();
+        let mut ходы = Vec::new();
+        for i in 0..MAX_TURNS {
+            root.write(&format!("ф{i}.txt"), "x".as_bytes());
+            ходы.push(Сценарий::вызов(
+                "fs.read",
+                json!({"path": root.path().join(format!("ф{i}.txt")).to_string_lossy()}),
+            ));
+        }
+        ходы.push(Сценарий::текст("Ответ по собранным данным"));
+        let mut m = Сценарий::нов(ходы);
+        let mut a = Agent::new(&mut m, настройки(&root));
+        let out = a.run(vec![Message::user("прочитай всё")], 1);
+
+        assert_eq!(out.answer, "Ответ по собранным данным");
+        assert!(
+            out.stop_reason.contains("по собранным"),
+            "{}",
+            out.stop_reason
+        );
     }
 
     /// Подтверждение запрашивается ДО выполнения. Инструмент, который

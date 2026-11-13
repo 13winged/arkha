@@ -40,6 +40,8 @@ static СЛЕДИМ: AtomicU32 = AtomicU32::new(0);
 static НАЖАТА: AtomicBool = AtomicBool::new(false);
 /// Жив ли хук.
 static ЖИВ: AtomicBool = AtomicBool::new(false);
+/// Установлен ли хук в системе (даже если обработка сейчас выключена).
+static УСТАНОВЛЕН: AtomicBool = AtomicBool::new(false);
 
 /// Что прислал хук.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +68,26 @@ pub fn умолчание() -> &'static str {
 /// Жив ли хук.
 pub fn включён() -> bool {
     ЖИВ.load(Ordering::SeqCst)
+}
+
+/// Был ли хук вообще установлен.
+///
+/// Отличается от [`включён`]: выключение голоса гасит обработчик, но
+/// сам хук остаётся в системе до конца процесса. Повторная установка
+/// поверх него плодит лишние хуки и второй поток-слушатель, поэтому
+/// при повторном включении достаточно возобновить старый.
+pub fn установлен() -> bool {
+    УСТАНОВЛЕН.load(Ordering::SeqCst)
+}
+
+/// Возобновить обработку после [`снять`], не ставя второй хук.
+pub fn возобновить() -> Result<(), String> {
+    if !УСТАНОВЛЕН.load(Ordering::SeqCst) {
+        return Err("хук не был установлен".to_string());
+    }
+    НАЖАТА.store(false, Ordering::SeqCst);
+    ЖИВ.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 /// Поставить хук и вернуть канал событий.
@@ -243,6 +265,7 @@ fn цикл(встал: Arc<AtomicBool>, _сочетание: String) {
             Err(_) => return,
         };
         ЖИВ.store(true, Ordering::SeqCst);
+        УСТАНОВЛЕН.store(true, Ordering::SeqCst);
         встал.store(true, Ordering::SeqCst);
 
         цикл_сообщений();
