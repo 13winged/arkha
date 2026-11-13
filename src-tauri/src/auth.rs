@@ -443,6 +443,7 @@ pub fn auth_logout(app: AppHandle, auth: State<'_, AuthState>, token: String) ->
     }
     let active = auth.current()?;
     let _ = crate::agent_commands::stop_agent();
+    crate::agent_commands::сбросить_автоподтверждение();
     crate::chat::stop_generation()?;
     crate::voice::hotkey::снять();
     crate::voice::stt::выключить(&app.state::<crate::voice::Голос>());

@@ -420,6 +420,38 @@ fn report(app: &AppHandle, out: &Outcome, агент: &Agent, request_id: u64) {
 /// перестал бы работать после первой переписки.
 static ЦИКЛ: std::sync::Mutex<Option<AgentHandle>> = std::sync::Mutex::new(None);
 
+/// Разрешение на все действия до конца сеанса.
+///
+/// Человек ставит галочку рядом с кнопкой «спросить», когда не хочет
+/// отвечать на каждый вопрос. Это его решение, принятое явно и один
+/// раз; выключенные возможности и dry-run оно не расширяет — их
+/// по-прежнему проверяет `Settings::allows`.
+static АВТОПОДТВЕРЖДЕНИЕ: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Включить или выключить автоподтверждение на сеанс.
+#[tauri::command]
+pub fn agent_auto_approve(enabled: bool) -> Result<bool, String> {
+    crate::auth::require_authenticated()?;
+    АВТОПОДТВЕРЖДЕНИЕ.store(enabled, std::sync::atomic::Ordering::SeqCst);
+    Ok(enabled)
+}
+
+/// Текущее состояние галочки. Нужно интерфейсу после перерисовки:
+/// иначе флажок выглядел бы выключенным, а агент продолжал бы не
+/// спрашивать.
+#[tauri::command]
+pub fn agent_auto_approve_state() -> Result<bool, String> {
+    crate::auth::require_authenticated()?;
+    Ok(АВТОПОДТВЕРЖДЕНИЕ.load(std::sync::atomic::Ordering::SeqCst))
+}
+
+/// Сбросить автоподтверждение. Вызывается при выходе из аккаунта:
+/// сеанс кончился, значит и разрешение кончилось.
+pub fn сбросить_автоподтверждение() {
+    АВТОПОДТВЕРЖДЕНИЕ.store(false, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Что нужно для остановки цикла из другого потока.
 #[derive(Clone)]
 pub struct AgentHandle {
@@ -528,6 +560,11 @@ struct ИзИнтерфейса {
 
 impl crate::agent::executor::Спрашивающий for ИзИнтерфейса {
     fn спросить(&mut self, вопрос: &PendingApproval) -> approvals::Решение {
+        // Галочка «разрешить агенту выполнять все на сессию»: человек
+        // уже ответил на вопрос о доверии, второй раз не спрашиваем.
+        if АВТОПОДТВЕРЖДЕНИЕ.load(std::sync::atomic::Ordering::SeqCst) {
+            return approvals::Решение::ОдинРаз;
+        }
         if self.голосом_без_вопроса && вопрос.capability == "apps.launch" {
             return approvals::Решение::ОдинРаз;
         }

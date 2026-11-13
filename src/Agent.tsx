@@ -119,6 +119,7 @@ export default function Agent({
   const [ждёт, setЖдёт] = useState<(PendingEvent & { отвечено?: boolean }) | null>(null);
   const [сжато, setСжато] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentView[]>([]);
+  const [автоРазрешение, setАвтоРазрешение] = useState(false);
 
   // История для следующего запроса. Отдельная от видимых реплик: в
   // модель уходят только роли и текст, без наших пометок.
@@ -130,6 +131,9 @@ export default function Agent({
     invoke<ToolsReport>("agent_tools")
       .then(setИнструменты)
       .catch((e) => setПричина(String(e)));
+    invoke<boolean>("agent_auto_approve_state")
+      .then(setАвтоРазрешение)
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -227,6 +231,24 @@ export default function Agent({
       // После разрешения работа продолжается: индикатор «работает»
       // не должен остаться погашенным до конца запроса.
       if (решение !== "отказ") setКрутится(true);
+    } catch (e) {
+      setПричина(String(e));
+    }
+  }
+
+  // Галочка «разрешить агенту выполнять все на сессию». Включённое
+  // значение живёт в Rust до выхода из аккаунта, поэтому вопросы не
+  // появляются и после перерисовки интерфейса.
+  async function сменитьАвтоРазрешение(включено: boolean) {
+    try {
+      await invoke("agent_auto_approve", { enabled: включено });
+      setАвтоРазрешение(включено);
+      // Если вопрос уже висит, отвечаем на него сразу: человек только
+      // что сказал, что спрашивать больше не нужно.
+      if (включено && ждёт) {
+        setЖдёт(null);
+        await invoke("agent_decide", { decision: "всю-задачу" });
+      }
     } catch (e) {
       setПричина(String(e));
     }
@@ -520,7 +542,23 @@ export default function Agent({
             заново
           </button>
         )}
+        <label
+          className={`agent-auto-approve${автоРазрешение ? " is-on" : ""}`}
+          title="Все действия будут выполняться без вопросов до закрытия приложения. Выключенные возможности всё равно запрещены."
+        >
+          <input
+            type="checkbox"
+            checked={автоРазрешение}
+            onChange={(element) => void сменитьАвтоРазрешение(element.currentTarget.checked)}
+          />
+          <span>разрешить агенту выполнять все на сессию</span>
+        </label>
       </div>
+      {автоРазрешение && (
+        <p className="muted agent-auto-note">
+          Подтверждения отключены до закрытия приложения. Выключенные возможности всё равно запрещены.
+        </p>
+      )}
       {attachments.length > 0 && (
         <div className="chat-attachments">
           {attachments.map((attachment) => (

@@ -42,9 +42,12 @@
   of the user denying a question that could not be executed anyway.
 - `browser.dom` is a side-effecting capability and now appears in the Permissions panel, so browser
   clicks and typing require an explicit checkbox.
+- Push-to-talk hotkey is now `Ctrl+H`; saved `Ctrl+G` and `Ctrl+Alt+M` values migrate to it.
+- The agent panel has a session-wide **allow everything** checkbox next to **ask**. While it is on, the
+  agent does not ask for confirmation; disabled capabilities and dry-run still deny actions. It resets
+  on logout or app restart.
 - A voice app launch does not stop at the approval dialog when `apps.launch` is enabled and the mode is
   not "always ask"; the spoken command is treated as the confirmation.
-- Push-to-talk hotkey is now `Ctrl+G`; an old saved `Ctrl+Alt+M` is treated as the new default.
 - App launching can find almost any installed program: Windows `App Paths`, Start Menu shortcuts
   (including `.lnk` launch) and a cached walk of the install folders.
 - A toast appears when an agent request finishes, showing the answer or the stop reason.

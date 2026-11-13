@@ -125,6 +125,8 @@ pub fn run() {
             agent_commands::agent_tools,
             agent_commands::stop_agent,
             agent_commands::agent_decide,
+            agent_commands::agent_auto_approve,
+            agent_commands::agent_auto_approve_state,
             agent_commands::agent_reload_skills,
             agent_commands::agent_set_executor,
             agent_commands::agent_set_approval,

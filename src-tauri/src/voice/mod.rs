@@ -301,12 +301,18 @@ pub fn voice_hotkey_enable(
 ) -> Result<String, ГолосОшибка> {
     crate::auth::require_authenticated()?;
 
-    // Сохранённое сочетание важнее умолчания. Старое умолчание
-    // `Ctrl+Alt+M` заменяем на новое: иначе после обновления человек
-    // продолжал бы нажимать старую комбинацию, не понимая почему.
+    // Сохранённое сочетание важнее умолчания. Старые умолчания
+    // `Ctrl+Alt+M` и `Ctrl+G` заменяем на `Ctrl+H`: иначе после
+    // обновления человек продолжал бы нажимать старую комбинацию,
+    // не понимая почему.
     let сохранённая = devices::настройки().горячая_клавиша;
     let сочетание = match сохранённая {
-        Some(value) if !value.eq_ignore_ascii_case("Ctrl+Alt+M") => value,
+        Some(value)
+            if !value.eq_ignore_ascii_case("Ctrl+Alt+M")
+                && !value.eq_ignore_ascii_case("Ctrl+G") =>
+        {
+            value
+        }
         _ => hotkey::умолчание().to_string(),
     };
     let канал = hotkey::поставить_с(&сочетание).map_err(ошибка)?;

@@ -3496,6 +3496,8 @@ kbd.cap,
   position: relative;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
   margin-top: 12px;
@@ -3512,6 +3514,52 @@ kbd.cap,
   border-color: var(--cp-line);
   background: var(--cp-bg-2) !important;
   color: var(--cp-text) !important;
+}
+
+/* Галочка сессионного автоподтверждения рядом с «спросить». */
+.agent-auto-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--cp-line);
+  color: var(--cp-text-dim);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  cursor: pointer;
+  user-select: none;
+}
+
+.agent-auto-approve input {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  accent-color: var(--cp-neon-pink);
+}
+
+/* Общее правило `.onb-input input` делает из флажка большое поле:
+   здесь возвращаем ему настоящий размер. */
+.agent-panel .onb-input .agent-auto-approve input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.agent-auto-approve.is-on {
+  border-color: var(--cp-neon-pink);
+  color: var(--cp-neon-pink);
+  background: rgba(255, 0, 255, 0.06);
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.12);
+}
+
+.agent-auto-note {
+  margin: 6px 0 0;
+  padding-left: 2px;
+  font-size: 0.74rem;
 }
 
 .agent-input-hint {
